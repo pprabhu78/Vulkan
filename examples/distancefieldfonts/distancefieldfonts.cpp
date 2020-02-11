@@ -1,9 +1,9 @@
 /*
-* Vulkan Example - Font rendering using signed distance fields
+* Vulkan Example - Font rendering using multi-channel signed distance fields
 *
-* Font generated using https://github.com/libgdx/libgdx/wiki/Hiero
+* Font generated using https://github.com/Chlumsky/msdfgen
 *
-* Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
+* Copyright (C) 2016~2020 by Sascha Willems - www.saschawillems.de
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
@@ -25,8 +25,8 @@
 #include "vulkanexamplebase.h"
 #include "VulkanTexture.hpp"
 #include "VulkanBuffer.hpp"
+#include "json.hpp"
 
-#define VERTEX_BUFFER_BIND_ID 0
 #define ENABLE_VALIDATION false
 
 // Vertex layout for this example
@@ -35,8 +35,7 @@ struct Vertex {
 	float uv[2];
 };
 
-// AngelCode .fnt format structs and classes
-struct bmchar {
+struct FontChar {
 	uint32_t x, y;
 	uint32_t width;
 	uint32_t height;
@@ -48,7 +47,7 @@ struct bmchar {
 
 // Quick and dirty : complete ASCII table
 // Only chars present in the .fnt are filled with data!
-std::array<bmchar, 255> fontChars;
+std::array<FontChar, 255> fontChars;
 
 int32_t nextValuePair(std::stringstream *stream)
 {
@@ -63,12 +62,7 @@ int32_t nextValuePair(std::stringstream *stream)
 class VulkanExample : public VulkanExampleBase
 {
 public:
-	bool splitScreen = true;
-
-	struct {
-		vks::Texture2D fontSDF;
-		vks::Texture2D fontBitmap;
-	} textures;
+	vks::Texture2D fontTexture;
 
 	struct {
 		VkPipelineVertexInputStateCreateInfo inputState;
@@ -96,23 +90,18 @@ public:
 		float outline = true;
 	} uboFS;
 
-	struct {
-		VkPipeline sdf;
-		VkPipeline bitmap;
-	} pipelines;
-
-	struct {
-		VkDescriptorSet sdf;
-		VkDescriptorSet bitmap;
-	} descriptorSets;
-
 	VkPipelineLayout pipelineLayout;
+	VkPipeline pipeline;
 	VkDescriptorSetLayout descriptorSetLayout;
+	VkDescriptorSet descriptorSet;
 
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 	{
-		zoom = -2.0f;
 		title = "Distance field font rendering";
+		camera.type = Camera::CameraType::lookat;
+		camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+		camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
+		camera.setTranslation(glm::vec3(0.0f, 0.0f, -5.0f));
 		settings.overlay = true;
 	}
 
@@ -122,11 +111,9 @@ public:
 		// Note : Inherited destructor cleans up resources stored in base class
 
 		// Clean up texture resources
-		textures.fontSDF.destroy();
-		textures.fontBitmap.destroy();
+		fontTexture.destroy();
 
-		vkDestroyPipeline(device, pipelines.sdf, nullptr);
-		vkDestroyPipeline(device, pipelines.bitmap, nullptr);
+		vkDestroyPipeline(device, pipeline, nullptr);
 
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
@@ -138,77 +125,34 @@ public:
 		uniformBuffers.fs.destroy();
 	}
 
-	// Basic parser fpr AngelCode bitmap font format files
-	// See http://www.angelcode.com/products/bmfont/doc/file_format.html for details
-	void parsebmFont()
+	// Parse font description from .json file
+	void parseFontDescription(std::string filename)
 	{
-		std::string fileName = getAssetPath() + "font.fnt";
-
-#if defined(__ANDROID__)
-		// Font description file is stored inside the apk
-		// So we need to load it using the asset manager
-		AAsset* asset = AAssetManager_open(androidApp->activity->assetManager, fileName.c_str(), AASSET_MODE_STREAMING);
-		assert(asset);
-		size_t size = AAsset_getLength(asset);
-
-		assert(size > 0);
-
-		void *fileData = malloc(size);
-		AAsset_read(asset, fileData, size);
-		AAsset_close(asset);
-
-		std::stringbuf sbuf((const char*)fileData);
-		std::istream istream(&sbuf);
-#else
-		std::filebuf fileBuffer;
-		fileBuffer.open(fileName, std::ios::in);
-		std::istream istream(&fileBuffer);
-#endif
-
-		assert(istream.good());
-
-		while (!istream.eof())
+		std::ifstream is(filename);
+		if (!is.is_open())
 		{
-			std::string line;
-			std::stringstream lineStream;
-			std::getline(istream, line);
-			lineStream << line;
-
-			std::string info;
-			lineStream >> info;
-
-			if (info == "char")
-			{
-				// char id
-				uint32_t charid = nextValuePair(&lineStream);
-				// Char properties
-				fontChars[charid].x = nextValuePair(&lineStream);
-				fontChars[charid].y = nextValuePair(&lineStream);
-				fontChars[charid].width = nextValuePair(&lineStream);
-				fontChars[charid].height = nextValuePair(&lineStream);
-				fontChars[charid].xoffset = nextValuePair(&lineStream);
-				fontChars[charid].yoffset = nextValuePair(&lineStream);
-				fontChars[charid].xadvance = nextValuePair(&lineStream);
-				fontChars[charid].page = nextValuePair(&lineStream);
-			}
+			std::cerr << "Error: Could not open font definition file \"" << filename << "\"" << std::endl;
+			return;
 		}
-
+		nlohmann::json json;
+		is >> json;
+		is.close();
+		for (auto& charinfo : json["chars"]) {
+			FontChar& fontchar = fontChars[charinfo["id"]];
+			fontchar.x = charinfo["x"];
+			fontchar.y = charinfo["y"];
+			fontchar.width = charinfo["width"];
+			fontchar.height = charinfo["height"];
+			fontchar.xoffset = charinfo["xoffset"];
+			fontchar.yoffset = charinfo["yoffset"];
+			fontchar.xadvance = charinfo["xadvance"];
+			fontchar.page = charinfo["page"]; //@todo not used 
+		}
 	}
 
 	void loadAssets()
 	{
-		textures.fontSDF.loadFromFile(getAssetPath() + "textures/font_sdf_rgba.ktx", VK_FORMAT_R8G8B8A8_UNORM, vulkanDevice, queue);
-		textures.fontBitmap.loadFromFile(getAssetPath() + "textures/font_bitmap_rgba.ktx", VK_FORMAT_R8G8B8A8_UNORM, vulkanDevice, queue);
-	}
-
-	void reBuildCommandBuffers()
-	{
-		if (!checkCommandBuffers())
-		{
-			destroyCommandBuffers();
-			createCommandBuffers();
-		}
-		buildCommandBuffers();
+		fontTexture.loadFromFile(getAssetPath() + "textures/msdf_font.ktx", VK_FORMAT_R8G8B8A8_UNORM, vulkanDevice, queue);
 	}
 
 	void buildCommandBuffers()
@@ -216,7 +160,7 @@ public:
 		VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
 
 		VkClearValue clearValues[2];
-		clearValues[0].color = defaultClearColor;
+		clearValues[0].color = { { 0.4f, 0.4f, 0.4f, 1.0f } };;
 		clearValues[1].depthStencil = { 1.0f, 0 };
 
 		VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
@@ -236,7 +180,7 @@ public:
 
 			vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-			VkViewport viewport = vks::initializers::viewport((float)width, (splitScreen) ? (float)height / 2.0f : (float)height, 0.0f, 1.0f);
+			VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
 			vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
 
 			VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
@@ -244,22 +188,12 @@ public:
 
 			VkDeviceSize offsets[1] = { 0 };
 
-			// Signed distance field font
-			vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets.sdf, 0, NULL);
-			vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.sdf);
-			vkCmdBindVertexBuffers(drawCmdBuffers[i], VERTEX_BUFFER_BIND_ID, 1, &vertexBuffer.buffer, offsets);
+			// Render Text
+			vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
+			vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+			vkCmdBindVertexBuffers(drawCmdBuffers[i], 0, 1, &vertexBuffer.buffer, offsets);
 			vkCmdBindIndexBuffer(drawCmdBuffers[i], indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 			vkCmdDrawIndexed(drawCmdBuffers[i], indexCount, 1, 0, 0, 0);
-
-			// Linear filtered bitmap font
-			if (splitScreen)
-			{
-				viewport.y = (float)height / 2.0f;
-				vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-				vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets.bitmap, 0, NULL);
-				vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.bitmap);
-				vkCmdDrawIndexed(drawCmdBuffers[i], indexCount, 1, 0, 0, 0);
-			}
 
 			drawUI(drawCmdBuffers[i]);
 
@@ -276,17 +210,15 @@ public:
 		std::vector<uint32_t> indices;
 		uint32_t indexOffset = 0;
 
-		float w = textures.fontSDF.width;
+		float w = fontTexture.width;
+		float h = fontTexture.height;
 
 		float posx = 0.0f;
 		float posy = 0.0f;
 
 		for (uint32_t i = 0; i < text.size(); i++)
 		{
-			bmchar *charInfo = &fontChars[(int)text[i]];
-
-			if (charInfo->width == 0)
-				charInfo->width = 36;
+			FontChar *charInfo = &fontChars[(int)text[i]];
 
 			float charw = ((float)(charInfo->width) / 36.0f);
 			float dimx = 1.0f * charw;
@@ -296,8 +228,8 @@ public:
 
 			float us = charInfo->x / w;
 			float ue = (charInfo->x + charInfo->width) / w;
-			float ts = charInfo->y / w;
-			float te = (charInfo->y + charInfo->height) / w;
+			float ts = charInfo->y / h;
+			float te = (charInfo->y + charInfo->height) / h;
 
 			float xo = charInfo->xoffset / 36.0f;
 			float yo = charInfo->yoffset / 36.0f;
@@ -349,7 +281,7 @@ public:
 		vertices.bindingDescriptions.resize(1);
 		vertices.bindingDescriptions[0] =
 			vks::initializers::vertexInputBindingDescription(
-				VERTEX_BUFFER_BIND_ID, 
+				0, 
 				sizeof(Vertex), 
 				VK_VERTEX_INPUT_RATE_VERTEX);
 
@@ -359,14 +291,14 @@ public:
 		// Location 0 : Position
 		vertices.attributeDescriptions[0] =
 			vks::initializers::vertexInputAttributeDescription(
-				VERTEX_BUFFER_BIND_ID,
+				0,
 				0,
 				VK_FORMAT_R32G32B32_SFLOAT,
 				0);			
 		// Location 1 : Texture coordinates
 		vertices.attributeDescriptions[1] =
 			vks::initializers::vertexInputAttributeDescription(
-				VERTEX_BUFFER_BIND_ID,
+				0,
 				1,
 				VK_FORMAT_R32G32_SFLOAT,
 				sizeof(float) * 3);
@@ -434,69 +366,37 @@ public:
 
 	void setupDescriptorSet()
 	{
-		VkDescriptorSetAllocateInfo allocInfo = 
-			vks::initializers::descriptorSetAllocateInfo(
-				descriptorPool,
-				&descriptorSetLayout,
-				1);
+		VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
+		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet));
 
-		// Signed distance front descriptor set
-		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSets.sdf));
-
-		// Image descriptor for the color map texture
+		// Image descriptor for the multi-channel signed distance font texture
 		VkDescriptorImageInfo texDescriptor =
 			vks::initializers::descriptorImageInfo(
-				textures.fontSDF.sampler,
-				textures.fontSDF.view,
+				fontTexture.sampler,
+				fontTexture.view,
 				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		std::vector<VkWriteDescriptorSet> writeDescriptorSets =
 		{
 			// Binding 0 : Vertex shader uniform buffer
 			vks::initializers::writeDescriptorSet(
-			descriptorSets.sdf,
+			descriptorSet,
 				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 
 				0, 
 				&uniformBuffers.vs.descriptor),
 			// Binding 1 : Fragment shader texture sampler
 			vks::initializers::writeDescriptorSet(
-				descriptorSets.sdf,
+				descriptorSet,
 				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 
 				1, 
 				&texDescriptor),
 			// Binding 2 : Fragment shader uniform buffer
 			vks::initializers::writeDescriptorSet(
-				descriptorSets.sdf,
+				descriptorSet,
 				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 				2,
 				&uniformBuffers.fs.descriptor)
 		};
-
-		vkUpdateDescriptorSets(device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
-
-		// Default font rendering descriptor set
-		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSets.bitmap));
-
-		// Image descriptor for the color map texture
-		texDescriptor.sampler = textures.fontBitmap.sampler;
-		texDescriptor.imageView = textures.fontBitmap.view;
-
-		writeDescriptorSets =
-		{
-			// Binding 0 : Vertex shader uniform buffer
-			vks::initializers::writeDescriptorSet(
-				descriptorSets.bitmap,
-				VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-				0,
-				&uniformBuffers.vs.descriptor),
-			// Binding 1 : Fragment shader texture sampler
-			vks::initializers::writeDescriptorSet(
-				descriptorSets.bitmap,
-				VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-				1,
-				&texDescriptor)
-		};
-
 		vkUpdateDescriptorSets(device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
 	}
 
@@ -558,18 +458,8 @@ public:
 				dynamicStateEnables.size(),
 				0);
 
-		// Load shaders
-		std::array<VkPipelineShaderStageCreateInfo,2> shaderStages;
-
-		shaderStages[0] = loadShader(getAssetPath() + "shaders/distancefieldfonts/sdf.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-		shaderStages[1] = loadShader(getAssetPath() + "shaders/distancefieldfonts/sdf.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-
-		VkGraphicsPipelineCreateInfo pipelineCreateInfo =
-			vks::initializers::pipelineCreateInfo(
-				pipelineLayout,
-				renderPass,
-				0);
-
+		std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
+		VkGraphicsPipelineCreateInfo pipelineCreateInfo = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass, 0);
 		pipelineCreateInfo.pVertexInputState = &vertices.inputState;
 		pipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
 		pipelineCreateInfo.pRasterizationState = &rasterizationState;
@@ -581,12 +471,10 @@ public:
 		pipelineCreateInfo.stageCount = shaderStages.size();
 		pipelineCreateInfo.pStages = shaderStages.data();
 
-		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipelines.sdf));
-
-		// Default bitmap font rendering pipeline
-		shaderStages[0] = loadShader(getAssetPath() + "shaders/distancefieldfonts/bitmap.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-		shaderStages[1] = loadShader(getAssetPath() + "shaders/distancefieldfonts/bitmap.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipelines.bitmap));
+		// Multi-channel signed distance field font rendering pipeline
+		shaderStages[0] = loadShader(getAssetPath() + "shaders/distancefieldfonts/msdf.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+		shaderStages[1] = loadShader(getAssetPath() + "shaders/distancefieldfonts/msdf.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline));
 	}
 
 	// Prepare and initialize uniform buffer containing shader uniforms
@@ -616,46 +504,31 @@ public:
 
 	void updateUniformBuffers()
 	{
-		// Vertex shader
-		glm::mat4 viewMatrix = glm::mat4(1.0f);
-		uboVS.projection = glm::perspective(glm::radians(splitScreen ? 30.0f : 45.0f), (float)width / (float)(height * ((splitScreen) ? 0.5f : 1.0f)), 0.001f, 256.0f);
-		viewMatrix = glm::translate(viewMatrix, glm::vec3(0.0f, 0.0f, splitScreen ? zoom : zoom - 2.0f));
-
-		uboVS.model = glm::mat4(1.0f);
-		uboVS.model = viewMatrix * glm::translate(uboVS.model, cameraPos);
-		uboVS.model = glm::rotate(uboVS.model, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-		uboVS.model = glm::rotate(uboVS.model, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-		uboVS.model = glm::rotate(uboVS.model, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-
+		uboVS.projection = camera.matrices.perspective;
+		uboVS.model = camera.matrices.view;
 		memcpy(uniformBuffers.vs.mapped, &uboVS, sizeof(uboVS));
 	}
 
 	void updateFontSettings()
 	{
-		// Fragment shader
 		memcpy(uniformBuffers.fs.mapped, &uboFS, sizeof(uboFS));
 	}
 
 	void draw()
 	{
 		VulkanExampleBase::prepareFrame();
-
-		// Command buffer to be sumitted to the queue
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-
-		// Submit to queue
 		VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-
 		VulkanExampleBase::submitFrame();
 	}
 
 	void prepare()
 	{
 		VulkanExampleBase::prepare();
-		parsebmFont();
+		parseFontDescription(getAssetPath() + "msdf_font.json");
 		loadAssets();
-		generateText("Vulkan");
+		generateText("WICKED");
 		setupVertexDescriptions();
 		prepareUniformBuffers();
 		setupDescriptorSetLayout();
@@ -685,10 +558,6 @@ public:
 			if (overlay->checkBox("Outline", &outline)) {
 				uboFS.outline = outline ? 1.0f : 0.0f;
 				updateFontSettings();
-			}
-			if (overlay->checkBox("Splitscreen", &splitScreen)) {
-				buildCommandBuffers();
-				updateUniformBuffers();
 			}
 		}
 	}
