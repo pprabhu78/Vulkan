@@ -31,4 +31,16 @@ void main()
     const vec3 fgColor = vec3(1.0f);
     vec3 color = mix(bgColor, fgColor, opacity);
     outFragColor = vec4(color.rgb, alpha);
+
+    // White background
+    /*
+    opacity = 1.0f;
+    sigDist = median(smpl.r, smpl.g, smpl.b) - 0.5;
+    alpha = clamp(sigDist / fwidth(sigDist) + 0.5, 0.0, 1.0);
+    outFragColor = vec4(vec3(1.0f), 1.0f - alpha * opacity);
+    outFragColor.rgb = vec3(1.0f - alpha);
+    */
+//    if (outFragColor.a < 0.75) { 
+//        discard;
+//    }
 }

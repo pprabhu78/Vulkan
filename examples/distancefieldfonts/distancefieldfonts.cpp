@@ -36,12 +36,12 @@ struct Vertex {
 };
 
 struct FontChar {
-	uint32_t x, y;
-	uint32_t width;
-	uint32_t height;
-	int32_t xoffset;
-	int32_t yoffset;
-	int32_t xadvance;
+	float x, y;
+	float width;
+	float height;
+	float xoffset;
+	float yoffset;
+	float xadvance;
 	uint32_t page;
 };
 
@@ -49,19 +49,11 @@ struct FontChar {
 // Only chars present in the .fnt are filled with data!
 std::array<FontChar, 255> fontChars;
 
-int32_t nextValuePair(std::stringstream *stream)
-{
-	std::string pair;
-	*stream >> pair;
-	uint32_t spos = pair.find("=");
-	std::string value = pair.substr(spos + 1);
-	int32_t val = std::stoi(value);
-	return val;
-}
-
 class VulkanExample : public VulkanExampleBase
 {
 public:
+	bool useIndexBuffer = false;
+
 	vks::Texture2D fontTexture;
 
 	struct {
@@ -72,6 +64,7 @@ public:
 
 	vks::Buffer vertexBuffer;
 	vks::Buffer indexBuffer;
+	uint32_t vertexCount;
 	uint32_t indexCount;
 
 	struct {
@@ -150,11 +143,6 @@ public:
 		}
 	}
 
-	void loadAssets()
-	{
-		fontTexture.loadFromFile(getAssetPath() + "textures/msdf_font.ktx", VK_FORMAT_R8G8B8A8_UNORM, vulkanDevice, queue);
-	}
-
 	void buildCommandBuffers()
 	{
 		VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
@@ -192,8 +180,13 @@ public:
 			vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
 			vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 			vkCmdBindVertexBuffers(drawCmdBuffers[i], 0, 1, &vertexBuffer.buffer, offsets);
-			vkCmdBindIndexBuffer(drawCmdBuffers[i], indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-			vkCmdDrawIndexed(drawCmdBuffers[i], indexCount, 1, 0, 0, 0);
+			if (useIndexBuffer) {
+				vkCmdBindIndexBuffer(drawCmdBuffers[i], indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+				vkCmdDrawIndexed(drawCmdBuffers[i], indexCount, 1, 0, 0, 0);
+			}
+			else {
+				vkCmdDraw(drawCmdBuffers[i], vertexCount, 1, 0, 0);
+			}
 
 			drawUI(drawCmdBuffers[i]);
 
@@ -218,38 +211,56 @@ public:
 
 		for (uint32_t i = 0; i < text.size(); i++)
 		{
+			if (text[i] == '\n') {
+				posx = 0.0f;
+				posy += 1.0f * 36.0f;
+				continue;
+			}
+
+			const float factor = 36.0f / 36.0f;
+
 			FontChar *charInfo = &fontChars[(int)text[i]];
 
-			float charw = ((float)(charInfo->width) / 36.0f);
-			float dimx = 1.0f * charw;
-			float charh = ((float)(charInfo->height) / 36.0f);
-			float dimy = 1.0f * charh;
-			posy = 1.0f - charh;
+			float bw = (charInfo->x + charInfo->width);
+			float bh = (charInfo->y + charInfo->height);
 
-			float us = charInfo->x / w;
-			float ue = (charInfo->x + charInfo->width) / w;
-			float ts = charInfo->y / h;
-			float te = (charInfo->y + charInfo->height) / h;
+			float u0 = charInfo->x / (float)fontTexture.width;
+			float v1 = charInfo->y / (float)fontTexture.height;
+			float u1 = bw / (float)fontTexture.width;
+			float v0 = bh / (float)fontTexture.height;
 
-			float xo = charInfo->xoffset / 36.0f;
-			float yo = charInfo->yoffset / 36.0f;
+			float x = posx + charInfo->xoffset;
+			float y = posy + charInfo->yoffset;
+			float w = charInfo->width;
+			float h = charInfo->height;
 
-			vertices.push_back({ { posx + dimx + xo,  posy + dimy, 0.0f }, { ue, te } });
-			vertices.push_back({ { posx + xo,         posy + dimy, 0.0f }, { us, te } });
-			vertices.push_back({ { posx + xo,         posy,        0.0f }, { us, ts } });
-			vertices.push_back({ { posx + dimx + xo,  posy,        0.0f }, { ue, ts } });
+			if (useIndexBuffer) {
+				vertices.push_back({ { x,		y,		0.0f }, { u0, v1 } });
+				vertices.push_back({ { x,		y + h,	0.0f }, { u0, v0 } });
+				vertices.push_back({ { x + w,	y + h,	0.0f }, { u1, v0 } });
+				vertices.push_back({ { x + w,	y,		0.0f }, { u1, v1 } });
 
-			std::array<uint32_t, 6> letterIndices = { 0,1,2, 2,3,0 };
-			for (auto& index : letterIndices)
-			{
-				indices.push_back(indexOffset + index);
+				std::array<uint32_t, 6> letterIndices = { 0,1,2, 2,3,0 };
+				for (auto& index : letterIndices)
+				{
+					indices.push_back(indexOffset + index);
+				}
+				indexOffset += 4;
 			}
-			indexOffset += 4;
+			else {
+				vertices.push_back({ { x,		y,		0.0f }, { u0, v1 } });
+				vertices.push_back({ { x,		y + h,	0.0f }, { u0, v0 } });
+				vertices.push_back({ { x + w,	y + h,	0.0f }, { u1, v0 } });
+				vertices.push_back({ { x + w,	y + h,	0.0f }, { u1, v0 } });
+				vertices.push_back({ { x + w,	y,		0.0f }, { u1, v1 } });
+				vertices.push_back({ { x,		y,		0.0f }, { u0, v1 } });
+			}
 
-			float advance = ((float)(charInfo->xadvance) / 36.0f);
+			float advance = ((float)(charInfo->xadvance) / factor);
 			posx += advance;
 		}
 		indexCount = indices.size();
+		vertexCount = vertices.size();
 
 		// Center
 		for (auto& v : vertices)
@@ -267,12 +278,14 @@ public:
 			vertices.size() * sizeof(Vertex),
 			vertices.data()));
 
-		VK_CHECK_RESULT(vulkanDevice->createBuffer(
-			VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&indexBuffer,
-			indices.size() * sizeof(uint32_t),
-			indices.data()));
+		if (useIndexBuffer) {
+			VK_CHECK_RESULT(vulkanDevice->createBuffer(
+				VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				&indexBuffer,
+				indices.size() * sizeof(uint32_t),
+				indices.data()));
+		}
 	}
 
 	void setupVertexDescriptions()
@@ -526,9 +539,10 @@ public:
 	void prepare()
 	{
 		VulkanExampleBase::prepare();
-		parseFontDescription(getAssetPath() + "msdf_font.json");
-		loadAssets();
-		generateText("WICKED");
+		const std::string fontname = "Raleway-Bold";
+		parseFontDescription(getAssetPath() + fontname + "-msdf.json");
+		fontTexture.loadFromFile(getAssetPath() + fontname + ".ktx", VK_FORMAT_R8G8B8A8_UNORM, vulkanDevice, queue);
+		generateText("Vulkan");
 		setupVertexDescriptions();
 		prepareUniformBuffers();
 		setupDescriptorSetLayout();
