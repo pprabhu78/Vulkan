@@ -50,11 +50,11 @@ git submodule update
 ```
 
 ## <a name="Assets"></a> Assets
-Many examples require assets from the asset pack that is not part of this repository due to file size. A python script is included to download the asset pack that. Run
+Assets like models and textures are pulled from a submodule.
 
-    python download_assets.py
+If assets are missing (noted by a message from the sample), it's necessary to update that submodule fromm the root of the repository:
 
-from the root of the repository after cloning or see [this](data/README.md) for manual download.
+    git submodule update --remote --merge -- assets
 
 ## <a name="Building"></a> Building
 
