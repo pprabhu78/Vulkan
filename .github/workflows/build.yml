@@ -40,3 +40,8 @@ jobs:
         run: |
           cmake .
           cmake --build .
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: windows-binaries
+          path: Vulkan/Vulkan/bin/Debug
