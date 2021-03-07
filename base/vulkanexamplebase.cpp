@@ -227,6 +227,7 @@ void VulkanExampleBase::nextFrame()
 	}
 
 	render();
+	resized = false;
 	frameCounter++;
 	auto tEnd = std::chrono::high_resolution_clock::now();
 	auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
@@ -668,6 +669,19 @@ void VulkanExampleBase::prepareFrame()
 	}
 }
 
+void VulkanExampleBase::prepareFrame(VkSemaphore presentCompleteSemaphore)
+{
+	// Acquire the next image from the swap chain
+	VkResult result = swapChain.acquireNextImage(presentCompleteSemaphore, &currentBuffer);
+	// Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
+	if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) {
+		windowResize();
+	}
+	else {
+		VK_CHECK_RESULT(result);
+	}
+}
+
 void VulkanExampleBase::submitFrame()
 {
 	VkResult result = swapChain.queuePresent(queue, currentBuffer, semaphores.renderComplete);
@@ -681,6 +695,21 @@ void VulkanExampleBase::submitFrame()
 		}
 	}
 	VK_CHECK_RESULT(vkQueueWaitIdle(queue));
+}
+
+void VulkanExampleBase::submitFrame(VkSemaphore renderCompleteSemaphore)
+{
+	VkResult result = swapChain.queuePresent(queue, currentBuffer, renderCompleteSemaphore);
+	if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
+		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+			// Swap chain is no longer compatible with the surface and needs to be recreated
+			windowResize();
+			return;
+		}
+		else {
+			VK_CHECK_RESULT(result);
+		}
+	}
 }
 
 VulkanExampleBase::VulkanExampleBase(bool enableValidation)
@@ -2707,6 +2736,17 @@ void VulkanExampleBase::setupSwapChain()
 }
 
 void VulkanExampleBase::OnUpdateUIOverlay(vks::UIOverlay *overlay) {}
+
+void VulkanExampleBase::initFrameObjects(VulkanFrameObjects& frame)
+{
+	VkCommandBufferAllocateInfo cmdBufAllocateInfo = vks::initializers::commandBufferAllocateInfo(cmdPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
+	VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, &frame.commandBuffer));
+	VkFenceCreateInfo fenceCreateInfo = vks::initializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+	VK_CHECK_RESULT(vkCreateFence(device, &fenceCreateInfo, nullptr, &frame.renderCompleteFence));
+	VkSemaphoreCreateInfo semaphoreCreateInfo = vks::initializers::semaphoreCreateInfo();
+	VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &frame.presentCompleteSemaphore));
+	VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &frame.renderCompleteSemaphore));
+}
 
 // Command line argument parser class
 
