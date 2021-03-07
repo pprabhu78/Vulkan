@@ -15,8 +15,8 @@
 class VulkanExample : public VulkanRaytracingSample
 {
 public:
-	AccelerationStructure bottomLevelAS;
-	AccelerationStructure topLevelAS;
+	AccelerationStructure bottomLevelAS{};
+	AccelerationStructure topLevelAS{};
 
 	std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroups{};
 	struct ShaderBindingTables {
@@ -658,9 +658,9 @@ public:
 
 	virtual void render()
 	{
-		if (!prepared)
-			return;
-		draw();
+		if (prepared) {
+			draw();
+		}
 	}
 };
 
