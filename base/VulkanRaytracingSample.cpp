@@ -167,11 +167,68 @@ void VulkanRaytracingSample::createStorageImage(VkFormat format, VkExtent3D exte
 	vulkanDevice->flushCommandBuffer(cmdBuffer, queue);
 }
 
+void VulkanRaytracingSample::createStorageImage(StorageImage& image, VkFormat format, VkExtent3D extent)
+{
+	// Release ressources if image is to be recreated
+	if (image.image != VK_NULL_HANDLE) {
+		vkDestroyImageView(device, image.view, nullptr);
+		vkDestroyImage(device, image.image, nullptr);
+		vkFreeMemory(device, image.memory, nullptr);
+		image = {};
+	}
+
+	VkImageCreateInfo imageCI = vks::initializers::imageCreateInfo();
+	imageCI.imageType = VK_IMAGE_TYPE_2D;
+	imageCI.format = format;
+	imageCI.extent = extent;
+	imageCI.mipLevels = 1;
+	imageCI.arrayLayers = 1;
+	imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+	imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
+	imageCI.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
+	imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	VK_CHECK_RESULT(vkCreateImage(vulkanDevice->logicalDevice, &imageCI, nullptr, &image.image));
+
+	VkMemoryRequirements memReqs;
+	vkGetImageMemoryRequirements(vulkanDevice->logicalDevice, image.image, &memReqs);
+	VkMemoryAllocateInfo memoryAllocateInfo = vks::initializers::memoryAllocateInfo();
+	memoryAllocateInfo.allocationSize = memReqs.size;
+	memoryAllocateInfo.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	VK_CHECK_RESULT(vkAllocateMemory(vulkanDevice->logicalDevice, &memoryAllocateInfo, nullptr, &image.memory));
+	VK_CHECK_RESULT(vkBindImageMemory(vulkanDevice->logicalDevice, image.image, image.memory, 0));
+
+	VkImageViewCreateInfo colorImageView = vks::initializers::imageViewCreateInfo();
+	colorImageView.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	colorImageView.format = format;
+	colorImageView.subresourceRange = {};
+	colorImageView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	colorImageView.subresourceRange.baseMipLevel = 0;
+	colorImageView.subresourceRange.levelCount = 1;
+	colorImageView.subresourceRange.baseArrayLayer = 0;
+	colorImageView.subresourceRange.layerCount = 1;
+	colorImageView.image = image.image;
+	VK_CHECK_RESULT(vkCreateImageView(vulkanDevice->logicalDevice, &colorImageView, nullptr, &image.view));
+
+	VkCommandBuffer cmdBuffer = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+	vks::tools::setImageLayout(cmdBuffer, image.image,
+		VK_IMAGE_LAYOUT_UNDEFINED,
+		VK_IMAGE_LAYOUT_GENERAL,
+		{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+	vulkanDevice->flushCommandBuffer(cmdBuffer, queue);
+}
+
 void VulkanRaytracingSample::deleteStorageImage()
 {
 	vkDestroyImageView(vulkanDevice->logicalDevice, storageImage.view, nullptr);
 	vkDestroyImage(vulkanDevice->logicalDevice, storageImage.image, nullptr);
 	vkFreeMemory(vulkanDevice->logicalDevice, storageImage.memory, nullptr);
+}
+
+void VulkanRaytracingSample::deleteStorageImage(StorageImage &image)
+{
+	vkDestroyImageView(vulkanDevice->logicalDevice, image.view, nullptr);
+	vkDestroyImage(vulkanDevice->logicalDevice, image.image, nullptr);
+	vkFreeMemory(vulkanDevice->logicalDevice, image.memory, nullptr);
 }
 
 void VulkanRaytracingSample::prepare()

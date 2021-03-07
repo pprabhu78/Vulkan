@@ -74,7 +74,9 @@ public:
 	void deleteAccelerationStructure(AccelerationStructure& accelerationStructure);
 	uint64_t getBufferDeviceAddress(VkBuffer buffer);
 	void createStorageImage(VkFormat format, VkExtent3D extent);
+	void createStorageImage(StorageImage &image, VkFormat format, VkExtent3D extent);
 	void deleteStorageImage();
+	void deleteStorageImage(StorageImage& image);
 	VkStridedDeviceAddressRegionKHR getSbtEntryStridedDeviceAddressRegion(VkBuffer buffer, uint32_t handleCount);
 	void createShaderBindingTable(ShaderBindingTable& shaderBindingTable, uint32_t handleCount);
 
