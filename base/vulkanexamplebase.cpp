@@ -686,6 +686,9 @@ void VulkanExampleBase::submitFrame()
 
 void VulkanExampleBase::prepareFrame(VulkanFrameObjects& frame)
 {
+	// Ensure command buffer executoon has finished
+	VK_CHECK_RESULT(vkWaitForFences(device, 1, &frame.renderCompleteFence, VK_TRUE, UINT64_MAX));
+	VK_CHECK_RESULT(vkResetFences(device, 1, &frame.renderCompleteFence));
 	// Acquire the next image from the swap chain
 	VkResult result = swapChain.acquireNextImage(frame.presentCompleteSemaphore, &currentBuffer);
 	// Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)

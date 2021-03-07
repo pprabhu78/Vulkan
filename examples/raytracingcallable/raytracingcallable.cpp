@@ -572,9 +572,6 @@ public:
 		
 		VulkanExampleBase::prepareFrame(currentFrame);
 
-		VK_CHECK_RESULT(vkWaitForFences(device, 1, &currentFrame.renderCompleteFence, VK_TRUE, UINT64_MAX));
-		VK_CHECK_RESULT(vkResetFences(device, 1, &currentFrame.renderCompleteFence));
-
 		if (!paused || camera.updated) {
 			uniformData.projInverse = glm::inverse(camera.matrices.perspective);
 			uniformData.viewInverse = glm::inverse(camera.matrices.view);
