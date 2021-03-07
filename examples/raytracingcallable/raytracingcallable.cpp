@@ -30,8 +30,7 @@ public:
 		glm::mat4 viewInverse;
 		glm::mat4 projInverse;
 	} uniformData;
-	class FrameObjects : public VulkanFrameObjects {
-	public:
+	struct FrameObjects : public VulkanFrameObjects {
 		vks::Buffer ubo;
 		StorageImage storageImage;
 		VkDescriptorSet descriptorSet;
@@ -67,7 +66,6 @@ public:
 			vkDestroyPipeline(device, pipeline, nullptr);
 			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-			deleteStorageImage();
 			deleteAccelerationStructure(bottomLevelAS);
 			deleteAccelerationStructure(topLevelAS);
 			shaderBindingTables.raygen.destroy();
@@ -77,7 +75,11 @@ public:
 			vertexBuffer.destroy();
 			indexBuffer.destroy();
 			transformBuffer.destroy();
-			// @todo: destroy frame resources
+			for (FrameObjects& frame : frameObjects) {
+				deleteStorageImage(frame.storageImage);
+				frame.ubo.destroy();
+				destroyFrameObjects(frame);
+			}
 		}
 	}
 
@@ -531,7 +533,7 @@ public:
 		frameObjects.resize(swapChain.imageCount);
 		for (FrameObjects& frame : frameObjects) {
 			// Base objects
-			VulkanExampleBase::initFrameObjects(frame);
+			createFrameObjects(frame);
 			// Storage images for ray tracing output
 			createStorageImage(frame.storageImage, swapChain.colorFormat, { width, height, 1 });
 			// Uniform buffers
@@ -559,7 +561,7 @@ public:
 			for (FrameObjects& frame : frameObjects) {
 				// Recreate storage image
 				createStorageImage(frame.storageImage, swapChain.colorFormat, { width, height, 1 });
-				// Update descriptor
+				// Update descriptor using the storage image
 				VkDescriptorImageInfo storageImageDescriptor{ VK_NULL_HANDLE, frame.storageImage.view, VK_IMAGE_LAYOUT_GENERAL };
 				VkWriteDescriptorSet resultImageWrite = vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &storageImageDescriptor);
 				vkUpdateDescriptorSets(device, 1, &resultImageWrite, 0, VK_NULL_HANDLE);
@@ -568,7 +570,7 @@ public:
 
 		FrameObjects currentFrame = frameObjects[currentBuffer];
 		
-		VulkanExampleBase::prepareFrame(currentFrame.presentCompleteSemaphore);
+		VulkanExampleBase::prepareFrame(currentFrame);
 
 		VK_CHECK_RESULT(vkWaitForFences(device, 1, &currentFrame.renderCompleteFence, VK_TRUE, UINT64_MAX));
 		VK_CHECK_RESULT(vkResetFences(device, 1, &currentFrame.renderCompleteFence));
@@ -651,17 +653,7 @@ public:
 
 		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
 	
-		// Submit
-		submitInfo = vks::initializers::submitInfo();
-		submitInfo.pWaitDstStageMask = &submitPipelineStages;
-		submitInfo.waitSemaphoreCount = 1;
-		submitInfo.pWaitSemaphores = &currentFrame.presentCompleteSemaphore;
-		submitInfo.signalSemaphoreCount = 1;
-		submitInfo.pSignalSemaphores = &currentFrame.renderCompleteSemaphore;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &currentFrame.commandBuffer;
-		VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, currentFrame.renderCompleteFence));
-		VulkanExampleBase::submitFrame(currentFrame.renderCompleteSemaphore);
+		VulkanExampleBase::submitFrame(currentFrame);
 	}
 
 	virtual void render()

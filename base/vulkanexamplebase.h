@@ -92,9 +92,8 @@ public:
 	int32_t getValueAsInt(std::string name, int32_t defaultValue);
 };
 
-class VulkanFrameObjects
+struct VulkanFrameObjects
 {
-public:
 	VkCommandBuffer commandBuffer;
 	VkFence renderCompleteFence;
 	VkSemaphore renderCompleteSemaphore;
@@ -406,17 +405,17 @@ public:
 	/** @brief Presents the current image to the swap chain */
 	void submitFrame();
 
-	// @todo: Functions for proper sync and per-frame resources
-	void prepareFrame(VkSemaphore presentCompleteSemaphore);
-	void submitFrame(VkSemaphore renderCompleteSemaphore);
-
 	/** @brief (Virtual) Default image acquire + submission and command buffer submission function */
 	virtual void renderFrame();
 
 	/** @brief (Virtual) Called when the UI overlay is updating, can be used to add custom elements to the overlay */
 	virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay);
 
-	void initFrameObjects(VulkanFrameObjects& frame);
+	// @todo: Functions for proper sync and per-frame resources
+	void prepareFrame(VulkanFrameObjects& frame);
+	void submitFrame(VulkanFrameObjects& frame);
+	void createFrameObjects(VulkanFrameObjects& frame);
+	void destroyFrameObjects(VulkanFrameObjects& frame);
 };
 
 // OS specific macros for the example main entry points

@@ -669,19 +669,6 @@ void VulkanExampleBase::prepareFrame()
 	}
 }
 
-void VulkanExampleBase::prepareFrame(VkSemaphore presentCompleteSemaphore)
-{
-	// Acquire the next image from the swap chain
-	VkResult result = swapChain.acquireNextImage(presentCompleteSemaphore, &currentBuffer);
-	// Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
-	if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) {
-		windowResize();
-	}
-	else {
-		VK_CHECK_RESULT(result);
-	}
-}
-
 void VulkanExampleBase::submitFrame()
 {
 	VkResult result = swapChain.queuePresent(queue, currentBuffer, semaphores.renderComplete);
@@ -697,9 +684,34 @@ void VulkanExampleBase::submitFrame()
 	VK_CHECK_RESULT(vkQueueWaitIdle(queue));
 }
 
-void VulkanExampleBase::submitFrame(VkSemaphore renderCompleteSemaphore)
+void VulkanExampleBase::prepareFrame(VulkanFrameObjects& frame)
 {
-	VkResult result = swapChain.queuePresent(queue, currentBuffer, renderCompleteSemaphore);
+	// Acquire the next image from the swap chain
+	VkResult result = swapChain.acquireNextImage(frame.presentCompleteSemaphore, &currentBuffer);
+	// Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
+	if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) {
+		windowResize();
+	} else {
+		VK_CHECK_RESULT(result);
+	}
+}
+
+void VulkanExampleBase::submitFrame(VulkanFrameObjects& frame)
+{
+	// Submit command buffer to queue
+	VkPipelineStageFlags submitWaitStages = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	submitInfo = vks::initializers::submitInfo();
+	submitInfo.pWaitDstStageMask = &submitWaitStages;
+	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.pWaitSemaphores = &frame.presentCompleteSemaphore;
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = &frame.renderCompleteSemaphore;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &frame.commandBuffer;
+	VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, frame.renderCompleteFence));
+
+	// Present image to queue
+	VkResult result = swapChain.queuePresent(queue, currentBuffer, frame.renderCompleteSemaphore);
 	if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
 		if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 			// Swap chain is no longer compatible with the surface and needs to be recreated
@@ -710,6 +722,24 @@ void VulkanExampleBase::submitFrame(VkSemaphore renderCompleteSemaphore)
 			VK_CHECK_RESULT(result);
 		}
 	}
+}
+
+void VulkanExampleBase::createFrameObjects(VulkanFrameObjects& frame)
+{
+	VkCommandBufferAllocateInfo cmdBufAllocateInfo = vks::initializers::commandBufferAllocateInfo(cmdPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
+	VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, &frame.commandBuffer));
+	VkFenceCreateInfo fenceCreateInfo = vks::initializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+	VK_CHECK_RESULT(vkCreateFence(device, &fenceCreateInfo, nullptr, &frame.renderCompleteFence));
+	VkSemaphoreCreateInfo semaphoreCreateInfo = vks::initializers::semaphoreCreateInfo();
+	VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &frame.presentCompleteSemaphore));
+	VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &frame.renderCompleteSemaphore));
+}
+
+void VulkanExampleBase::destroyFrameObjects(VulkanFrameObjects& frame)
+{
+	vkDestroyFence(device, frame.renderCompleteFence, nullptr);
+	vkDestroySemaphore(device, frame.presentCompleteSemaphore, nullptr);
+	vkDestroySemaphore(device, frame.renderCompleteSemaphore, nullptr);
 }
 
 VulkanExampleBase::VulkanExampleBase(bool enableValidation)
@@ -2736,17 +2766,6 @@ void VulkanExampleBase::setupSwapChain()
 }
 
 void VulkanExampleBase::OnUpdateUIOverlay(vks::UIOverlay *overlay) {}
-
-void VulkanExampleBase::initFrameObjects(VulkanFrameObjects& frame)
-{
-	VkCommandBufferAllocateInfo cmdBufAllocateInfo = vks::initializers::commandBufferAllocateInfo(cmdPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
-	VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, &frame.commandBuffer));
-	VkFenceCreateInfo fenceCreateInfo = vks::initializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-	VK_CHECK_RESULT(vkCreateFence(device, &fenceCreateInfo, nullptr, &frame.renderCompleteFence));
-	VkSemaphoreCreateInfo semaphoreCreateInfo = vks::initializers::semaphoreCreateInfo();
-	VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &frame.presentCompleteSemaphore));
-	VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &frame.renderCompleteSemaphore));
-}
 
 // Command line argument parser class
 
