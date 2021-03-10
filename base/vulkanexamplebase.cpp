@@ -1,7 +1,7 @@
 /*
 * Vulkan Example base class
 *
-* Copyright (C) by Sascha Willems - www.saschawillems.de
+* Copyright (C) 2016-2021 by Sascha Willems - www.saschawillems.de
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
@@ -727,7 +727,7 @@ void VulkanExampleBase::submitFrame(VulkanFrameObjects& frame)
 	}
 }
 
-void VulkanExampleBase::createFrameObjects(VulkanFrameObjects& frame)
+void VulkanExampleBase::createBaseFrameObjects(VulkanFrameObjects& frame)
 {
 	VkCommandBufferAllocateInfo cmdBufAllocateInfo = vks::initializers::commandBufferAllocateInfo(cmdPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1);
 	VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, &frame.commandBuffer));
@@ -738,7 +738,7 @@ void VulkanExampleBase::createFrameObjects(VulkanFrameObjects& frame)
 	VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &frame.renderCompleteSemaphore));
 }
 
-void VulkanExampleBase::destroyFrameObjects(VulkanFrameObjects& frame)
+void VulkanExampleBase::destroyBaseFrameObjects(VulkanFrameObjects& frame)
 {
 	vkDestroyFence(device, frame.renderCompleteFence, nullptr);
 	vkDestroySemaphore(device, frame.presentCompleteSemaphore, nullptr);

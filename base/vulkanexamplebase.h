@@ -1,7 +1,7 @@
 /*
 * Vulkan Example base class
 *
-* Copyright (C) by Sascha Willems - www.saschawillems.de
+* Copyright (C) 2016-2021 by Sascha Willems - www.saschawillems.de
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
@@ -414,8 +414,8 @@ public:
 	// @todo: Functions for proper sync and per-frame resources
 	void prepareFrame(VulkanFrameObjects& frame);
 	void submitFrame(VulkanFrameObjects& frame);
-	void createFrameObjects(VulkanFrameObjects& frame);
-	void destroyFrameObjects(VulkanFrameObjects& frame);
+	void createBaseFrameObjects(VulkanFrameObjects& frame);
+	void destroyBaseFrameObjects(VulkanFrameObjects& frame);
 };
 
 // OS specific macros for the example main entry points
