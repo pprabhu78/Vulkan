@@ -727,6 +727,20 @@ void VulkanExampleBase::submitFrame(VulkanFrameObjects& frame)
 	}
 }
 
+uint32_t VulkanExampleBase::getFrameCount()
+{
+	return renderAhead;
+}
+
+uint32_t VulkanExampleBase::getNextFrameIndex()
+{
+	frameIndex++;
+	if (frameIndex >= renderAhead) {
+		frameIndex = 0;
+	}
+	return frameIndex;
+}
+
 const VkRect2D VulkanExampleBase::getRenderArea()
 {
 	VkRect2D renderArea{};

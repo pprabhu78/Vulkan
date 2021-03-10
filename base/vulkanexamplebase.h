@@ -182,6 +182,10 @@ protected:
 		VkSemaphore renderComplete;
 	} semaphores;
 	std::vector<VkFence> waitFences;
+
+	// @todo
+	uint32_t frameIndex = 0;
+	uint32_t renderAhead = 2;
 public:
 	bool prepared = false;
 	bool resized = false;
@@ -412,9 +416,12 @@ public:
 	/** @brief (Virtual) Called when the UI overlay is updating, can be used to add custom elements to the overlay */
 	virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay);
 
-	// @todo: Functions for proper sync and per-frame resources
+	// @todo: Functions for reworked proper sync and per-frame resources
 	void prepareFrame(VulkanFrameObjects& frame);
 	void submitFrame(VulkanFrameObjects& frame);
+	uint32_t getFrameCount();
+	uint32_t getNextFrameIndex();
+
 	void createBaseFrameObjects(VulkanFrameObjects& frame);
 	void destroyBaseFrameObjects(VulkanFrameObjects& frame);
 	
