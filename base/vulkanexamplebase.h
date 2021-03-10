@@ -210,7 +210,8 @@ public:
 		/** @brief Enable UI overlay */
 		bool overlay = false;
 	} settings;
-
+	
+	VkClearValue defaultClearValues[2] = { { 0.0f, 0.0f, 0.2f, 1.0f }, { 1.0f, 0 } };
 	VkClearColorValue defaultClearColor = { { 0.025f, 0.025f, 0.025f, 1.0f } };
 
 	static std::vector<const char*> args;
@@ -416,6 +417,11 @@ public:
 	void submitFrame(VulkanFrameObjects& frame);
 	void createBaseFrameObjects(VulkanFrameObjects& frame);
 	void destroyBaseFrameObjects(VulkanFrameObjects& frame);
+	
+	const VkRect2D getRenderArea();
+	const VkViewport getViewport();
+	const VkRenderPassBeginInfo getRenderPassBeginInfo(VkRenderPass renderPass, VkClearValue * clearValues, uint32_t clearValueCount = 2);
+	const VkCommandBufferBeginInfo getCommandBufferBeginInfo(VkCommandBufferUsageFlags flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 };
 
 // OS specific macros for the example main entry points
