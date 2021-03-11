@@ -756,14 +756,14 @@ uint32_t VulkanExampleBase::getCurrentFrameIndex()
 
 const VkRect2D VulkanExampleBase::getRenderArea()
 {
-	renderArea = {};
+	VkRect2D renderArea = {};
 	renderArea.extent = { width, height };
 	return renderArea;
 }
 
 const VkViewport VulkanExampleBase::getViewport()
 {
-	viewport = {};
+	VkViewport viewport = {};
 	viewport.width = (float)width;
 	viewport.height = (float)height;
 	viewport.minDepth = 0.0f;
@@ -781,7 +781,7 @@ const VkCommandBufferBeginInfo VulkanExampleBase::getCommandBufferBeginInfo(VkCo
 
 const VkRenderPassBeginInfo VulkanExampleBase::getRenderPassBeginInfo(VkRenderPass renderPass, VkClearValue* clearValues, uint32_t clearValueCount)
 {
-	renderPassBeginInfo = {};
+	VkRenderPassBeginInfo renderPassBeginInfo = {};
 	renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 	renderPassBeginInfo.renderPass = renderPass;
 	renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer];

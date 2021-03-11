@@ -261,7 +261,7 @@ public:
 
 	virtual void render()
 	{
-		FrameObjects currentFrame = frameObjects[getNextFrameIndex()];
+		FrameObjects currentFrame = frameObjects[getCurrentFrameIndex()];
 
 		VulkanExampleBase::prepareFrame(currentFrame);
 
@@ -288,12 +288,16 @@ public:
 		// Build the command buffer
 		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
 		const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
+		const VkRect2D renderArea = getRenderArea();
+		const VkViewport viewport = getViewport();
+		const VkRenderPassBeginInfo renderPassBeginInfo = getRenderPassBeginInfo(renderPass, defaultClearValues);
 		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
 		// Reset the timestamp query pool
 		vkCmdResetQueryPool(commandBuffer, queryPool, 0, static_cast<uint32_t>(pipelineStats.size()));
-		vkCmdBeginRenderPass(commandBuffer, &getRenderPassBeginInfo(renderPass, defaultClearValues), VK_SUBPASS_CONTENTS_INLINE);
-		vkCmdSetViewport(commandBuffer, 0, 1, &getViewport());
-		vkCmdSetScissor(commandBuffer, 0, 1, &getRenderArea());
+
+		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
 
 		// Start capture of pipeline statistics
 		vkCmdBeginQuery(commandBuffer, queryPool, 0, 0);
