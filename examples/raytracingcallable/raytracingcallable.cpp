@@ -581,7 +581,8 @@ public:
 		// Build the command buffer
 		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
 		const VkImage swapChainImage = swapChain.currentImage();
-		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &getCommandBufferBeginInfo()));
+		const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
+		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
 
 		/*
 			Dispatch the ray tracing commands

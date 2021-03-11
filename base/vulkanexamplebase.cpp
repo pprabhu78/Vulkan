@@ -773,7 +773,7 @@ const VkViewport VulkanExampleBase::getViewport()
 
 const VkCommandBufferBeginInfo VulkanExampleBase::getCommandBufferBeginInfo(VkCommandBufferUsageFlags flags)
 {
-	commandBufferBeginInfo = {};
+	VkCommandBufferBeginInfo commandBufferBeginInfo = {};
 	commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	commandBufferBeginInfo.flags = flags;
 	return commandBufferBeginInfo;

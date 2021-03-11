@@ -287,7 +287,8 @@ public:
 
 		// Build the command buffer
 		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
-		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &getCommandBufferBeginInfo()));
+		const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
+		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
 		// Reset the timestamp query pool
 		vkCmdResetQueryPool(commandBuffer, queryPool, 0, static_cast<uint32_t>(pipelineStats.size()));
 		vkCmdBeginRenderPass(commandBuffer, &getRenderPassBeginInfo(renderPass, defaultClearValues), VK_SUBPASS_CONTENTS_INLINE);

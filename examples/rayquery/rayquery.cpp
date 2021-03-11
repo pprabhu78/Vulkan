@@ -417,7 +417,8 @@ public:
 
 		// Build the command buffer
 		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
-		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &getCommandBufferBeginInfo()));
+		const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
+		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
 		vkCmdBeginRenderPass(commandBuffer, &getRenderPassBeginInfo(renderPass, defaultClearValues), VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdSetViewport(commandBuffer, 0, 1, &getViewport());
 		vkCmdSetScissor(commandBuffer, 0, 1, &getRenderArea());

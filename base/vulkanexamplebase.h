@@ -123,7 +123,6 @@ private:
 	// @todo
 	VkRect2D renderArea{};
 	VkViewport viewport{};
-	VkCommandBufferBeginInfo commandBufferBeginInfo{};
 	VkRenderPassBeginInfo renderPassBeginInfo{};
 protected:
 	// Returns the path to the root of the glsl or hlsl shader directory.
