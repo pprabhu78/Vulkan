@@ -120,6 +120,11 @@ private:
 	void createCommandBuffers();
 	void destroyCommandBuffers();
 	std::string shaderDir = "glsl";
+	// @todo
+	VkRect2D renderArea{};
+	VkViewport viewport{};
+	VkCommandBufferBeginInfo commandBufferBeginInfo{};
+	VkRenderPassBeginInfo renderPassBeginInfo{};
 protected:
 	// Returns the path to the root of the glsl or hlsl shader directory.
 	std::string getShadersPath() const;
