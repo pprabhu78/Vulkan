@@ -413,7 +413,9 @@ void VulkanExampleBase::renderLoop()
 			viewUpdated = false;
 			viewChanged();
 		}
-		render();
+		if (prepared) {
+			render();
+		}
 		frameCounter++;
 		auto tEnd = std::chrono::high_resolution_clock::now();
 		auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
@@ -455,7 +457,9 @@ void VulkanExampleBase::renderLoop()
 		{
 			handleEvent(&event);
 		}
-		render();
+		if (prepared) {
+			render();
+		}
 		frameCounter++;
 		auto tEnd = std::chrono::high_resolution_clock::now();
 		auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
@@ -501,7 +505,9 @@ void VulkanExampleBase::renderLoop()
 		wl_display_read_events(display);
 		wl_display_dispatch_pending(display);
 
-		render();
+		if (prepared) {
+			render();
+		}
 		frameCounter++;
 		auto tEnd = std::chrono::high_resolution_clock::now();
 		auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
@@ -550,7 +556,9 @@ void VulkanExampleBase::renderLoop()
 			handleEvent(event);
 			free(event);
 		}
-		render();
+		if (prepared) {
+			render();
+		}
 		frameCounter++;
 		auto tEnd = std::chrono::high_resolution_clock::now();
 		auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
@@ -691,6 +699,8 @@ void VulkanExampleBase::prepareFrame(VulkanFrameObjects& frame)
 	VK_CHECK_RESULT(vkResetFences(device, 1, &frame.renderCompleteFence));
 	// Acquire the next image from the swap chain
 	VkResult result = swapChain.acquireNextImage(frame.presentCompleteSemaphore, &currentBuffer);
+	// @todo: rework after removing currentBuffer
+	swapChain.currentImageIndex = currentBuffer;
 	// Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
 	if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) {
 		windowResize();
@@ -725,6 +735,11 @@ void VulkanExampleBase::submitFrame(VulkanFrameObjects& frame)
 			VK_CHECK_RESULT(result);
 		}
 	}
+
+	frameIndex++;
+	if (frameIndex >= renderAhead) {
+		frameIndex = 0;
+	}
 }
 
 uint32_t VulkanExampleBase::getFrameCount()
@@ -732,12 +747,8 @@ uint32_t VulkanExampleBase::getFrameCount()
 	return renderAhead;
 }
 
-uint32_t VulkanExampleBase::getNextFrameIndex()
+uint32_t VulkanExampleBase::getCurrentFrameIndex()
 {
-	frameIndex++;
-	if (frameIndex >= renderAhead) {
-		frameIndex = 0;
-	}
 	return frameIndex;
 }
 

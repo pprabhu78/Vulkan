@@ -435,6 +435,10 @@ VkResult VulkanSwapChain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSem
 	return fpQueuePresentKHR(queue, &presentInfo);
 }
 
+VkImage VulkanSwapChain::currentImage()
+{
+	return images[currentImageIndex];
+}
 
 /**
 * Destroy and free Vulkan resources used for the swapchain

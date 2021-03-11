@@ -106,6 +106,11 @@ public:
 		}
 	}
 
+	void setType(Camera::CameraType type)
+	{
+		this->type = type;
+	}
+
 	void setPosition(glm::vec3 position)
 	{
 		this->position = position;

@@ -53,6 +53,7 @@ public:
 	std::vector<VkImage> images;
 	std::vector<SwapChainBuffer> buffers;
 	uint32_t queueNodeIndex = UINT32_MAX;
+	uint32_t currentImageIndex = 0;
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 	void initSurface(void* platformHandle, void* platformWindow);
@@ -74,5 +75,6 @@ public:
 	void create(uint32_t* width, uint32_t* height, bool vsync = false);
 	VkResult acquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex);
 	VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore = VK_NULL_HANDLE);
+	VkImage currentImage();
 	void cleanup();
 };

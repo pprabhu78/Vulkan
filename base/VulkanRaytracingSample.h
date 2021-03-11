@@ -1,7 +1,7 @@
 /*
 * Extended sample base class for ray tracing based samples
 *
-* Copyright (C) 2020 by Sascha Willems - www.saschawillems.de
+* Copyright (C) 2020-2021 by Sascha Willems - www.saschawillems.de
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
@@ -55,11 +55,13 @@ public:
 
 	// Holds information for a storage image that the ray tracing shaders output to
 	struct StorageImage {
+		VkDevice device = VK_NULL_HANDLE;
 		VkDeviceMemory memory = VK_NULL_HANDLE;
 		VkImage image = VK_NULL_HANDLE;
 		VkImageView view = VK_NULL_HANDLE;
-		VkFormat format;
-	} storageImage;
+		VkFormat format = VK_FORMAT_UNDEFINED;
+		void destroy();
+	};
 
 	// Extends the buffer class and holds information for a shader binding table
 	class ShaderBindingTable : public vks::Buffer {
@@ -73,9 +75,7 @@ public:
 	void createAccelerationStructure(AccelerationStructure& accelerationStructure, VkAccelerationStructureTypeKHR type, VkAccelerationStructureBuildSizesInfoKHR buildSizeInfo);
 	void deleteAccelerationStructure(AccelerationStructure& accelerationStructure);
 	uint64_t getBufferDeviceAddress(VkBuffer buffer);
-	void createStorageImage(VkFormat format, VkExtent3D extent);
 	void createStorageImage(StorageImage &image, VkFormat format, VkExtent3D extent);
-	void deleteStorageImage();
 	void deleteStorageImage(StorageImage& image);
 	VkStridedDeviceAddressRegionKHR getSbtEntryStridedDeviceAddressRegion(VkBuffer buffer, uint32_t handleCount);
 	void createShaderBindingTable(ShaderBindingTable& shaderBindingTable, uint32_t handleCount);

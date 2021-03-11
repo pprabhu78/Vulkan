@@ -1,7 +1,7 @@
 /*
 * Vulkan Example - Using ray queries for hardware accelerated ray tracing queries in a fragment shader
 *
-* Copyright (C) 2020 by Sascha Willems - www.saschawillems.de
+* Copyright (C) 2020-2021 by Sascha Willems - www.saschawillems.de
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
@@ -15,22 +15,23 @@
 class VulkanExample : public VulkanRaytracingSample
 {
 public:
-	glm::vec3 lightPos = glm::vec3();
-
 	struct UniformData {
 		glm::mat4 projection;
 		glm::mat4 view;
 		glm::mat4 model;
 		glm::vec3 lightPos;
-	} uniformData;
-	vks::Buffer ubo;
+	};
+
+	struct FrameObjects : public VulkanFrameObjects {
+		vks::Buffer ubo;
+		VkDescriptorSet descriptorSet;
+	};
+	std::vector<FrameObjects> frameObjects;
 
 	vkglTF::Model scene;
 
 	VkPipeline pipeline;
 	VkPipelineLayout pipelineLayout;
-
-	VkDescriptorSet descriptorSet;
 	VkDescriptorSetLayout descriptorSetLayout;
 
 	VulkanRaytracingSample::AccelerationStructure bottomLevelAS{};
@@ -41,11 +42,11 @@ public:
 	VulkanExample() : VulkanRaytracingSample()
 	{
 		title = "Ray queries for ray traced shadows";
-		camera.type = Camera::CameraType::lookat;
-		timerSpeed *= 0.25f;
+		camera.setType(Camera::CameraType::lookat);
 		camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
 		camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
 		camera.setTranslation(glm::vec3(0.0f, 3.0f, -10.0f));
+		timerSpeed *= 0.25f;
 		settings.overlay = true;
 		enableExtensions();
 		enabledDeviceExtensions.push_back(VK_KHR_RAY_QUERY_EXTENSION_NAME);
@@ -56,9 +57,12 @@ public:
 		vkDestroyPipeline(device, pipeline, nullptr);
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-		ubo.destroy();
 		deleteAccelerationStructure(bottomLevelAS);
 		deleteAccelerationStructure(topLevelAS);
+		for (FrameObjects& frame : frameObjects) {
+			frame.ubo.destroy();
+			destroyBaseFrameObjects(frame);
+		}
 	}
 
 	/*
@@ -251,74 +255,11 @@ public:
 		instancesBuffer.destroy();
 	}
 
-	void buildCommandBuffers()
-	{
-		VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-
-		VkClearValue clearValues[2];
-		VkViewport viewport;
-		VkRect2D scissor;
-
-		for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
-		{
-			VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
-
-			/*
-				Note: Explicit synchronization is not required between the render pass, as this is done implicit via sub pass dependencies
-			*/
-
-			/*
-				Second pass: Scene rendering with applied shadow map
-			*/
-
-			clearValues[0].color = { { 0.0f, 0.0f, 0.2f, 1.0f } };;
-			clearValues[1].depthStencil = { 1.0f, 0 };
-
-			VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
-			renderPassBeginInfo.renderPass = renderPass;
-			renderPassBeginInfo.framebuffer = frameBuffers[i];
-			renderPassBeginInfo.renderArea.extent.width = width;
-			renderPassBeginInfo.renderArea.extent.height = height;
-			renderPassBeginInfo.clearValueCount = 2;
-			renderPassBeginInfo.pClearValues = clearValues;
-
-			vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-			viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-			vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-
-			scissor = vks::initializers::rect2D(width, height, 0, 0);
-			vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
-
-			// 3D scene
-			vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-			vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-			scene.draw(drawCmdBuffers[i]);
-
-			drawUI(drawCmdBuffers[i]);
-
-			vkCmdEndRenderPass(drawCmdBuffers[i]);
-
-			VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
-		}
-	}
-
 	void loadAssets()
 	{
 		vkglTF::memoryPropertyFlags = VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
 		const uint32_t glTFLoadingFlags = vkglTF::FileLoadingFlags::PreTransformVertices | vkglTF::FileLoadingFlags::PreMultiplyVertexColors | vkglTF::FileLoadingFlags::FlipY;
 		scene.loadFromFile(getAssetPath() + "models/vulkanscene_shadow.gltf", vulkanDevice, queue, glTFLoadingFlags);
-	}
-
-	void setupDescriptorPool()
-	{
-		std::vector<VkDescriptorPoolSize> poolSizes = {
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3),
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3),
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 3)
-		};
-		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, 3);
-		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
 	}
 
 	void setupDescriptorSetLayout()
@@ -338,37 +279,43 @@ public:
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout));
 	}
 
-	void setupDescriptorSets()
+	void createDescriptorSets()
 	{
-		std::vector<VkWriteDescriptorSet> writeDescriptorSets;
-
-		// Debug display
-		VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
-
-		vkUpdateDescriptorSets(device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, nullptr);
-
-		// Scene rendering with shadow map applied
-		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet));
-		writeDescriptorSets = {
-			// Binding 0 : Vertex shader uniform buffer
-			vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &ubo.descriptor)
+		std::vector<VkDescriptorPoolSize> poolSizes = {
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 * getFrameCount()),
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 * getFrameCount()),
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 3 * getFrameCount())
 		};
+		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, 3 * getFrameCount());
+		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
 
-		VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = vks::initializers::writeDescriptorSetAccelerationStructureKHR();
-		descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
-		descriptorAccelerationStructureInfo.pAccelerationStructures = &topLevelAS.handle;
+		for (FrameObjects& frame : frameObjects) {
+			std::vector<VkWriteDescriptorSet> writeDescriptorSets;
+			VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
 
-		VkWriteDescriptorSet accelerationStructureWrite{};
-		accelerationStructureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		// The specialized acceleration structure descriptor has to be chained
-		accelerationStructureWrite.pNext = &descriptorAccelerationStructureInfo;
-		accelerationStructureWrite.dstSet = descriptorSet;
-		accelerationStructureWrite.dstBinding = 2;
-		accelerationStructureWrite.descriptorCount = 1;
-		accelerationStructureWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+			// Scene rendering with shadow map applied
+			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &frame.descriptorSet));
+			writeDescriptorSets = {
+				// Binding 0 : Vertex shader uniform buffer
+				vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.ubo.descriptor)
+			};
 
-		writeDescriptorSets.push_back(accelerationStructureWrite);
-		vkUpdateDescriptorSets(device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, nullptr);
+			VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = vks::initializers::writeDescriptorSetAccelerationStructureKHR();
+			descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
+			descriptorAccelerationStructureInfo.pAccelerationStructures = &topLevelAS.handle;
+
+			VkWriteDescriptorSet accelerationStructureWrite{};
+			accelerationStructureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			// The specialized acceleration structure descriptor has to be chained
+			accelerationStructureWrite.pNext = &descriptorAccelerationStructureInfo;
+			accelerationStructureWrite.dstSet = frame.descriptorSet;
+			accelerationStructureWrite.dstBinding = 2;
+			accelerationStructureWrite.descriptorCount = 1;
+			accelerationStructureWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+
+			writeDescriptorSets.push_back(accelerationStructureWrite);
+			vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+		}
 	}
 
 	void preparePipelines()
@@ -381,7 +328,7 @@ public:
 		VkPipelineViewportStateCreateInfo viewportStateCI = vks::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
 		VkPipelineMultisampleStateCreateInfo multisampleStateCI = vks::initializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
 		std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-		VkPipelineDynamicStateCreateInfo dynamicStateCI = vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables.data(), dynamicStateEnables.size(), 0);
+		VkPipelineDynamicStateCreateInfo dynamicStateCI = vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 		std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
 
 		VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass, 0);
@@ -401,41 +348,6 @@ public:
 		shaderStages[0] = loadShader(getShadersPath() + "rayquery/scene.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		shaderStages[1] = loadShader(getShadersPath() + "rayquery/scene.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipeline));
-	}
-
-
-	// Prepare and initialize uniform buffer containing shader uniforms
-	void prepareUniformBuffers()
-	{
-		// Scene vertex shader uniform buffer block
-		VK_CHECK_RESULT(vulkanDevice->createBuffer(
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&ubo,
-			sizeof(UniformData)));
-
-		// Map persistent
-		VK_CHECK_RESULT(ubo.map());
-
-		updateLight();
-		updateUniformBuffers();
-	}
-
-	void updateLight()
-	{
-		// Animate the light source
-		lightPos.x = cos(glm::radians(timer * 360.0f)) * 40.0f;
-		lightPos.y = -50.0f + sin(glm::radians(timer * 360.0f)) * 20.0f;
-		lightPos.z = 25.0f + sin(glm::radians(timer * 360.0f)) * 5.0f;
-	}
-
-	void updateUniformBuffers()
-	{
-		uniformData.projection = camera.matrices.perspective;
-		uniformData.view = camera.matrices.view;
-		uniformData.model = glm::mat4(1.0f);
-		uniformData.lightPos = lightPos;
-		memcpy(ubo.mapped, &uniformData, sizeof(UniformData));
 	}
 
 	void getEnabledFeatures()
@@ -459,46 +371,66 @@ public:
 		deviceCreatepNextChain = &enabledRayQueryFeatures;
 	}
 
-	void draw()
-	{
-		VulkanExampleBase::prepareFrame();
-
-		// Command buffer to be submitted to the queue
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-
-		// Submit to queue
-		VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-		VulkanExampleBase::submitFrame();
-	}
-
 	void prepare()
 	{
 		VulkanRaytracingSample::prepare();
+
+		// Prepare per-frame ressources
+		frameObjects.resize(getFrameCount());
+		for (FrameObjects& frame : frameObjects) {
+			createBaseFrameObjects(frame);
+			// Uniform buffers
+			VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.ubo, sizeof(UniformData)));
+			VK_CHECK_RESULT(frame.ubo.map());
+		}
+
 		loadAssets();
-		prepareUniformBuffers();
-		setupDescriptorSetLayout();
-		preparePipelines();
+
+		// Create the acceleration structures used to render the ray traced scene
 		createBottomLevelAccelerationStructure();
 		createTopLevelAccelerationStructure();
-		setupDescriptorPool();
-		setupDescriptorSets();
-		buildCommandBuffers();
+
+		setupDescriptorSetLayout();
+		preparePipelines();
+		createDescriptorSets();
 		prepared = true;
 	}
 
 	virtual void render()
 	{
-		if (!prepared)
-			return;
-		draw();
-		if (!paused || camera.updated)
-		{
-			updateLight();
-			updateUniformBuffers();
+		FrameObjects currentFrame = frameObjects[getCurrentFrameIndex()];
+
+		VulkanExampleBase::prepareFrame(currentFrame);
+
+		// Update uniform-buffers for the next frame
+		if (!paused || camera.updated) {
+			UniformData uniformData;
+			uniformData.projection = camera.matrices.perspective;
+			uniformData.view = camera.matrices.view;
+			uniformData.model = glm::mat4(1.0f);
+			// Animate the light source
+			uniformData.lightPos.x = cos(glm::radians(timer * 360.0f)) * 40.0f;
+			uniformData.lightPos.y = -50.0f + sin(glm::radians(timer * 360.0f)) * 20.0f;
+			uniformData.lightPos.z = 25.0f + sin(glm::radians(timer * 360.0f)) * 5.0f;
+			memcpy(currentFrame.ubo.mapped, &uniformData, sizeof(uniformData));
 		}
+
+		// Build the command buffer
+		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
+		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &getCommandBufferBeginInfo()));
+		vkCmdBeginRenderPass(commandBuffer, &getRenderPassBeginInfo(renderPass, defaultClearValues), VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdSetViewport(commandBuffer, 0, 1, &getViewport());
+		vkCmdSetScissor(commandBuffer, 0, 1, &getRenderArea());
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSet, 0, nullptr);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+		scene.draw(commandBuffer);
+		UIOverlay.draw(commandBuffer);
+		vkCmdEndRenderPass(commandBuffer);
+		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
+
+		VulkanExampleBase::submitFrame(currentFrame);
 	}
+
 };
 
 VULKAN_EXAMPLE_MAIN()

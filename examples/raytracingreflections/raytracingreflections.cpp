@@ -49,11 +49,11 @@ public:
 		title = "Ray tracing reflections";
 		settings.overlay = false;
 		timerSpeed *= 0.5f;
-		camera.rotationSpeed *= 0.25f;
-		camera.type = Camera::CameraType::firstperson;
+		camera.setType(Camera::CameraType::firstperson);
 		camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
 		camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
 		camera.setTranslation(glm::vec3(0.0f, 0.5f, -2.0f));
+		camera.setRotationSpeed(0.25f);
 		enableExtensions();
 	}
 
@@ -70,7 +70,7 @@ public:
 		for (FrameObjects& frame : frameObjects) {
 			deleteStorageImage(frame.storageImage);
 			frame.ubo.destroy();
-			destroyFrameObjects(frame);
+			destroyBaseFrameObjects(frame);
 		}
 	}
 
@@ -308,14 +308,13 @@ public:
 	*/
 	void createDescriptorSets()
 	{
-		const uint32_t frameCount = static_cast<uint32_t>(frameObjects.size());
 		std::vector<VkDescriptorPoolSize> poolSizes = {
-			{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1 * frameCount },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 * frameCount },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 * frameCount },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2 * frameCount }
+			{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1 * getFrameCount() },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1 * getFrameCount() },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 * getFrameCount() },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2 * getFrameCount() }
 		};
-		VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, frameCount);
+		VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, getFrameCount());
 		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolCreateInfo, nullptr, &descriptorPool));
 
 		for (FrameObjects& frame : frameObjects) {
@@ -461,10 +460,9 @@ public:
 		VulkanRaytracingSample::prepare();
 
 		// Prepare per-frame ressources
-		frameObjects.resize(swapChain.imageCount);
+		frameObjects.resize(getFrameCount());
 		for (FrameObjects& frame : frameObjects) {
-			// Base objects
-			createFrameObjects(frame);
+			createBaseFrameObjects(frame);
 			// Storage images for ray tracing output
 			createStorageImage(frame.storageImage, swapChain.colorFormat, { width, height, 1 });
 			// Uniform buffers
@@ -483,7 +481,7 @@ public:
 		prepared = true;
 	}
 
-	void draw()
+	virtual void render()
 	{
 		// If the window has been resized, we need to recreate the storage image and it's descriptor
 		if (resized)
@@ -499,7 +497,7 @@ public:
 			}
 		}
 
-		FrameObjects currentFrame = frameObjects[currentBuffer];
+		FrameObjects currentFrame = frameObjects[getCurrentFrameIndex()];
 
 		VulkanExampleBase::prepareFrame(currentFrame);
 
@@ -514,10 +512,8 @@ public:
 
 		// Build the command buffer
 		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
-		const VkImage swapChainImage = swapChain.images[currentBuffer];
-		const VkCommandBufferBeginInfo commandBufferBeginInfo = vks::initializers::commandBufferBeginInfo();
-
-		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
+		const VkImage swapChainImage = swapChain.currentImage();
+		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &getCommandBufferBeginInfo()));
 
 		/*
 			Dispatch the ray tracing commands
@@ -582,21 +578,9 @@ public:
 			VK_IMAGE_LAYOUT_GENERAL,
 			subresourceRange);
 
-		//@todo: Default render pass setup will overwrite contents
-		//vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-		//drawUI(commandBuffer);
-		//vkCmdEndRenderPass(commandBuffer);
-
 		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
 
 		VulkanExampleBase::submitFrame(currentFrame);
-	}
-
-	virtual void render()
-	{
-		if (prepared) {
-			draw();
-		}
 	}
 };
 

@@ -420,11 +420,11 @@ public:
 	void prepareFrame(VulkanFrameObjects& frame);
 	void submitFrame(VulkanFrameObjects& frame);
 	uint32_t getFrameCount();
-	uint32_t getNextFrameIndex();
+	uint32_t getCurrentFrameIndex();
 
 	void createBaseFrameObjects(VulkanFrameObjects& frame);
 	void destroyBaseFrameObjects(VulkanFrameObjects& frame);
-	
+
 	const VkRect2D getRenderArea();
 	const VkViewport getViewport();
 	const VkRenderPassBeginInfo getRenderPassBeginInfo(VkRenderPass renderPass, VkClearValue * clearValues, uint32_t clearValueCount = 2);

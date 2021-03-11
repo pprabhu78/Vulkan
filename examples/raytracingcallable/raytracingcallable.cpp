@@ -29,7 +29,8 @@ public:
 	struct UniformData {
 		glm::mat4 viewInverse;
 		glm::mat4 projInverse;
-	} uniformData;
+	};
+
 	struct FrameObjects : public VulkanFrameObjects {
 		vks::Buffer ubo;
 		StorageImage storageImage;
@@ -76,9 +77,9 @@ public:
 			indexBuffer.destroy();
 			transformBuffer.destroy();
 			for (FrameObjects& frame : frameObjects) {
-				deleteStorageImage(frame.storageImage);
+				frame.storageImage.destroy();
 				frame.ubo.destroy();
-				destroyFrameObjects(frame);
+				destroyBaseFrameObjects(frame);
 			}
 		}
 	}
@@ -530,14 +531,13 @@ public:
 		VulkanRaytracingSample::prepare();
 
 		// Prepare per-frame ressources
-		frameObjects.resize(swapChain.imageCount);
+		frameObjects.resize(getFrameCount());
 		for (FrameObjects& frame : frameObjects) {
-			// Base objects
-			createFrameObjects(frame);
+			createBaseFrameObjects(frame);
 			// Storage images for ray tracing output
 			createStorageImage(frame.storageImage, swapChain.colorFormat, { width, height, 1 });
 			// Uniform buffers
-			VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.ubo, sizeof(uniformData), &uniformData));
+			VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.ubo, sizeof(UniformData)));
 			VK_CHECK_RESULT(frame.ubo.map());
 		}
 
@@ -548,11 +548,10 @@ public:
 		createRayTracingPipeline();
 		createShaderBindingTables();
 		createDescriptorSets();
-		buildCommandBuffers();
 		prepared = true;
 	}
 
-	void draw()
+	virtual void render()
 	{
 		// If the window has been resized, we need to recreate the storage image and it's descriptor
 		if (resized)
@@ -568,11 +567,12 @@ public:
 			}
 		}
 
-		FrameObjects currentFrame = frameObjects[currentBuffer];
-		
+		FrameObjects currentFrame = frameObjects[getCurrentFrameIndex()];
+
 		VulkanExampleBase::prepareFrame(currentFrame);
 
 		if (!paused || camera.updated) {
+			UniformData uniformData{};
 			uniformData.projInverse = glm::inverse(camera.matrices.perspective);
 			uniformData.viewInverse = glm::inverse(camera.matrices.view);
 			memcpy(currentFrame.ubo.mapped, &uniformData, sizeof(uniformData));
@@ -580,10 +580,8 @@ public:
 
 		// Build the command buffer
 		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
-		const VkImage swapChainImage = swapChain.images[currentBuffer];
-		const VkCommandBufferBeginInfo commandBufferBeginInfo = vks::initializers::commandBufferBeginInfo();
-
-		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
+		const VkImage swapChainImage = swapChain.currentImage();
+		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &getCommandBufferBeginInfo()));
 
 		/*
 			Dispatch the ray tracing commands
@@ -649,15 +647,8 @@ public:
 			subresourceRange);
 
 		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
-	
-		VulkanExampleBase::submitFrame(currentFrame);
-	}
 
-	virtual void render()
-	{
-		if (prepared) {
-			draw();
-		}
+		VulkanExampleBase::submitFrame(currentFrame);
 	}
 };
 
