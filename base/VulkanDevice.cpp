@@ -415,6 +415,16 @@ namespace vks
 		return buffer->bind();
 	}
 
+	VkResult VulkanDevice::createAndMapBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, vks::Buffer* buffer, VkDeviceSize size, void* data)
+	{
+		VkResult result = createBuffer(usageFlags, memoryPropertyFlags, buffer, size, data);
+		if (result != VK_SUCCESS) {
+			return result;
+		}
+		buffer->map();
+		return VK_SUCCESS;
+	}
+
 	/**
 	* Copy buffer data from src to dst using VkCmdCopyBuffer
 	* 
