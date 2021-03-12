@@ -696,7 +696,7 @@ void VulkanExampleBase::submitFrame()
 
 void VulkanExampleBase::prepareFrame(VulkanFrameObjects& frame)
 {
-	// Ensure command buffer executoon has finished
+	// Ensure command buffer execution has finished
 	VK_CHECK_RESULT(vkWaitForFences(device, 1, &frame.renderCompleteFence, VK_TRUE, UINT64_MAX));
 	VK_CHECK_RESULT(vkResetFences(device, 1, &frame.renderCompleteFence));
 	// Acquire the next image from the swap chain
