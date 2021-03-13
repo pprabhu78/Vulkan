@@ -11,16 +11,11 @@ struct UBO
 	float4x4 projection;
 	float4x4 model;
 	float4x4 view;
-	float3 camPos;
-};
-
-cbuffer ubo : register(b0) { UBO ubo; }
-
-struct UBOShared {
+	float4 camPos;
 	float4 lights[4];
 };
 
-cbuffer uboParams : register(b1) { UBOShared uboParams; };
+cbuffer ubo : register(b0) { UBO ubo; }
 
 struct PushConsts {
 [[vk::offset(12)]] float roughness;
@@ -106,7 +101,7 @@ float3 BRDF(float3 L, float3 V, float3 N, float metallic, float roughness)
 float4 main(VSOutput input) : SV_TARGET
 {
 	float3 N = normalize(input.Normal);
-	float3 V = normalize(ubo.camPos - input.WorldPos);
+	float3 V = normalize(ubo.camPos.xyz - input.WorldPos);
 
 	float roughness = material.roughness;
 
@@ -118,7 +113,7 @@ float4 main(VSOutput input) : SV_TARGET
 	// Specular contribution
 	float3 Lo = float3(0.0, 0.0, 0.0);
 	for (int i = 0; i < 4; i++) {
-		float3 L = normalize(uboParams.lights[i].xyz - input.WorldPos);
+		float3 L = normalize(ubo.lights[i].xyz - input.WorldPos);
 		Lo += BRDF(L, V, N, material.metallic, roughness);
 	};
 

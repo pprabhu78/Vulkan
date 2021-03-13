@@ -8,12 +8,9 @@ layout (binding = 0) uniform UBO
 	mat4 projection;
 	mat4 model;
 	mat4 view;
-	vec3 camPos;
-} ubo;
-
-layout (binding = 1) uniform UBOShared {
+	vec4 camPos;
 	vec4 lights[4];
-} uboParams;
+} ubo;
 
 layout (location = 0) out vec4 outColor;
 
@@ -99,7 +96,7 @@ vec3 BRDF(vec3 L, vec3 V, vec3 N, float metallic, float roughness)
 void main()
 {		  
 	vec3 N = normalize(inNormal);
-	vec3 V = normalize(ubo.camPos - inWorldPos);
+	vec3 V = normalize(ubo.camPos.xyz - inWorldPos);
 
 	float roughness = material.roughness;
 
@@ -110,8 +107,8 @@ void main()
 
 	// Specular contribution
 	vec3 Lo = vec3(0.0);
-	for (int i = 0; i < uboParams.lights.length(); i++) {
-		vec3 L = normalize(uboParams.lights[i].xyz - inWorldPos);
+	for (int i = 0; i < ubo.lights.length(); i++) {
+		vec3 L = normalize(ubo.lights[i].xyz - inWorldPos);
 		Lo += BRDF(L, V, N, material.metallic, roughness);
 	};
 
