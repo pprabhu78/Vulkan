@@ -54,14 +54,16 @@ public:
 
 	~VulkanExample()
 	{
-		vkDestroyPipeline(device, pipeline, nullptr);
-		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-		deleteAccelerationStructure(bottomLevelAS);
-		deleteAccelerationStructure(topLevelAS);
-		for (FrameObjects& frame : frameObjects) {
-			frame.ubo.destroy();
-			destroyBaseFrameObjects(frame);
+		if (device) {
+			vkDestroyPipeline(device, pipeline, nullptr);
+			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+			deleteAccelerationStructure(bottomLevelAS);
+			deleteAccelerationStructure(topLevelAS);
+			for (FrameObjects& frame : frameObjects) {
+				frame.ubo.destroy();
+				destroyBaseFrameObjects(frame);
+			}
 		}
 	}
 
@@ -428,7 +430,7 @@ public:
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSet, 0, nullptr);
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
 		scene.draw(commandBuffer);
-		UIOverlay.draw(commandBuffer);
+		drawUI(commandBuffer);
 		vkCmdEndRenderPass(commandBuffer);
 		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
 
