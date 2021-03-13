@@ -1,10 +1,10 @@
 /*
-* Vulkan Example - Instanced mesh rendering, uses a separate vertex buffer for instanced data
-*
-* Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
-*
-* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
-*/
+ * Vulkan Example - Instanced mesh rendering, uses a separate vertex buffer for instanced data
+ *
+ * Copyright (C) 2016-2021 by Sascha Willems - www.saschawillems.de
+ *
+ * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+ */
 
 #include "vulkanexamplebase.h"
 #include "VulkanglTFModel.h"
@@ -47,35 +47,36 @@ public:
 		VkDescriptorBufferInfo descriptor;
 	} instanceBuffer;
 
-	struct UBOVS {
+	struct UniformData {
 		glm::mat4 projection;
 		glm::mat4 view;
 		glm::vec4 lightPos = glm::vec4(0.0f, -5.0f, 0.0f, 1.0f);
 		float locSpeed = 0.0f;
 		float globSpeed = 0.0f;
-	} uboVS;
-
-	struct {
-		vks::Buffer scene;
-	} uniformBuffers;
+	} uniformData;
+	struct FrameObjects : public VulkanFrameObjects
+	{
+		vks::Buffer ubo;
+		struct DescriptorSets {
+			VkDescriptorSet rocks;
+			VkDescriptorSet planet;
+		} descriptorSets;
+	};
+	std::vector<FrameObjects> frameObjects;
 
 	VkPipelineLayout pipelineLayout;
 	struct {
-		VkPipeline instancedRocks;
+		VkPipeline rocks;
 		VkPipeline planet;
 		VkPipeline starfield;
 	} pipelines;
 
 	VkDescriptorSetLayout descriptorSetLayout;
-	struct {
-		VkDescriptorSet instancedRocks;
-		VkDescriptorSet planet;
-	} descriptorSets;
 
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 	{
 		title = "Instanced mesh rendering";
-		camera.type = Camera::CameraType::lookat;
+		camera.setType(Camera::CameraType::lookat);
 		camera.setPosition(glm::vec3(5.5f, -1.85f, -18.5f));
 		camera.setRotation(glm::vec3(-17.2f, -4.7f, 0.0f));
 		camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
@@ -84,16 +85,21 @@ public:
 
 	~VulkanExample()
 	{
-		vkDestroyPipeline(device, pipelines.instancedRocks, nullptr);
-		vkDestroyPipeline(device, pipelines.planet, nullptr);
-		vkDestroyPipeline(device, pipelines.starfield, nullptr);
-		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-		vkDestroyBuffer(device, instanceBuffer.buffer, nullptr);
-		vkFreeMemory(device, instanceBuffer.memory, nullptr);
-		textures.rocks.destroy();
-		textures.planet.destroy();
-		uniformBuffers.scene.destroy();
+		if (device) {
+			vkDestroyPipeline(device, pipelines.rocks, nullptr);
+			vkDestroyPipeline(device, pipelines.planet, nullptr);
+			vkDestroyPipeline(device, pipelines.starfield, nullptr);
+			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+			vkDestroyBuffer(device, instanceBuffer.buffer, nullptr);
+			vkFreeMemory(device, instanceBuffer.memory, nullptr);
+			textures.rocks.destroy();
+			textures.planet.destroy();
+			for (FrameObjects& frame : frameObjects) {
+				frame.ubo.destroy();
+				destroyBaseFrameObjects(frame);
+			}
+		}
 	}
 
 	// Enable physical device features required for this example
@@ -103,110 +109,18 @@ public:
 		if (deviceFeatures.samplerAnisotropy) {
 			enabledFeatures.samplerAnisotropy = VK_TRUE;
 		}
-		// Enable texture compression
-		if (deviceFeatures.textureCompressionBC) {
-			enabledFeatures.textureCompressionBC = VK_TRUE;
-		}
-		else if (deviceFeatures.textureCompressionASTC_LDR) {
-			enabledFeatures.textureCompressionASTC_LDR = VK_TRUE;
-		}
-		else if (deviceFeatures.textureCompressionETC2) {
-			enabledFeatures.textureCompressionETC2 = VK_TRUE;
-		}
 	};
-
-	void buildCommandBuffers()
-	{
-		VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-
-		VkClearValue clearValues[2];
-		clearValues[0].color = { { 0.0f, 0.0f, 0.2f, 0.0f } };
-		clearValues[1].depthStencil = { 1.0f, 0 };
-
-		VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
-		renderPassBeginInfo.renderPass = renderPass;
-		renderPassBeginInfo.renderArea.extent.width = width;
-		renderPassBeginInfo.renderArea.extent.height = height;
-		renderPassBeginInfo.clearValueCount = 2;
-		renderPassBeginInfo.pClearValues = clearValues;
-
-		for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
-		{
-			// Set target frame buffer
-			renderPassBeginInfo.framebuffer = frameBuffers[i];
-
-			VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
-
-			vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-			VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-			vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-
-			VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
-			vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
-
-			VkDeviceSize offsets[1] = { 0 };
-
-			// Star field
-			vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets.planet, 0, NULL);
-			vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.starfield);
-			vkCmdDraw(drawCmdBuffers[i], 4, 1, 0, 0);
-
-			// Planet
-			vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets.planet, 0, NULL);
-			vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.planet);
-			models.planet.draw(drawCmdBuffers[i]);
-
-			// Instanced rocks
-			vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets.instancedRocks, 0, NULL);
-			vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.instancedRocks);
-			// Binding point 0 : Mesh vertex buffer
-			vkCmdBindVertexBuffers(drawCmdBuffers[i], VERTEX_BUFFER_BIND_ID, 1, &models.rock.vertices.buffer, offsets);
-			// Binding point 1 : Instance data buffer
-			vkCmdBindVertexBuffers(drawCmdBuffers[i], INSTANCE_BUFFER_BIND_ID, 1, &instanceBuffer.buffer, offsets);
-			// Bind index buffer
-			vkCmdBindIndexBuffer(drawCmdBuffers[i], models.rock.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-			// Render instances
-			vkCmdDrawIndexed(drawCmdBuffers[i], models.rock.indices.count, INSTANCE_COUNT, 0, 0, 0);
-
-			drawUI(drawCmdBuffers[i]);
-
-			vkCmdEndRenderPass(drawCmdBuffers[i]);
-
-			VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
-		}
-	}
 
 	void loadAssets()
 	{
 		const uint32_t glTFLoadingFlags = vkglTF::FileLoadingFlags::PreTransformVertices | vkglTF::FileLoadingFlags::PreMultiplyVertexColors | vkglTF::FileLoadingFlags::FlipY;
 		models.rock.loadFromFile(getAssetPath() + "models/rock01.gltf", vulkanDevice, queue, glTFLoadingFlags);
 		models.planet.loadFromFile(getAssetPath() + "models/lavaplanet.gltf", vulkanDevice, queue, glTFLoadingFlags);
-
 		textures.planet.loadFromFile(getAssetPath() + "textures/lavaplanet_rgba.ktx", VK_FORMAT_R8G8B8A8_UNORM, vulkanDevice, queue);
 		textures.rocks.loadFromFile(getAssetPath() + "textures/texturearray_rocks_rgba.ktx", VK_FORMAT_R8G8B8A8_UNORM, vulkanDevice, queue);
 	}
 
-	void setupDescriptorPool()
-	{
-		// Example uses one ubo
-		std::vector<VkDescriptorPoolSize> poolSizes =
-		{
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2),
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2),
-		};
-
-		VkDescriptorPoolCreateInfo descriptorPoolInfo =
-			vks::initializers::descriptorPoolCreateInfo(
-				poolSizes.size(),
-				poolSizes.data(),
-				2);
-
-		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
-	}
-
-	void setupDescriptorSetLayout()
+	void createDescriptors()
 	{
 		std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
 			// Binding 0 : Vertex shader uniform buffer
@@ -214,41 +128,38 @@ public:
 			// Binding 1 : Fragment shader combined sampler
 			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1),
 		};
-		VkDescriptorSetLayoutCreateInfo descriptorLayout =
-			vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
+		VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
 		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
 
+		// Example uses one ubo per frame and two different images
+		std::vector<VkDescriptorPoolSize> poolSizes = {
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, getFrameCount() * 2),
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, getFrameCount() * 2),
+		};
+		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, 2 * getFrameCount());
+		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
+
+		for (FrameObjects& frame : frameObjects) {
+			VkDescriptorSetAllocateInfo descripotrSetAllocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
+			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descripotrSetAllocInfo, &frame.descriptorSets.rocks));
+			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descripotrSetAllocInfo, &frame.descriptorSets.planet));
+			std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
+				// Instanced rocks
+				vks::initializers::writeDescriptorSet(frame.descriptorSets.rocks, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.ubo.descriptor),					// Binding 0 : Vertex shader uniform buffer
+				vks::initializers::writeDescriptorSet(frame.descriptorSets.rocks, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &textures.rocks.descriptor),	// Binding 1 : Color map
+				// Planet
+				vks::initializers::writeDescriptorSet(frame.descriptorSets.planet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.ubo.descriptor),				// Binding 0 : Vertex shader uniform buffer
+				vks::initializers::writeDescriptorSet(frame.descriptorSets.planet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &textures.planet.descriptor)	// Binding 1 : Color map
+			};
+			vkUpdateDescriptorSets(device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
+		}
+	}
+
+	void createPipelines()
+	{
 		VkPipelineLayoutCreateInfo pipelineLayoutCI = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayout));
-	}
 
-	void setupDescriptorSet()
-	{
-		VkDescriptorSetAllocateInfo descripotrSetAllocInfo;
-		std::vector<VkWriteDescriptorSet> writeDescriptorSets;
-
-		descripotrSetAllocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);;
-
-		// Instanced rocks
-		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descripotrSetAllocInfo, &descriptorSets.instancedRocks));
-		writeDescriptorSets = {
-			vks::initializers::writeDescriptorSet(descriptorSets.instancedRocks, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,	0, &uniformBuffers.scene.descriptor),	// Binding 0 : Vertex shader uniform buffer
-			vks::initializers::writeDescriptorSet(descriptorSets.instancedRocks, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &textures.rocks.descriptor)	// Binding 1 : Color map
-		};
-		vkUpdateDescriptorSets(device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
-
-		// Planet
-		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descripotrSetAllocInfo, &descriptorSets.planet));
-		writeDescriptorSets = {
-			vks::initializers::writeDescriptorSet(descriptorSets.planet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,	0, &uniformBuffers.scene.descriptor),			// Binding 0 : Vertex shader uniform buffer
-			vks::initializers::writeDescriptorSet(descriptorSets.planet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &textures.planet.descriptor)			// Binding 1 : Color map
-		};
-		vkUpdateDescriptorSets(device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
-
-	}
-
-	void preparePipelines()
-	{
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = vks::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 		VkPipelineRasterizationStateCreateInfo rasterizationState =vks::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
 		VkPipelineColorBlendAttachmentState blendAttachmentState = vks::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
@@ -316,7 +227,7 @@ public:
 		// Use all input bindings and attribute descriptions
 		inputState.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
 		inputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.instancedRocks));
+		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.rocks));
 
 		// Planet rendering pipeline
 		shaderStages[0] = loadShader(getShadersPath() + "instancing/planet.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
@@ -337,7 +248,8 @@ public:
 		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.starfield));
 	}
 
-	void prepareInstanceData()
+	// Create the rock position buffers for the instanced draw
+	void createInstancingBuffers()
 	{
 		std::vector<InstanceData> instanceData;
 		instanceData.resize(INSTANCE_COUNT);
@@ -374,10 +286,7 @@ public:
 
 		instanceBuffer.size = instanceData.size() * sizeof(InstanceData);
 
-		// Staging
-		// Instanced data is static, copy to device local memory
-		// This results in better performance
-
+		// Instanced data is static so we copy it to device local memory for better performance
 		struct {
 			VkDeviceMemory memory;
 			VkBuffer buffer;
@@ -421,76 +330,79 @@ public:
 		vkFreeMemory(device, stagingBuffer.memory, nullptr);
 	}
 
-	void prepareUniformBuffers()
-	{
-		VK_CHECK_RESULT(vulkanDevice->createBuffer(
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&uniformBuffers.scene,
-			sizeof(uboVS)));
-
-		// Map persistent
-		VK_CHECK_RESULT(uniformBuffers.scene.map());
-
-		updateUniformBuffer(true);
-	}
-
-	void updateUniformBuffer(bool viewChanged)
-	{
-		if (viewChanged)
-		{
-			uboVS.projection = camera.matrices.perspective;
-			uboVS.view = camera.matrices.view;
-		}
-
-		if (!paused)
-		{
-			uboVS.locSpeed += frameTimer * 0.35f;
-			uboVS.globSpeed += frameTimer * 0.01f;
-		}
-
-		memcpy(uniformBuffers.scene.mapped, &uboVS, sizeof(uboVS));
-	}
-
-	void draw()
-	{
-		VulkanExampleBase::prepareFrame();
-
-		// Command buffer to be sumitted to the queue
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-
-		// Submit to queue
-		VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-		VulkanExampleBase::submitFrame();
-	}
-
 	void prepare()
 	{
 		VulkanExampleBase::prepare();
+		// Prepare per-frame ressources
+		frameObjects.resize(getFrameCount());
+		for (FrameObjects& frame : frameObjects) {
+			createBaseFrameObjects(frame);
+			// Uniform buffers
+			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.ubo, sizeof(UniformData)));
+		}
 		loadAssets();
-		prepareInstanceData();
-		prepareUniformBuffers();
-		setupDescriptorSetLayout();
-		preparePipelines();
-		setupDescriptorPool();
-		setupDescriptorSet();
-		buildCommandBuffers();
+		createInstancingBuffers();
+		createDescriptors();
+		createPipelines();
 		prepared = true;
 	}
 
 	virtual void render()
 	{
-		if (!prepared)
-		{
-			return;
+		FrameObjects currentFrame = frameObjects[getCurrentFrameIndex()];
+
+		VulkanExampleBase::prepareFrame(currentFrame);
+
+		// Update uniform-buffers for the next frame
+		if (!paused || camera.updated) {
+			uniformData.projection = camera.matrices.perspective;
+			uniformData.view = camera.matrices.view;
+			if (!paused) {
+				uniformData.locSpeed += frameTimer * 0.35f;
+				uniformData.globSpeed += frameTimer * 0.01f;
+			}
+			memcpy(currentFrame.ubo.mapped, &uniformData, sizeof(uniformData));
 		}
-		draw();
-		if ((!paused) || (camera.updated))
-		{			
-			updateUniformBuffer(camera.updated);
-		}
+
+		// Build the command buffer
+		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
+		const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
+		const VkRect2D renderArea = getRenderArea();
+		const VkViewport viewport = getViewport();
+		const VkRenderPassBeginInfo renderPassBeginInfo = getRenderPassBeginInfo(renderPass, defaultClearValues);
+		const VkDeviceSize offsets[1] = { 0 };
+		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
+		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
+
+		// Star field
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSets.planet, 0, nullptr);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.starfield);
+		vkCmdDraw(commandBuffer, 4, 1, 0, 0);
+
+		// Planet
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSets.planet, 0, nullptr);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.planet);
+		models.planet.draw(commandBuffer);
+
+		// Instanced rocks
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSets.rocks, 0, nullptr);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.rocks);
+		// Binding point 0 : Mesh vertex buffer
+		vkCmdBindVertexBuffers(commandBuffer, VERTEX_BUFFER_BIND_ID, 1, &models.rock.vertices.buffer, offsets);
+		// Binding point 1 : Instance data buffer
+		vkCmdBindVertexBuffers(commandBuffer, INSTANCE_BUFFER_BIND_ID, 1, &instanceBuffer.buffer, offsets);
+		// Bind index buffer
+		vkCmdBindIndexBuffer(commandBuffer, models.rock.indices.buffer, 0, VK_INDEX_TYPE_UINT32);
+		// Render instances
+		vkCmdDrawIndexed(commandBuffer, models.rock.indices.count, INSTANCE_COUNT, 0, 0, 0);
+
+		drawUI(commandBuffer);
+		vkCmdEndRenderPass(commandBuffer);
+		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
+
+		VulkanExampleBase::submitFrame(currentFrame);
 	}
 
 	virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay)
