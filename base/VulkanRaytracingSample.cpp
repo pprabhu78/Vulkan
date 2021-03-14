@@ -119,15 +119,14 @@ uint64_t VulkanRaytracingSample::getBufferDeviceAddress(VkBuffer buffer)
 
 void VulkanRaytracingSample::createStorageImage(StorageImage& image, VkFormat format, VkExtent3D extent)
 {
-	image.device = device;
-
-	// Release ressources if image is to be recreated
+	// Release resources if image is to be recreated
 	if (image.image != VK_NULL_HANDLE) {
 		vkDestroyImageView(device, image.view, nullptr);
 		vkDestroyImage(device, image.image, nullptr);
 		vkFreeMemory(device, image.memory, nullptr);
 		image = {};
 	}
+	image.device = device;
 
 	VkImageCreateInfo imageCI = vks::initializers::imageCreateInfo();
 	imageCI.imageType = VK_IMAGE_TYPE_2D;
