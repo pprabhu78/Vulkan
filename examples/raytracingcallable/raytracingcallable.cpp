@@ -32,7 +32,7 @@ public:
 	};
 
 	struct FrameObjects : public VulkanFrameObjects {
-		vks::Buffer ubo;
+		vks::Buffer uniformBuffer;
 		StorageImage storageImage;
 		VkDescriptorSet descriptorSet;
 	};
@@ -54,7 +54,7 @@ public:
 		title = "Ray tracing callable shaders";
 		settings.overlay = false;
 		timerSpeed *= 0.25f;
-		camera.type = Camera::CameraType::lookat;
+		camera.setType(Camera::CameraType::lookat);
 		camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
 		camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
 		camera.setTranslation(glm::vec3(0.0f, 0.0f, -10.0f));
@@ -78,7 +78,7 @@ public:
 			transformBuffer.destroy();
 			for (FrameObjects& frame : frameObjects) {
 				frame.storageImage.destroy();
-				frame.ubo.destroy();
+				frame.uniformBuffer.destroy();
 				destroyBaseFrameObjects(frame);
 			}
 		}
@@ -376,8 +376,9 @@ public:
 	/*
 		Create the descriptor sets used for the ray tracing dispatch
 	*/
-	void createDescriptorSets()
+	void createDescriptors()
 	{
+		// Pool
 		const uint32_t frameCount = static_cast<uint32_t>(frameObjects.size());
 		std::vector<VkDescriptorPoolSize> poolSizes = {
 			{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1 * frameCount },
@@ -388,6 +389,23 @@ public:
 		VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, frameCount);
 		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolCreateInfo, nullptr, &descriptorPool));
 
+		// Layout
+		std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
+			// Binding 0: Acceleration structure
+			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0),
+			// Binding 1: Storage image
+			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 1),
+			// Binding 2: Uniform buffer
+			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR, 2),
+			// Binding 3: Vertex buffer 
+			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 3),
+			// Binding 4: Index buffer
+			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 4),
+		};
+		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
+		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &descriptorSetLayout));
+
+		// Sets
 		for (FrameObjects& frame : frameObjects) {
 			VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
 			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &frame.descriptorSet));
@@ -415,7 +433,7 @@ public:
 				// Binding 1: Ray tracing result image
 				vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &storageImageDescriptor),
 				// Binding 2: Uniform data
-				vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &frame.ubo.descriptor),
+				vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &frame.uniformBuffer.descriptor),
 				// Binding 3: Scene vertex buffer
 				vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3, &vertexBufferDescriptor),
 				// Binding 4: Scene index buffer
@@ -430,28 +448,11 @@ public:
 	*/
 	void createRayTracingPipeline()
 	{
-		std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
-			// Binding 0: Acceleration structure
-			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 0),
-			// Binding 1: Storage image
-			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR, 1),
-			// Binding 2: Uniform buffer
-			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR, 2),
-			// Binding 3: Vertex buffer 
-			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 3),
-			// Binding 4: Index buffer
-			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, 4),
-		};
-
-		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
-		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &descriptorSetLayout));
-
+		// Layout
 		VkPipelineLayoutCreateInfo pPipelineLayoutCI = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pPipelineLayoutCI, nullptr, &pipelineLayout));
 	
-		/*
-			Setup ray tracing shader groups
-		*/
+		// Ray tracing shader groups
 		std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 		VkRayTracingShaderGroupCreateInfoKHR shaderGroup;
 
@@ -537,17 +538,16 @@ public:
 			// Storage images for ray tracing output
 			createStorageImage(frame.storageImage, swapChain.colorFormat, { width, height, 1 });
 			// Uniform buffers
-			VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.ubo, sizeof(UniformData)));
-			VK_CHECK_RESULT(frame.ubo.map());
+			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.uniformBuffer, sizeof(UniformData)));
 		}
 
 		// Create the acceleration structures used to render the ray traced scene
 		createBottomLevelAccelerationStructure();
 		createTopLevelAccelerationStructure();
 
+		createDescriptors();
 		createRayTracingPipeline();
 		createShaderBindingTables();
-		createDescriptorSets();
 		prepared = true;
 	}
 
@@ -575,7 +575,7 @@ public:
 			UniformData uniformData{};
 			uniformData.projInverse = glm::inverse(camera.matrices.perspective);
 			uniformData.viewInverse = glm::inverse(camera.matrices.view);
-			memcpy(currentFrame.ubo.mapped, &uniformData, sizeof(uniformData));
+			memcpy(currentFrame.uniformBuffer.mapped, &uniformData, sizeof(uniformData));
 		}
 
 		// Build the command buffer

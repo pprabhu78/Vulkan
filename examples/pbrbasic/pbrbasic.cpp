@@ -47,6 +47,7 @@ public:
 		glm::vec4 camPos;
 		glm::vec4 lights[4];
 	} uniformData;
+
 	struct FrameObjects : public VulkanFrameObjects {
 		vks::Buffer uniformBuffer;
 		VkDescriptorSet descriptorSet;
@@ -236,7 +237,6 @@ public:
 		const VkRect2D renderArea = getRenderArea();
 		const VkViewport viewport = getViewport();
 		const VkRenderPassBeginInfo renderPassBeginInfo = getRenderPassBeginInfo(renderPass, defaultClearValues);
-		const VkDeviceSize offsets[1] = { 0 };
 		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
 		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);

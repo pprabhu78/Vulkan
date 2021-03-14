@@ -16,7 +16,7 @@ struct RayTracingScratchBuffer
 	VkDeviceMemory memory = VK_NULL_HANDLE;
 };
 
-// Ray tracing acceleration structure
+// Holds data for a ay tracing acceleration structure, which contains scene geometry and instances
 struct AccelerationStructure {
 	VkAccelerationStructureKHR handle;
 	uint64_t deviceAddress = 0;
@@ -70,7 +70,7 @@ public:
 	} uniformData;
 
 	struct FrameObjects : public VulkanFrameObjects {
-		vks::Buffer ubo;
+		vks::Buffer uniformBuffer;
 		StorageImage storageImage;
 		VkDescriptorSet descriptorSet;
 	};
@@ -110,27 +110,29 @@ public:
 
 	~VulkanExample()
 	{
-		vkDestroyPipeline(device, pipeline, nullptr);
-		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-		vkFreeMemory(device, bottomLevelAS.memory, nullptr);
-		vkDestroyBuffer(device, bottomLevelAS.buffer, nullptr);
-		vkDestroyAccelerationStructureKHR(device, bottomLevelAS.handle, nullptr);
-		vkFreeMemory(device, topLevelAS.memory, nullptr);
-		vkDestroyBuffer(device, topLevelAS.buffer, nullptr);
-		vkDestroyAccelerationStructureKHR(device, topLevelAS.handle, nullptr);
-		vertexBuffer.destroy();
-		indexBuffer.destroy();
-		transformBuffer.destroy();
-		raygenShaderBindingTable.destroy();
-		missShaderBindingTable.destroy();
-		hitShaderBindingTable.destroy();
-		for (FrameObjects& frame : frameObjects) {
-			vkDestroyImageView(device, frame.storageImage.view, nullptr);
-			vkDestroyImage(device, frame.storageImage.image, nullptr);
-			vkFreeMemory(device, frame.storageImage.memory, nullptr);
-			frame.ubo.destroy();
-			destroyBaseFrameObjects(frame);
+		if (device) {
+			vkDestroyPipeline(device, pipeline, nullptr);
+			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+			vkFreeMemory(device, bottomLevelAS.memory, nullptr);
+			vkDestroyBuffer(device, bottomLevelAS.buffer, nullptr);
+			vkDestroyAccelerationStructureKHR(device, bottomLevelAS.handle, nullptr);
+			vkFreeMemory(device, topLevelAS.memory, nullptr);
+			vkDestroyBuffer(device, topLevelAS.buffer, nullptr);
+			vkDestroyAccelerationStructureKHR(device, topLevelAS.handle, nullptr);
+			vertexBuffer.destroy();
+			indexBuffer.destroy();
+			transformBuffer.destroy();
+			raygenShaderBindingTable.destroy();
+			missShaderBindingTable.destroy();
+			hitShaderBindingTable.destroy();
+			for (FrameObjects& frame : frameObjects) {
+				vkDestroyImageView(device, frame.storageImage.view, nullptr);
+				vkDestroyImage(device, frame.storageImage.image, nullptr);
+				vkFreeMemory(device, frame.storageImage.memory, nullptr);
+				frame.uniformBuffer.destroy();
+				destroyBaseFrameObjects(frame);
+			}
 		}
 	}
 
@@ -572,8 +574,9 @@ public:
 	/*
 		Create the descriptor sets used for the ray tracing dispatch
 	*/
-	void createDescriptorSets()
+	void createDescriptors()
 	{
+		// Pool
 		std::vector<VkDescriptorPoolSize> poolSizes = {
 			{ VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, getFrameCount() },
 			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, getFrameCount() },
@@ -582,6 +585,39 @@ public:
 		VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, getFrameCount());
 		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolCreateInfo, nullptr, &descriptorPool));
 
+		// Layout
+		VkDescriptorSetLayoutBinding accelerationStructureLayoutBinding{};
+		accelerationStructureLayoutBinding.binding = 0;
+		accelerationStructureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+		accelerationStructureLayoutBinding.descriptorCount = 1;
+		accelerationStructureLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+		VkDescriptorSetLayoutBinding resultImageLayoutBinding{};
+		resultImageLayoutBinding.binding = 1;
+		resultImageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+		resultImageLayoutBinding.descriptorCount = 1;
+		resultImageLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+		VkDescriptorSetLayoutBinding uniformBufferBinding{};
+		uniformBufferBinding.binding = 2;
+		uniformBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		uniformBufferBinding.descriptorCount = 1;
+		uniformBufferBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+		std::vector<VkDescriptorSetLayoutBinding> bindings({
+			accelerationStructureLayoutBinding,
+			resultImageLayoutBinding,
+			uniformBufferBinding
+			});
+
+		VkDescriptorSetLayoutCreateInfo descriptorSetlayoutCI{};
+		descriptorSetlayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		descriptorSetlayoutCI.bindingCount = static_cast<uint32_t>(bindings.size());
+		descriptorSetlayoutCI.pBindings = bindings.data();
+		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetlayoutCI, nullptr, &descriptorSetLayout));
+
+
+		// Sets
 		for (FrameObjects& frame : frameObjects) {
 			VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
 			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &frame.descriptorSet));
@@ -605,7 +641,7 @@ public:
 			storageImageDescriptor.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
 
 			VkWriteDescriptorSet resultImageWrite = vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1, &storageImageDescriptor);
-			VkWriteDescriptorSet uniformBufferWrite = vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &frame.ubo.descriptor);
+			VkWriteDescriptorSet uniformBufferWrite = vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2, &frame.uniformBuffer.descriptor);
 
 			std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
 				accelerationStructureWrite,
@@ -621,45 +657,14 @@ public:
 	*/
 	void createRayTracingPipeline()
 	{
-		VkDescriptorSetLayoutBinding accelerationStructureLayoutBinding{};
-		accelerationStructureLayoutBinding.binding = 0;
-		accelerationStructureLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-		accelerationStructureLayoutBinding.descriptorCount = 1;
-		accelerationStructureLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-
-		VkDescriptorSetLayoutBinding resultImageLayoutBinding{};
-		resultImageLayoutBinding.binding = 1;
-		resultImageLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-		resultImageLayoutBinding.descriptorCount = 1;
-		resultImageLayoutBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-
-		VkDescriptorSetLayoutBinding uniformBufferBinding{};
-		uniformBufferBinding.binding = 2;
-		uniformBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		uniformBufferBinding.descriptorCount = 1;
-		uniformBufferBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
-
-		std::vector<VkDescriptorSetLayoutBinding> bindings({
-			accelerationStructureLayoutBinding,
-			resultImageLayoutBinding,
-			uniformBufferBinding
-		});
-
-		VkDescriptorSetLayoutCreateInfo descriptorSetlayoutCI{};
-		descriptorSetlayoutCI.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		descriptorSetlayoutCI.bindingCount = static_cast<uint32_t>(bindings.size());
-		descriptorSetlayoutCI.pBindings = bindings.data();
-		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetlayoutCI, nullptr, &descriptorSetLayout));
-
+		// Layout
 		VkPipelineLayoutCreateInfo pipelineLayoutCI{};
 		pipelineLayoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		pipelineLayoutCI.setLayoutCount = 1;
 		pipelineLayoutCI.pSetLayouts = &descriptorSetLayout;
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayout));
 
-		/*
-			Setup ray tracing shader groups
-		*/
+		// Ray tracing shader groups
 		std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 
 		// Ray generation group
@@ -701,9 +706,7 @@ public:
 			shaderGroups.push_back(shaderGroup);
 		}
 
-		/*
-			Create the ray tracing pipeline
-		*/
+		// Pipeline
 		VkRayTracingPipelineCreateInfoKHR rayTracingPipelineCI{};
 		rayTracingPipelineCI.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
 		rayTracingPipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
@@ -769,17 +772,16 @@ public:
 			// Storage images for ray tracing output
 			createStorageImage(frame.storageImage);
 			// Uniform buffers
-			VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.ubo, sizeof(uniformData), &uniformData));
-			VK_CHECK_RESULT(frame.ubo.map());
+			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.uniformBuffer, sizeof(uniformData), &uniformData));
 		}
 
 		// Create the acceleration structures used to render the ray traced scene
 		createBottomLevelAccelerationStructure();
 		createTopLevelAccelerationStructure();
 
+		createDescriptors();
 		createRayTracingPipeline();
 		createShaderBindingTable();
-		createDescriptorSets();
 		prepared = true;
 	}
 
@@ -811,7 +813,7 @@ public:
 		if (!paused || camera.updated) {
 			uniformData.projInverse = glm::inverse(camera.matrices.perspective);
 			uniformData.viewInverse = glm::inverse(camera.matrices.view);
-			memcpy(currentFrame.ubo.mapped, &uniformData, sizeof(uniformData));
+			memcpy(currentFrame.uniformBuffer.mapped, &uniformData, sizeof(uniformData));
 		}
 
 		// Build the command buffer

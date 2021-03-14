@@ -54,9 +54,9 @@ public:
 		float locSpeed = 0.0f;
 		float globSpeed = 0.0f;
 	} uniformData;
-	struct FrameObjects : public VulkanFrameObjects
-	{
-		vks::Buffer ubo;
+	
+	struct FrameObjects : public VulkanFrameObjects {
+		vks::Buffer uniformBuffer;
 		struct DescriptorSets {
 			VkDescriptorSet rocks;
 			VkDescriptorSet planet;
@@ -96,7 +96,7 @@ public:
 			textures.rocks.destroy();
 			textures.planet.destroy();
 			for (FrameObjects& frame : frameObjects) {
-				frame.ubo.destroy();
+				frame.uniformBuffer.destroy();
 				destroyBaseFrameObjects(frame);
 			}
 		}
@@ -122,6 +122,16 @@ public:
 
 	void createDescriptors()
 	{
+		// Pool
+		// Example uses one ubo per frame and two different images
+		std::vector<VkDescriptorPoolSize> poolSizes = {
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, getFrameCount() * 2),
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, getFrameCount() * 2),
+		};
+		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, 2 * getFrameCount());
+		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
+
+		// Layout
 		std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
 			// Binding 0 : Vertex shader uniform buffer
 			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0),
@@ -131,24 +141,17 @@ public:
 		VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
 		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
 
-		// Example uses one ubo per frame and two different images
-		std::vector<VkDescriptorPoolSize> poolSizes = {
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, getFrameCount() * 2),
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, getFrameCount() * 2),
-		};
-		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, 2 * getFrameCount());
-		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
-
+		// Sets
 		for (FrameObjects& frame : frameObjects) {
 			VkDescriptorSetAllocateInfo descripotrSetAllocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
 			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descripotrSetAllocInfo, &frame.descriptorSets.rocks));
 			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descripotrSetAllocInfo, &frame.descriptorSets.planet));
 			std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
 				// Instanced rocks
-				vks::initializers::writeDescriptorSet(frame.descriptorSets.rocks, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.ubo.descriptor),					// Binding 0 : Vertex shader uniform buffer
+				vks::initializers::writeDescriptorSet(frame.descriptorSets.rocks, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.uniformBuffer.descriptor),		// Binding 0 : Vertex shader uniform buffer
 				vks::initializers::writeDescriptorSet(frame.descriptorSets.rocks, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &textures.rocks.descriptor),	// Binding 1 : Color map
 				// Planet
-				vks::initializers::writeDescriptorSet(frame.descriptorSets.planet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.ubo.descriptor),				// Binding 0 : Vertex shader uniform buffer
+				vks::initializers::writeDescriptorSet(frame.descriptorSets.planet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.uniformBuffer.descriptor),		// Binding 0 : Vertex shader uniform buffer
 				vks::initializers::writeDescriptorSet(frame.descriptorSets.planet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &textures.planet.descriptor)	// Binding 1 : Color map
 			};
 			vkUpdateDescriptorSets(device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
@@ -157,9 +160,11 @@ public:
 
 	void createPipelines()
 	{
+		// Layout
 		VkPipelineLayoutCreateInfo pipelineLayoutCI = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayout));
 
+		// Pipeline
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = vks::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 		VkPipelineRasterizationStateCreateInfo rasterizationState =vks::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
 		VkPipelineColorBlendAttachmentState blendAttachmentState = vks::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
@@ -338,7 +343,7 @@ public:
 		for (FrameObjects& frame : frameObjects) {
 			createBaseFrameObjects(frame);
 			// Uniform buffers
-			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.ubo, sizeof(UniformData)));
+			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.uniformBuffer, sizeof(UniformData)));
 		}
 		loadAssets();
 		createInstancingBuffers();
@@ -361,7 +366,7 @@ public:
 				uniformData.locSpeed += frameTimer * 0.35f;
 				uniformData.globSpeed += frameTimer * 0.01f;
 			}
-			memcpy(currentFrame.ubo.mapped, &uniformData, sizeof(uniformData));
+			memcpy(currentFrame.uniformBuffer.mapped, &uniformData, sizeof(uniformData));
 		}
 
 		// Build the command buffer

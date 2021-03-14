@@ -25,8 +25,9 @@ public:
 		glm::mat4 modelview;
 		glm::vec4 lightPos = glm::vec4(-10.0f, -10.0f, 10.0f, 1.0f);
 	};
+	
 	struct FrameObjects : public VulkanFrameObjects {
-		vks::Buffer ubo;
+		vks::Buffer uniformBuffer;
 		VkDescriptorSet descriptorSet;
 	};
 	std::vector<FrameObjects> frameObjects;
@@ -39,7 +40,7 @@ public:
 	bool tessellation = false;
 
 	VkPipeline pipeline = VK_NULL_HANDLE;
-	VkPipelineLayout pipelineLayout;
+	VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 	VkDescriptorSetLayout descriptorSetLayout;
 
 	// Vector for storing pipeline statistics results
@@ -61,13 +62,15 @@ public:
 
 	~VulkanExample()
 	{
-		vkDestroyPipeline(device, pipeline, nullptr);
-		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-		vkDestroyQueryPool(device, queryPool, nullptr);
-		for (FrameObjects& frame : frameObjects) {
-			frame.ubo.destroy();
-			destroyBaseFrameObjects(frame);
+		if (device) {
+			vkDestroyPipeline(device, pipeline, nullptr);
+			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+			vkDestroyQueryPool(device, queryPool, nullptr);
+			for (FrameObjects& frame : frameObjects) {
+				frame.uniformBuffer.destroy();
+				destroyBaseFrameObjects(frame);
+			}
 		}
 	}
 
@@ -137,36 +140,28 @@ public:
 		}
 	}
 
-	void createDescriptorSetLayout()
+	void createDescriptors()
 	{
-		std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
-			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0)
-		};
-		VkDescriptorSetLayoutCreateInfo descriptorLayout =
-			vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
-		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
-
-		VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo =
-			vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
-		VkPushConstantRange pushConstantRange = vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::vec3), 0);
-		pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-		pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
-		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
-	}
-
-	void createDescriptorSets()
-	{
+		// Pool
 		std::vector<VkDescriptorPoolSize> poolSizes = {
 			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 * getFrameCount())
 		};
 		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, 3 * getFrameCount());
 		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
 
+		// Layout
+		std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
+			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0)
+		};
+		VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
+		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
+
+		// Sets
 		for (FrameObjects& frame : frameObjects) {
 			VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
 			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &frame.descriptorSet));
 			std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-				vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.ubo.descriptor)
+				vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.uniformBuffer.descriptor)
 			};
 			vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
 		}
@@ -174,6 +169,16 @@ public:
 
 	void createPipelines()
 	{
+		// Layout with push constant for passing object positions
+		if (pipelineLayout == VK_NULL_HANDLE) {
+			VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
+			VkPushConstantRange pushConstantRange = vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::vec3), 0);
+			pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+			pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
+			VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
+		}
+
+		// Pipeline
 		if (pipeline != VK_NULL_HANDLE) {
 			// If the pipeline needs to be recreated, we need to wait for all command buffers to finish first
 			vkQueueWaitIdle(queue);
@@ -241,21 +246,17 @@ public:
 	void prepare()
 	{
 		VulkanExampleBase::prepare();
-
 		// Prepare per-frame ressources
 		frameObjects.resize(getFrameCount());
 		for (FrameObjects& frame : frameObjects) {
 			createBaseFrameObjects(frame);
 			// Uniform buffers
-			VK_CHECK_RESULT(vulkanDevice->createBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.ubo, sizeof(UniformData)));
-			VK_CHECK_RESULT(frame.ubo.map());
+			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.uniformBuffer, sizeof(UniformData)));
 		}
-
 		loadAssets();
 		createQueryPool();
-		createDescriptorSetLayout();
+		createDescriptors();
 		createPipelines();
-		createDescriptorSets();
 		prepared = true;
 	}
 
@@ -282,7 +283,7 @@ public:
 			UniformData uniformData;
 			uniformData.projection = camera.matrices.perspective;
 			uniformData.modelview = camera.matrices.view;
-			memcpy(currentFrame.ubo.mapped, &uniformData, sizeof(uniformData));
+			memcpy(currentFrame.uniformBuffer.mapped, &uniformData, sizeof(uniformData));
 		}
 
 		// Build the command buffer
@@ -328,28 +329,29 @@ public:
 
 	virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay)
 	{
+		bool recreatePipelines = false;
 		if (overlay->header("Settings")) {
 			overlay->comboBox("Object type", &models.objectIndex, models.names);
 			overlay->sliderInt("Grid size", &gridSize, 1, 10);
 			std::vector<std::string> cullModeNames = { "None", "Front", "Back", "Back and front" };
 			if (overlay->comboBox("Cull mode", &cullMode, cullModeNames)) {
-				createPipelines();
+				recreatePipelines = true;
 			}
 			if (overlay->checkBox("Blending", &blending)) {
-				createPipelines();
+				recreatePipelines = true;
 			}
 			if (deviceFeatures.fillModeNonSolid) {
 				if (overlay->checkBox("Wireframe", &wireframe)) {
-					createPipelines();
+					recreatePipelines = true;
 				}
 			}
 			if (deviceFeatures.tessellationShader) {
 				if (overlay->checkBox("Tessellation", &tessellation)) {
-					createPipelines();
+					recreatePipelines = true;
 				}
 			}
 			if (overlay->checkBox("Discard", &discard)) {
-				createPipelines();
+				recreatePipelines = true;
 			}
 		}
 		if (!pipelineStats.empty()) {
@@ -359,6 +361,9 @@ public:
 					overlay->text(caption.c_str(), pipelineStats[i]);
 				}
 			}
+		}
+		if (recreatePipelines) {
+			createPipelines();
 		}
 	}
 
