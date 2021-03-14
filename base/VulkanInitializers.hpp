@@ -281,6 +281,16 @@ namespace vks
 			return descriptorSetLayoutCreateInfo;
 		}
 
+		inline VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo(
+			const VkDescriptorSetLayoutBinding binding)
+		{
+			VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
+			descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+			descriptorSetLayoutCreateInfo.pBindings = &binding;
+			descriptorSetLayoutCreateInfo.bindingCount = 1;
+			return descriptorSetLayoutCreateInfo;
+		}
+
 		inline VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(
 			const VkDescriptorSetLayout* pSetLayouts,
 			uint32_t setLayoutCount = 1)
