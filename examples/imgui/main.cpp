@@ -36,13 +36,13 @@ struct GuiData {
 	// Updates the frame graph, adding a new frame time entry
 	void updateFrameGraph(float frameTime) {
 		lastFrameTime = frameTime * 1000.0f;
-		std::rotate(guiData.frameTimes.begin(), guiData.frameTimes.begin() + 1, guiData.frameTimes.end());
-		guiData.frameTimes.back() = lastFrameTime;
-		if (lastFrameTime < guiData.frameTimeMin) {
-			guiData.frameTimeMin = lastFrameTime;
+		std::rotate(frameTimes.begin(), frameTimes.begin() + 1, frameTimes.end());
+		frameTimes.back() = lastFrameTime;
+		if (lastFrameTime < frameTimeMin) {
+			frameTimeMin = lastFrameTime;
 		}
-		if (lastFrameTime > guiData.frameTimeMax) {
-			guiData.frameTimeMax = lastFrameTime;
+		if (lastFrameTime > frameTimeMax) {
+			frameTimeMax = lastFrameTime;
 		}
 	}
 } guiData;
