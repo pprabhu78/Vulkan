@@ -236,6 +236,18 @@ namespace vks
 			return descriptorPoolInfo;
 		}
 
+		inline VkDescriptorPoolCreateInfo descriptorPoolCreateInfo(
+			const VkDescriptorPoolSize& poolSize,
+			uint32_t maxSets)
+		{
+			VkDescriptorPoolCreateInfo descriptorPoolInfo{};
+			descriptorPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+			descriptorPoolInfo.poolSizeCount = 1;
+			descriptorPoolInfo.pPoolSizes = &poolSize;
+			descriptorPoolInfo.maxSets = maxSets;
+			return descriptorPoolInfo;
+		}
+
 		inline VkDescriptorPoolSize descriptorPoolSize(
 			VkDescriptorType type,
 			uint32_t descriptorCount)
@@ -282,7 +294,7 @@ namespace vks
 		}
 
 		inline VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo(
-			const VkDescriptorSetLayoutBinding binding)
+			const VkDescriptorSetLayoutBinding& binding)
 		{
 			VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo{};
 			descriptorSetLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
