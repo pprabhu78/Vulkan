@@ -1,66 +1,74 @@
 /*
-* Vulkan Example - Texture arrays and instanced rendering
-*
-* Copyright (C) Sascha Willems - www.saschawillems.de
-*
-* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
-*/
+ * Vulkan Example - Texture arrays and instanced rendering
+ *
+ * Copyright (C) 2016-2021 Sascha Willems - www.saschawillems.de
+ *
+ * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+ */
+
+/*
+ * This sample shows how to load a texture array file into GPU memory and how to display it
+ * The texture loading part can be found in the loadTextureArray function, and the TextureArray struct contains all Vulkan objects to store/use a texture
+ * To visualize the different layers, the sample draws one cube per texture array layer using instancing and instanced data to select the layer to draw
+ */
 
 #include "vulkanexamplebase.h"
 #include <ktx.h>
 #include <ktxvulkan.h>
 
 #define ENABLE_VALIDATION false
-
-// Vertex layout for this example
-struct Vertex {
-	float pos[3];
-	float uv[2];
-};
+ 
+ // Max. number of instances to be drawn, needs to be lower or equal to the number of layers in the texture array
+constexpr size_t layerCount = 7;
 
 class VulkanExample : public VulkanExampleBase
 {
 public:
-	// Number of array layers in texture array
-	// Also used as instance count
-	uint32_t layerCount;
-	vks::Texture textureArray;
+	// Contains all Vulkan objects that are required to store and use a texture array
+	struct TextureArray {
+		VkImage image;
+		VkSampler sampler;
+		VkImageLayout imageLayout;
+		VkDeviceMemory deviceMemory;
+		VkImageView view;
+		uint32_t width, height;
+	} textureArray{};
 
+	// Vertex layout for this example
+	struct Vertex {
+		float pos[3];
+		float uv[2];
+	};
+
+	// Buffers for a cube that the layers of the texture array are displayed on
 	vks::Buffer vertexBuffer;
 	vks::Buffer indexBuffer;
 	uint32_t indexCount;
 
-	vks::Buffer uniformBufferVS;
+	struct UniformData {
+		// Scene matrices
+		glm::mat4 projection;
+		glm::mat4 view;
+		// Instanced data for drawing multiple cubes with different texture layers
+		// The vec4 stores position in [xyz] and array layer index to sample from in [w]
+		glm::vec4 instances[layerCount];
+	} uniformData;
 
-	struct UboInstanceData {
-		// Model matrix
-		glm::mat4 model;
-		// Texture array index
-		// Vec4 due to padding
-		glm::vec4 arrayIndex;
+	struct FrameObjects : public VulkanFrameObjects {
+		vks::Buffer uniformBuffer;
+		VkDescriptorSet descriptorSet;
 	};
-
-	struct {
-		// Global matrices
-		struct {
-			glm::mat4 projection;
-			glm::mat4 view;
-		} matrices;
-		// Separate data for each instance
-		UboInstanceData *instance;
-	} uboVS;
-
+	std::vector<FrameObjects> frameObjects;
 
 	VkPipeline pipeline;
 	VkPipelineLayout pipelineLayout;
-	VkDescriptorSet descriptorSet;
 	VkDescriptorSetLayout descriptorSetLayout;
 
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 	{
 		title = "Texture arrays";
 		settings.overlay = true;
-		camera.type = Camera::CameraType::lookat;
+		camera.setType(Camera::CameraType::lookat);
 		camera.setPosition(glm::vec3(0.0f, 0.0f, -7.5f));
 		camera.setRotation(glm::vec3(-35.0f, 0.0f, 0.0f));
 		camera.setPerspective(45.0f, (float)width / (float)height, 0.1f, 256.0f);
@@ -68,25 +76,19 @@ public:
 
 	~VulkanExample()
 	{
-		// Clean up used Vulkan resources
-		// Note : Inherited destructor cleans up resources stored in base class
-
 		vkDestroyImageView(device, textureArray.view, nullptr);
 		vkDestroyImage(device, textureArray.image, nullptr);
 		vkDestroySampler(device, textureArray.sampler, nullptr);
 		vkFreeMemory(device, textureArray.deviceMemory, nullptr);
-
 		vkDestroyPipeline(device, pipeline, nullptr);
-
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-
 		vertexBuffer.destroy();
 		indexBuffer.destroy();
-
-		uniformBufferVS.destroy();
-
-		delete[] uboVS.instance;
+		for (FrameObjects& frame : frameObjects) {
+			frame.uniformBuffer.destroy();
+			destroyBaseFrameObjects(frame);
+		}
 	}
 
 	void loadTextureArray(std::string filename, VkFormat format)
@@ -116,11 +118,14 @@ public:
 		result = ktxTexture_CreateFromNamedFile(filename.c_str(), KTX_TEXTURE_CREATE_LOAD_IMAGE_DATA_BIT, &ktxTexture);
 #endif
 		assert(result == KTX_SUCCESS);
+		// The texture needs to have at least as many layers as we want to draw instances
+		if (ktxTexture->numLayers < layerCount) {
+			vks::tools::exitFatal("Texture array layer count lower than required array layer count!", -1);
+		}
 
 		// Get properties required for using and upload texture data from the ktx texture object
 		textureArray.width = ktxTexture->baseWidth;
 		textureArray.height = ktxTexture->baseHeight;
-		layerCount = ktxTexture->numLayers;
 		ktx_uint8_t *ktxTextureData = ktxTexture_GetData(ktxTexture);
 		ktx_size_t ktxTextureSize = ktxTexture_GetSize(ktxTexture);
 
@@ -224,9 +229,8 @@ public:
 			stagingBuffer,
 			textureArray.image,
 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			bufferCopyRegions.size(),
-			bufferCopyRegions.data()
-			);
+			static_cast<uint32_t>(bufferCopyRegions.size()),
+			bufferCopyRegions.data());
 
 		// Change texture image layout to shader read after all faces have been copied
 		textureArray.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -277,87 +281,39 @@ public:
 		loadTextureArray(getAssetPath() + "textures/texturearray_rgba.ktx", VK_FORMAT_R8G8B8A8_UNORM);
 	}
 
-	void buildCommandBuffers()
-	{
-		VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-
-		VkClearValue clearValues[2];
-		clearValues[0].color = defaultClearColor;
-		clearValues[1].depthStencil = { 1.0f, 0 };
-
-		VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
-		renderPassBeginInfo.renderPass = renderPass;
-		renderPassBeginInfo.renderArea.offset.x = 0;
-		renderPassBeginInfo.renderArea.offset.y = 0;
-		renderPassBeginInfo.renderArea.extent.width = width;
-		renderPassBeginInfo.renderArea.extent.height = height;
-		renderPassBeginInfo.clearValueCount = 2;
-		renderPassBeginInfo.pClearValues = clearValues;
-
-		for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
-		{
-			// Set target frame buffer
-			renderPassBeginInfo.framebuffer = frameBuffers[i];
-
-			VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
-
-			vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-			VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-			vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-
-			VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
-			vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
-
-			vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, NULL);
-			vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-
-			VkDeviceSize offsets[1] = { 0 };
-			vkCmdBindVertexBuffers(drawCmdBuffers[i], 0, 1, &vertexBuffer.buffer, offsets);
-			vkCmdBindIndexBuffer(drawCmdBuffers[i], indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-
-			vkCmdDrawIndexed(drawCmdBuffers[i], indexCount, layerCount, 0, 0, 0);
-
-			drawUI(drawCmdBuffers[i]);
-
-			vkCmdEndRenderPass(drawCmdBuffers[i]);
-
-			VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
-		}
-	}
-
-	void generateCube()
+	// Setup buffers for a uv-mapped cube
+	void createCube()
 	{
 		std::vector<Vertex> vertices = {
-			{ { -1.0f, -1.0f,  1.0f }, { 0.0f, 0.0f } },
-			{ {  1.0f, -1.0f,  1.0f }, { 1.0f, 0.0f } },
-			{ {  1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f } },
-			{ { -1.0f,  1.0f,  1.0f }, { 0.0f, 1.0f } },
+			{ { -0.5f, -0.5f,  0.5f }, { 0.0f, 0.0f } },
+			{ {  0.5f, -0.5f,  0.5f }, { 1.0f, 0.0f } },
+			{ {  0.5f,  0.5f,  0.5f }, { 1.0f, 1.0f } },
+			{ { -0.5f,  0.5f,  0.5f }, { 0.0f, 1.0f } },
 
-			{ {  1.0f,  1.0f,  1.0f }, { 0.0f, 0.0f } },
-			{ {  1.0f,  1.0f, -1.0f }, { 1.0f, 0.0f } },
-			{ {  1.0f, -1.0f, -1.0f }, { 1.0f, 1.0f } },
-			{ {  1.0f, -1.0f,  1.0f }, { 0.0f, 1.0f } },
+			{ {  0.5f,  0.5f,  0.5f }, { 0.0f, 0.0f } },
+			{ {  0.5f,  0.5f, -0.5f }, { 1.0f, 0.0f } },
+			{ {  0.5f, -0.5f, -0.5f }, { 1.0f, 1.0f } },
+			{ {  0.5f, -0.5f,  0.5f }, { 0.0f, 1.0f } },
 
-			{ { -1.0f, -1.0f, -1.0f }, { 0.0f, 0.0f } },
-			{ {  1.0f, -1.0f, -1.0f }, { 1.0f, 0.0f } },
-			{ {  1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f } },
-			{ { -1.0f,  1.0f, -1.0f }, { 0.0f, 1.0f } },
+			{ { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f } },
+			{ {  0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f } },
+			{ {  0.5f,  0.5f, -0.5f }, { 1.0f, 1.0f } },
+			{ { -0.5f,  0.5f, -0.5f }, { 0.0f, 1.0f } },
 
-			{ { -1.0f, -1.0f, -1.0f }, { 0.0f, 0.0f } },
-			{ { -1.0f, -1.0f,  1.0f }, { 1.0f, 0.0f } },
-			{ { -1.0f,  1.0f,  1.0f }, { 1.0f, 1.0f } },
-			{ { -1.0f,  1.0f, -1.0f }, { 0.0f, 1.0f } },
+			{ { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f } },
+			{ { -0.5f, -0.5f,  0.5f }, { 1.0f, 0.0f } },
+			{ { -0.5f,  0.5f,  0.5f }, { 1.0f, 1.0f } },
+			{ { -0.5f,  0.5f, -0.5f }, { 0.0f, 1.0f } },
 
-			{ {  1.0f,  1.0f,  1.0f }, { 0.0f, 0.0f } },
-			{ { -1.0f,  1.0f,  1.0f }, { 1.0f, 0.0f } },
-			{ { -1.0f,  1.0f, -1.0f }, { 1.0f, 1.0f } },
-			{ {  1.0f,  1.0f, -1.0f }, { 0.0f, 1.0f } },
+			{ {  0.5f,  0.5f,  0.5f }, { 0.0f, 0.0f } },
+			{ { -0.5f,  0.5f,  0.5f }, { 1.0f, 0.0f } },
+			{ { -0.5f,  0.5f, -0.5f }, { 1.0f, 1.0f } },
+			{ {  0.5f,  0.5f, -0.5f }, { 0.0f, 1.0f } },
 
-			{ { -1.0f, -1.0f, -1.0f }, { 0.0f, 0.0f } },
-			{ {  1.0f, -1.0f, -1.0f }, { 1.0f, 0.0f } },
-			{ {  1.0f, -1.0f,  1.0f }, { 1.0f, 1.0f } },
-			{ { -1.0f, -1.0f,  1.0f }, { 0.0f, 1.0f } },
+			{ { -0.5f, -0.5f, -0.5f }, { 0.0f, 0.0f } },
+			{ {  0.5f, -0.5f, -0.5f }, { 1.0f, 0.0f } },
+			{ {  0.5f, -0.5f,  0.5f }, { 1.0f, 1.0f } },
+			{ { -0.5f, -0.5f,  0.5f }, { 0.0f, 1.0f } },
 		};
 		std::vector<uint32_t> indices = {
 			0,1,2, 0,2,3, 4,5,6,  4,6,7, 8,9,10, 8,10,11, 12,13,14, 12,14,15, 16,17,18, 16,18,19, 20,21,22, 20,22,23
@@ -381,54 +337,56 @@ public:
 			indices.data()));
 	}
 
-	void setupDescriptorPool()
+	void createDescriptors()
 	{
+		// Pool
 		std::vector<VkDescriptorPoolSize> poolSizes = {
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, getFrameCount()),
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, getFrameCount())
 		};
-		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes.size(), poolSizes.data(), 2);
+		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, getFrameCount());
 		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
-	}
 
-	void setupDescriptorSetLayout()
-	{
+		// Layout
 		std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
 			// Binding 0 : Vertex shader uniform buffer
 			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0),
 			// Binding 1 : Fragment shader image sampler (texture array)
 			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
 		};
-		VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings.data(), setLayoutBindings.size());
+		VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
 		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
 
+		// Sets
+		for (FrameObjects& frame : frameObjects) {
+			VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
+			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &frame.descriptorSet));
+
+			// Image descriptor for the texture array
+			VkDescriptorImageInfo textureDescriptor =
+				vks::initializers::descriptorImageInfo(
+					textureArray.sampler,
+					textureArray.view,
+					textureArray.imageLayout);
+
+			std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
+				// Binding 0 : Vertex shader uniform buffer
+				vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.uniformBuffer.descriptor),
+				// Binding 1 : Fragment shader texture array sampler
+				//	Fragment shader: layout (set = 0, binding = 1) uniform sampler2DArray samplerArray;
+				vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &textureDescriptor)
+			};
+			vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+		}
+	}
+
+	void createPipelines()
+	{
+		// Layout
 		VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
-	}
 
-	void setupDescriptorSet()
-	{
-		VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
-		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet));
-
-		// Image descriptor for the texture array
-		VkDescriptorImageInfo textureDescriptor =
-			vks::initializers::descriptorImageInfo(
-				textureArray.sampler,
-				textureArray.view,
-				textureArray.imageLayout);
-
-		std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-			// Binding 0 : Vertex shader uniform buffer
-			vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &uniformBufferVS.descriptor),
-			// Binding 1 : Fragment shader cubemap sampler
-			vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &textureDescriptor)
-		};
-		vkUpdateDescriptorSets(device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
-	}
-
-	void preparePipelines()
-	{
+		// Pipeline
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI = vks::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 		VkPipelineRasterizationStateCreateInfo rasterizationStateCI = vks::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
 		VkPipelineColorBlendAttachmentState blendAttachmentState = vks::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
@@ -437,7 +395,7 @@ public:
 		VkPipelineViewportStateCreateInfo viewportStateCI = vks::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
 		VkPipelineMultisampleStateCreateInfo multisampleStateCI = vks::initializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
 		std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-		VkPipelineDynamicStateCreateInfo dynamicStateCI = vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables.data(), dynamicStateEnables.size(), 0);
+		VkPipelineDynamicStateCreateInfo dynamicStateCI = vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 
 		// Vertex bindings and attributes
 		VkVertexInputBindingDescription vertexInputBinding = { 0, sizeof(Vertex), VK_VERTEX_INPUT_RATE_VERTEX };
@@ -451,12 +409,7 @@ public:
 		vertexInputStateCI.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexInputAttributes.size());
 		vertexInputStateCI.pVertexAttributeDescriptions = vertexInputAttributes.data();
 
-		// Instancing pipeline
 		std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
-
-		shaderStages[0] = loadShader(getShadersPath() + "texturearray/instancing.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-		shaderStages[1] = loadShader(getShadersPath() + "texturearray/instancing.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-
 		VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass, 0);
 		pipelineCI.pVertexInputState = &vertexInputStateCI;
 		pipelineCI.pInputAssemblyState = &inputAssemblyStateCI;
@@ -466,89 +419,71 @@ public:
 		pipelineCI.pViewportState = &viewportStateCI;
 		pipelineCI.pDepthStencilState = &depthStencilStateCI;
 		pipelineCI.pDynamicState = &dynamicStateCI;
-		pipelineCI.stageCount = shaderStages.size();
+		pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
 		pipelineCI.pStages = shaderStages.data();
-
+		shaderStages[0] = loadShader(getShadersPath() + "texturearray/instancing.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+		shaderStages[1] = loadShader(getShadersPath() + "texturearray/instancing.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipeline));
-	}
-
-	void prepareUniformBuffers()
-	{
-		uboVS.instance = new UboInstanceData[layerCount];
-
-		uint32_t uboSize = sizeof(uboVS.matrices) + (layerCount * sizeof(UboInstanceData));
-
-		// Vertex shader uniform buffer block
-		VK_CHECK_RESULT(vulkanDevice->createBuffer(
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&uniformBufferVS,
-			uboSize));
-
-		// Array indices and model matrices are fixed
-		float offset = -1.5f;
-		float center = (layerCount*offset) / 2.0f - (offset * 0.5f);
-		for (uint32_t i = 0; i < layerCount; i++) {
-			// Instance model matrix
-			uboVS.instance[i].model = glm::translate(glm::mat4(1.0f), glm::vec3(i * offset - center, 0.0f, 0.0f));
-			uboVS.instance[i].model = glm::scale(uboVS.instance[i].model, glm::vec3(0.5f));
-			// Instance texture array index
-			uboVS.instance[i].arrayIndex.x = (float)i;
-		}
-
-		// Update instanced part of the uniform buffer
-		uint8_t *pData;
-		uint32_t dataOffset = sizeof(uboVS.matrices);
-		uint32_t dataSize = layerCount * sizeof(UboInstanceData);
-		VK_CHECK_RESULT(vkMapMemory(device, uniformBufferVS.memory, dataOffset, dataSize, 0, (void **)&pData));
-		memcpy(pData, uboVS.instance, dataSize);
-		vkUnmapMemory(device, uniformBufferVS.memory);
-
-		// Map persistent
-		VK_CHECK_RESULT(uniformBufferVS.map());
-
-		updateUniformBuffersCamera();
-	}
-
-	void updateUniformBuffersCamera()
-	{
-		uboVS.matrices.projection = camera.matrices.perspective;
-		uboVS.matrices.view = camera.matrices.view;
-		memcpy(uniformBufferVS.mapped, &uboVS.matrices, sizeof(uboVS.matrices));
-	}
-
-	void draw()
-	{
-		VulkanExampleBase::prepareFrame();
-
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-		VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-		VulkanExampleBase::submitFrame();
 	}
 
 	void prepare()
 	{
 		VulkanExampleBase::prepare();
+		// Prepare per-frame resources
+		frameObjects.resize(getFrameCount());
+		for (FrameObjects& frame : frameObjects) {
+			createBaseFrameObjects(frame);
+			// Uniform buffers
+			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.uniformBuffer, sizeof(UniformData)));
+			// We will draw one cube per texture array layer, and pass position and texture array layer index for that cube via instanced data to the shaders
+			// These values don't change and are only set once
+			float offset = -1.5f;
+			float center = (layerCount * offset) / 2.0f - (offset * 0.5f);
+			for (uint32_t i = 0; i < layerCount; i++) {
+				// Position in [xyz], array layer index to sample from in [w]
+				uniformData.instances[i] = glm::vec4(i * offset - center, 0.0f, 0.0f, (float)i);
+			}
+		}
 		loadAssets();
-		generateCube();
-		prepareUniformBuffers();
-		setupDescriptorSetLayout();
-		preparePipelines();
-		setupDescriptorPool();
-		setupDescriptorSet();
-		buildCommandBuffers();
+		createCube();
+		createDescriptors();
+		createPipelines();
 		prepared = true;
 	}
 
 	virtual void render()
 	{
-		if (!prepared)
-			return;
-		draw();
-		if (camera.updated)
-			updateUniformBuffersCamera();
+		FrameObjects currentFrame = frameObjects[getCurrentFrameIndex()];
+
+		VulkanExampleBase::prepareFrame(currentFrame);
+
+		// Update uniform data for the next frame
+		uniformData.projection = camera.matrices.perspective;
+		uniformData.view = camera.matrices.view;
+		memcpy(currentFrame.uniformBuffer.mapped, &uniformData, sizeof(uniformData));
+
+		// Build the command buffer
+		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
+		const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
+		const VkRect2D renderArea = getRenderArea();
+		const VkViewport viewport = getViewport();
+		const VkRenderPassBeginInfo renderPassBeginInfo = getRenderPassBeginInfo(renderPass, defaultClearValues);
+		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
+		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSet, 0, nullptr);
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+		VkDeviceSize offsets[1] = { 0 };
+		vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets);
+		vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+		// Render multiple cubes for each texture array layer using instancing
+		vkCmdDrawIndexed(commandBuffer, indexCount, layerCount, 0, 0, 0);
+		drawUI(commandBuffer);
+		vkCmdEndRenderPass(commandBuffer);
+		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
+
+		VulkanExampleBase::submitFrame(currentFrame);
 	}
 
 };

@@ -6,17 +6,11 @@ struct VSInput
 [[vk::location(1)]] float2 UV : TEXCOORD0;
 };
 
-struct Instance
-{
-	float4x4 model;
-	float4 arrayIndex;
-};
-
 struct UBO
 {
 	float4x4 projection;
 	float4x4 view;
-	Instance instance[8];
+	float4 instances[8];
 };
 
 cbuffer ubo : register(b0) { UBO ubo; }
@@ -30,8 +24,8 @@ struct VSOutput
 VSOutput main(VSInput input, uint InstanceIndex : SV_InstanceID)
 {
 	VSOutput output = (VSOutput)0;
-	output.UV = float3(input.UV, ubo.instance[InstanceIndex].arrayIndex.x);
-	float4x4 modelView = mul(ubo.view, ubo.instance[InstanceIndex].model);
-	output.Pos = mul(ubo.projection, mul(modelView, float4(input.Pos, 1.0)));
+	output.UV = float3(input.UV, ubo.instances[InstanceIndex].w);
+	float3 position = input.Pos + ubo.instances[InstanceIndex].xyz;
+	output.Pos = mul(ubo.projection, mul(ubo.view, float4(position, 1.0)));
 	return output;
 }
