@@ -17,26 +17,26 @@
 
 #define ENABLE_VALIDATION false
 
-// Vertex layout for this example
-struct Vertex {
-	float pos[3];
-	float uv[2];
-	float normal[3];
-};
-
 class VulkanExample : public VulkanExampleBase
 {
 public:
 	// Contains all Vulkan objects that are required to store and use a texture
 	struct Texture {
-		VkSampler sampler;
 		VkImage image;
+		VkSampler sampler;
 		VkImageLayout imageLayout;
 		VkDeviceMemory deviceMemory;
 		VkImageView view;
 		uint32_t width, height;
 		uint32_t mipLevels;
-	} texture;
+	} texture{};
+
+	// Vertex layout for this example
+	struct Vertex {
+		float pos[3];
+		float uv[2];
+		float normal[3];
+	};
 
 	// Buffers for the quad to render the texture on
 	vks::Buffer vertexBuffer;
@@ -435,10 +435,12 @@ public:
 	// Free all Vulkan resources used by a texture object
 	void destroyTextureImage(Texture texture)
 	{
-		vkDestroyImageView(device, texture.view, nullptr);
-		vkDestroyImage(device, texture.image, nullptr);
-		vkDestroySampler(device, texture.sampler, nullptr);
-		vkFreeMemory(device, texture.deviceMemory, nullptr);
+		if (texture.image != VK_NULL_HANDLE) {
+			vkFreeMemory(device, texture.deviceMemory, nullptr);
+			vkDestroyImageView(device, texture.view, nullptr);
+			vkDestroyImage(device, texture.image, nullptr);
+			vkDestroySampler(device, texture.sampler, nullptr);
+		}
 	}
 
 	// Setup buffers for a single uv-mapped quad made from two triangles
