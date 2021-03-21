@@ -1,7 +1,7 @@
 // Copyright 2020 Google LLC
 
-Texture2D textureColor : register(t1);
-SamplerState samplers[3] : register(s2);
+Texture2D textureColor : register(t0, space1);
+SamplerState samplers[3] : register(s1, space1);
 
 struct VSOutput
 {
