@@ -20,6 +20,12 @@ VSOutput main([[vk::location(0)]] float3 Pos : POSITION0)
 	output.UVW = Pos;
 	// Convert cubemap coordinates into Vulkan coordinate space
 	output.UVW.xy *= -1.0;
-	output.Pos = mul(ubo.projection, mul(ubo.model, float4(Pos.xyz, 1.0)));
+	// Cancel out the translation part of the modelview matrix, as the skybox needs to stay centered
+	float4x4 modelCentered = ubo.model;
+	modelCentered[0][3] = 0.0;
+	modelCentered[1][3] = 0.0;
+	modelCentered[2][3] = 0.0;
+	modelCentered[3][3] = 1.0;
+	output.Pos = mul(ubo.projection, mul(modelCentered, float4(Pos.xyz, 1.0)));
 	return output;
 }

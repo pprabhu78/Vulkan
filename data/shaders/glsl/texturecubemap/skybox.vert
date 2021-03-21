@@ -15,5 +15,7 @@ void main()
 	outUVW = inPos;
 	// Convert cubemap coordinates into Vulkan coordinate space
 	outUVW.xy *= -1.0;
-	gl_Position = ubo.projection * ubo.model * vec4(inPos.xyz, 1.0);
+	// Cancel out the translation part of the modelview matrix, as the skybox needs to stay centered
+	mat4 modelCentered = mat4(mat3(ubo.model));
+	gl_Position = ubo.projection * modelCentered * vec4(inPos.xyz, 1.0);
 }
