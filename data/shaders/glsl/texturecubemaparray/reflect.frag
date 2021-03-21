@@ -8,7 +8,7 @@ layout (binding = 0) uniform UBO
 	mat4 model;
 	mat4 invModel;
 	float lodBias;
-	int cubeMapIndex;
+	int selectedCubemapLayer;
 } ubo;
 
 layout (location = 0) in vec3 inPos;
@@ -26,7 +26,7 @@ void main()
 	cR = vec3(ubo.invModel * vec4(cR, 0.0));
 	cR.yz *= -1.0;
 
-	vec4 color = textureLod(samplerCubeMapArray, vec4(cR, ubo.cubeMapIndex), ubo.lodBias);
+	vec4 color = textureLod(samplerCubeMapArray, vec4(cR, ubo.selectedCubemapLayer), ubo.lodBias);
 
 	vec3 N = normalize(inNormal);
 	vec3 L = normalize(inLightVec);

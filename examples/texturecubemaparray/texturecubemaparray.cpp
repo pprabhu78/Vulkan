@@ -1,10 +1,16 @@
 /*
-* Vulkan Example - Cube map array texture loading and displaying
-*
-* Copyright (C) 2020 by Sascha Willems - www.saschawillems.de
-*
-* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
-*/
+ * Vulkan Example - Cube map array texture loading and displaying
+ *
+ * Copyright (C) 2020-2021 by Sascha Willems - www.saschawillems.de
+ *
+ * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+ */
+
+/*
+ * This sample shows how to load a cubemap array texture file into GPU memory and how to use it as a backdrop and a reflection source
+ * A cubemap array can store multiple cubemaps in one single Vulkan image
+ * The texture loading part can be found in the loadCubemapArray function, and the Texture struct contains all Vulkan objects to store/use a cubemap array texture
+ */
 
 #include "vulkanexamplebase.h"
 #include "VulkanglTFModel.h"
@@ -16,48 +22,53 @@
 class VulkanExample : public VulkanExampleBase
 {
 public:
-	bool displaySkybox = true;
+	// Contains all Vulkan objects that are required to store and use a cubemap array
+	struct CubemapArray {
+		VkImage image;
+		VkSampler sampler;
+		VkDeviceMemory deviceMemory;
+		VkImageView view;
+		uint32_t width, height;
+		uint32_t mipLevels;
+		uint32_t layerCount;
+	} cubemapArray{};
 
-	vks::Texture cubeMapArray;
+	bool displaySkybox = true;
 
 	struct Meshes {
 		vkglTF::Model skybox;
 		std::vector<vkglTF::Model> objects;
 		int32_t objectIndex = 0;
+		std::vector<std::string> names;
 	} models;
 
-	struct {
-		vks::Buffer object;
-		vks::Buffer skybox;
-	} uniformBuffers;
-
-	struct ShaderData {
+	struct UniformData {
 		glm::mat4 projection;
 		glm::mat4 modelView;
 		glm::mat4 inverseModelview;
 		float lodBias = 0.0f;
-		int cubeMapIndex = 1;
-	} shaderData;
+		// Selects the layer to be sampled from in the fragment shader
+		int selectedCubemapLayer = 1;
+	} uniformData;
 
-	struct {
+	struct FrameObjects : public VulkanFrameObjects {
+		vks::Buffer uniformBuffer;
+		VkDescriptorSet descriptorSet;
+	};
+	std::vector<FrameObjects> frameObjects;
+
+	struct Pipelines {
 		VkPipeline skybox;
 		VkPipeline reflect;
 	} pipelines;
 
-	struct {
-		VkDescriptorSet object;
-		VkDescriptorSet skybox;
-	} descriptorSets;
-
 	VkPipelineLayout pipelineLayout;
 	VkDescriptorSetLayout descriptorSetLayout;
-
-	std::vector<std::string> objectNames;
 
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 	{
 		title = "Cube map textures";
-		camera.type = Camera::CameraType::lookat;
+		camera.setType(Camera::CameraType::lookat);
 		camera.setPosition(glm::vec3(0.0f, 0.0f, -4.0f));
 		camera.setRotationSpeed(0.25f);
 		camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
@@ -66,37 +77,36 @@ public:
 
 	~VulkanExample()
 	{
-		// Clean up texture resources
-		vkDestroyImageView(device, cubeMapArray.view, nullptr);
-		vkDestroyImage(device, cubeMapArray.image, nullptr);
-		vkDestroySampler(device, cubeMapArray.sampler, nullptr);
-		vkFreeMemory(device, cubeMapArray.deviceMemory, nullptr);
-
 		vkDestroyPipeline(device, pipelines.skybox, nullptr);
 		vkDestroyPipeline(device, pipelines.reflect, nullptr);
-
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-
-		uniformBuffers.object.destroy();
-		uniformBuffers.skybox.destroy();
+		destroyCubemapArray(cubemapArray);
+		for (FrameObjects& frame : frameObjects) {
+			frame.uniformBuffer.destroy();
+			destroyBaseFrameObjects(frame);
+		}
 	}
 
 	// Enable physical device features required for this example
 	virtual void getEnabledFeatures()
 	{
+		// The implementation must support cube map arrays for this sample tow ork
 		if (deviceFeatures.imageCubeArray) {
 			enabledFeatures.imageCubeArray = VK_TRUE;
 		} else {
 			vks::tools::exitFatal("Selected GPU does not support cube map arrays!", VK_ERROR_FEATURE_NOT_PRESENT);
 		}
-		enabledFeatures.imageCubeArray = VK_TRUE;
-		if (deviceFeatures.samplerAnisotropy) {
-			enabledFeatures.samplerAnisotropy = VK_TRUE;
-		}
+
+		// Enable anisotropic filtering if supported
+		enabledFeatures.samplerAnisotropy = deviceFeatures.samplerAnisotropy;
 	};
 
-	void loadCubemapArray(std::string filename, VkFormat format, bool forceLinearTiling)
+	// Loads the cubemap array texture from disk and uploads it to the GPU
+	// Cubemaps arrays contain multiple cube maps with 6 faces and each face having it's own set of mip levels
+	// The code in this sample creates an array of buffer-to-image copy regions for all cube maps in that array
+	// A detailed description of a KTX cube map texture array file can be found below
+	void loadCubemapArray(std::string filename, VkFormat format)
 	{
 		ktxResult result;
 		ktxTexture* ktxTexture;
@@ -125,10 +135,10 @@ public:
 		assert(result == KTX_SUCCESS);
 
 		// Get properties required for using and upload texture data from the ktx texture object
-		cubeMapArray.width = ktxTexture->baseWidth;
-		cubeMapArray.height = ktxTexture->baseHeight;
-		cubeMapArray.mipLevels = ktxTexture->numLevels;
-		cubeMapArray.layerCount = ktxTexture->numLayers;
+		cubemapArray.width = ktxTexture->baseWidth;
+		cubemapArray.height = ktxTexture->baseHeight;
+		cubemapArray.mipLevels = ktxTexture->numLevels;
+		cubemapArray.layerCount = ktxTexture->numLayers;
 		ktx_uint8_t *ktxTextureData = ktxTexture_GetData(ktxTexture);
 		ktx_size_t ktxTextureSize = ktxTexture_GetSize(ktxTexture);
 
@@ -161,48 +171,46 @@ public:
 		VkImageCreateInfo imageCreateInfo = vks::initializers::imageCreateInfo();
 		imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
 		imageCreateInfo.format = format;
-		imageCreateInfo.mipLevels = cubeMapArray.mipLevels;
+		imageCreateInfo.mipLevels = cubemapArray.mipLevels;
 		imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 		imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		imageCreateInfo.extent = { cubeMapArray.width, cubeMapArray.height, 1 };
+		imageCreateInfo.extent = { cubemapArray.width, cubemapArray.height, 1 };
 		imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 		// Cube faces count as array layers in Vulkan
-		imageCreateInfo.arrayLayers = 6 * cubeMapArray.layerCount;
+		imageCreateInfo.arrayLayers = 6 * cubemapArray.layerCount;
 		// This flag is required for cube map images
 		imageCreateInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-		VK_CHECK_RESULT(vkCreateImage(device, &imageCreateInfo, nullptr, &cubeMapArray.image));
+		VK_CHECK_RESULT(vkCreateImage(device, &imageCreateInfo, nullptr, &cubemapArray.image));
 
 		// Allocate memory for the cube map array image
-		vkGetImageMemoryRequirements(device, cubeMapArray.image, &memReqs);
+		vkGetImageMemoryRequirements(device, cubemapArray.image, &memReqs);
 		memAllocInfo.allocationSize = memReqs.size;
 		memAllocInfo.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-		VK_CHECK_RESULT(vkAllocateMemory(device, &memAllocInfo, nullptr, &cubeMapArray.deviceMemory));
-		VK_CHECK_RESULT(vkBindImageMemory(device, cubeMapArray.image, cubeMapArray.deviceMemory, 0));
+		VK_CHECK_RESULT(vkAllocateMemory(device, &memAllocInfo, nullptr, &cubemapArray.deviceMemory));
+		VK_CHECK_RESULT(vkBindImageMemory(device, cubemapArray.image, cubemapArray.deviceMemory, 0));
 
-		/*
-			We now copy the parts that make up the cube map array to our image via a command buffer
-			Cube map arrays in ktx are stored with a layout like this:
-			- Mip Level 0
-				- Layer 0 (= Cube map 0)
-					- Face +X
-					- Face -X
-					- Face +Y
-					- Face -Y
-					- Face +Z
-					- Face -Z
-				- Layer 1 (= Cube map 1)
-					- Face +X
-					...
-			- Mip Level 1
-				- Layer 0 (= Cube map 0)
-					- Face +X
-					...
-				- Layer 1 (= Cube map 1)
-					- Face +X
-					...
-		*/
+		// We now copy the parts that make up the cube map array to our image via a command buffer
+		// Cube map arrays in ktx are stored with a layout like this:
+		// - Mip Level 0
+		// 	- Layer 0 (= Cube map 0)
+		// 		- Face +X
+		// 		- Face -X
+		// 		- Face +Y
+		// 		- Face -Y
+		// 		- Face +Z
+		// 		- Face -Z
+		// 	- Layer 1 (= Cube map 1)
+		//		- Face +X
+		//		...
+		// - Mip Level 1
+		// 	- Layer 0 (= Cube map 0)
+		// 		- Face +X
+		// 		...
+		// 	- Layer 1 (= Cube map 1)
+		// 		- Face +X
+		//		...
 
 		VkCommandBuffer copyCmd = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
@@ -232,25 +240,33 @@ public:
 		VkImageSubresourceRange subresourceRange = {};
 		subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		subresourceRange.baseMipLevel = 0;
-		subresourceRange.levelCount = cubeMapArray.mipLevels;
-		subresourceRange.layerCount = 6 * cubeMapArray.layerCount;
+		subresourceRange.levelCount = cubemapArray.mipLevels;
+		subresourceRange.layerCount = 6 * cubemapArray.layerCount;
 
 		// Transition target image to accept the writes from our buffer to image copies
-		vks::tools::setImageLayout(copyCmd, cubeMapArray.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
+		vks::tools::setImageLayout(
+			copyCmd, 
+			cubemapArray.image, 
+			VK_IMAGE_LAYOUT_UNDEFINED, 
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
+			subresourceRange);
 
 		// Copy the cube map array buffer parts from the staging buffer to the optimal tiled image
 		vkCmdCopyBufferToImage(
 			copyCmd,
 			sourceData.buffer,
-			cubeMapArray.image,
+			cubemapArray.image,
 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			static_cast<uint32_t>(bufferCopyRegions.size()),
-			bufferCopyRegions.data()
-			);
+			bufferCopyRegions.data());
 
 		// Transition image to shader read layout
-		cubeMapArray.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		vks::tools::setImageLayout(copyCmd, cubeMapArray.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, cubeMapArray.imageLayout, subresourceRange);
+		vks::tools::setImageLayout(
+			copyCmd, 
+			cubemapArray.image, 
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, 
+			subresourceRange);
 
 		vulkanDevice->flushCommandBuffer(copyCmd, queue, true);
 
@@ -265,7 +281,7 @@ public:
 		sampler.mipLodBias = 0.0f;
 		sampler.compareOp = VK_COMPARE_OP_NEVER;
 		sampler.minLod = 0.0f;
-		sampler.maxLod = static_cast<float>(cubeMapArray.mipLevels);
+		sampler.maxLod = static_cast<float>(cubemapArray.mipLevels);
 		sampler.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 		sampler.maxAnisotropy = 1.0f;
 		if (vulkanDevice->features.samplerAnisotropy)
@@ -273,7 +289,7 @@ public:
 			sampler.maxAnisotropy = vulkanDevice->properties.limits.maxSamplerAnisotropy;
 			sampler.anisotropyEnable = VK_TRUE;
 		}
-		VK_CHECK_RESULT(vkCreateSampler(device, &sampler, nullptr, &cubeMapArray.sampler));
+		VK_CHECK_RESULT(vkCreateSampler(device, &sampler, nullptr, &cubemapArray.sampler));
 
 		// Create the image view for a cube map array
 		VkImageViewCreateInfo view = vks::initializers::imageViewCreateInfo();
@@ -281,10 +297,10 @@ public:
 		view.format = format;
 		view.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
 		view.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-		view.subresourceRange.layerCount = 6 * cubeMapArray.layerCount;
-		view.subresourceRange.levelCount = cubeMapArray.mipLevels;
-		view.image = cubeMapArray.image;
-		VK_CHECK_RESULT(vkCreateImageView(device, &view, nullptr, &cubeMapArray.view));
+		view.subresourceRange.layerCount = 6 * cubemapArray.layerCount;
+		view.subresourceRange.levelCount = cubemapArray.mipLevels;
+		view.image = cubemapArray.image;
+		VK_CHECK_RESULT(vkCreateImageView(device, &view, nullptr, &cubemapArray.view));
 
 		// Clean up staging resources
 		vkFreeMemory(device, sourceData.memory, nullptr);
@@ -292,134 +308,83 @@ public:
 		ktxTexture_Destroy(ktxTexture);
 	}
 
-	void buildCommandBuffers()
+	// Free all Vulkan resources used by a texture object
+	void destroyCubemapArray(CubemapArray cubemapArray)
 	{
-		VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-
-		VkClearValue clearValues[2];
-		clearValues[0].color = defaultClearColor;
-		clearValues[1].depthStencil = { 1.0f, 0 };
-
-		VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
-		renderPassBeginInfo.renderPass = renderPass;
-		renderPassBeginInfo.renderArea.offset.x = 0;
-		renderPassBeginInfo.renderArea.offset.y = 0;
-		renderPassBeginInfo.renderArea.extent.width = width;
-		renderPassBeginInfo.renderArea.extent.height = height;
-		renderPassBeginInfo.clearValueCount = 2;
-		renderPassBeginInfo.pClearValues = clearValues;
-
-		for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
-		{
-			// Set target frame buffer
-			renderPassBeginInfo.framebuffer = frameBuffers[i];
-
-			VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
-
-			vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-			VkViewport viewport = vks::initializers::viewport((float)width,	(float)height, 0.0f, 1.0f);
-			vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-
-			VkRect2D scissor = vks::initializers::rect2D(width,	height,	0, 0);
-			vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
-
-			VkDeviceSize offsets[1] = { 0 };
-
-			// Skybox
-			if (displaySkybox)
-			{
-				vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets.skybox, 0, NULL);
-				vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.skybox);
-				models.skybox.draw(drawCmdBuffers[i]);
-			}
-
-			// 3D object
-			vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets.object, 0, NULL);
-			vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.reflect);
-			models.objects[models.objectIndex].draw(drawCmdBuffers[i]);
-
-			drawUI(drawCmdBuffers[i]);
-
-			vkCmdEndRenderPass(drawCmdBuffers[i]);
-
-			VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
+		if (cubemapArray.image != VK_NULL_HANDLE) {
+			vkDestroyImageView(device, cubemapArray.view, nullptr);
+			vkDestroyImage(device, cubemapArray.image, nullptr);
+			vkDestroySampler(device, cubemapArray.sampler, nullptr);
+			vkFreeMemory(device, cubemapArray.deviceMemory, nullptr);
 		}
 	}
 
 	void loadAssets()
 	{
+		// Load the models
 		uint32_t glTFLoadingFlags = vkglTF::FileLoadingFlags::PreTransformVertices | vkglTF::FileLoadingFlags::FlipY;
-		// Skybox
 		models.skybox.loadFromFile(getAssetPath() + "models/cube.gltf", vulkanDevice, queue, glTFLoadingFlags);
-		// Objects
 		std::vector<std::string> filenames = { "sphere.gltf", "teapot.gltf", "torusknot.gltf", "venus.gltf" };
-		objectNames = { "Sphere", "Teapot", "Torusknot", "Venus" };
+		models.names = { "Sphere", "Teapot", "Torusknot", "Venus" };
 		models.objects.resize(filenames.size());
 		for (size_t i = 0; i < filenames.size(); i++) {
 			models.objects[i].loadFromFile(getAssetPath() + "models/" + filenames[i], vulkanDevice, queue, glTFLoadingFlags);
 		}
-		// Load the cube map array from a ktx texture file
-		loadCubemapArray(getAssetPath() + "textures/cubemap_array.ktx", VK_FORMAT_R8G8B8A8_UNORM, false);
+		// Load the cube map array texture
+		loadCubemapArray(getAssetPath() + "textures/cubemap_array.ktx", VK_FORMAT_R8G8B8A8_UNORM);
 	}
 
-	void setupDescriptorPool()
+	void createDescriptors()
 	{
-		const std::vector<VkDescriptorPoolSize> poolSizes = {
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2),
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2)
+		// Pool
+		std::vector<VkDescriptorPoolSize> poolSizes = {
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2 * getFrameCount()),
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2 * getFrameCount())
 		};
-		const VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, 2);
+		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, getFrameCount());
 		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
-	}
 
-	void setupDescriptorSetLayout()
-	{
-		const std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
+		// Layout
+		std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
 			// Binding 0 : Uniform buffer
 			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0),
-			// Binding 1 : Fragment shader image sampler
+			// Binding 1 : Fragment shader image sampler for sampling from the cubemap array
 			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
 		};
-
-		const VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
+		VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
 		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
 
+		// Sets
+
+		// Image descriptor for the cube map texture
+		VkDescriptorImageInfo cubemapDescriptor =
+			vks::initializers::descriptorImageInfo(
+				cubemapArray.sampler,
+				cubemapArray.view,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		for (FrameObjects& frame : frameObjects) {
+			VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
+			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &frame.descriptorSet));
+
+			std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
+				// Binding 0 : Vertex shader uniform buffer
+				vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.uniformBuffer.descriptor),
+				// Binding 1 : Fragment shader cubemap sampler
+				//  Fragment shader: layout (set = 0, binding = 1) uniform samplerCubeArray samplerCubeMapArray;
+				vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &cubemapDescriptor)
+			};
+			vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+		}
+	}
+
+	void createPipelines()
+	{
+		// Layout
 		const VkPipelineLayoutCreateInfo pipelineLayoutCI = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayout));
-	}
 
-	void setupDescriptorSets()
-	{
-		// Image descriptor for the cube map texture
-		VkDescriptorImageInfo textureDescriptor = vks::initializers::descriptorImageInfo(cubeMapArray.sampler, cubeMapArray.view, cubeMapArray.imageLayout);
-		VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
-
-		// 3D object descriptor set
-		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSets.object));
-		std::vector<VkWriteDescriptorSet> writeDescriptorSets =
-		{
-			// Binding 0 : Vertex shader uniform buffer
-			vks::initializers::writeDescriptorSet(descriptorSets.object, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &uniformBuffers.object.descriptor),
-			// Binding 1 : Fragment shader cubemap sampler
-			vks::initializers::writeDescriptorSet(descriptorSets.object, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &textureDescriptor)
-		};
-		vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
-
-		// Sky box descriptor set
-		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSets.skybox));
-		writeDescriptorSets =
-		{
-			// Binding 0 : Vertex shader uniform buffer
-			vks::initializers::writeDescriptorSet(descriptorSets.skybox, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &uniformBuffers.skybox.descriptor),
-			// Binding 1 : Fragment shader cubemap sampler
-			vks::initializers::writeDescriptorSet(descriptorSets.skybox, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &textureDescriptor)
-		};
-		vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
-	}
-
-	void preparePipelines()
-	{
+		// Pipeline
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = vks::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 		VkPipelineRasterizationStateCreateInfo rasterizationState = vks::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
 		VkPipelineColorBlendAttachmentState blendAttachmentState = vks::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
@@ -430,7 +395,6 @@ public:
 		std::vector<VkDynamicState> dynamicStateEnables = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 		VkPipelineDynamicStateCreateInfo dynamicState = vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 		std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
-
 		VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass, 0);
 		pipelineCI.pInputAssemblyState = &inputAssemblyState;
 		pipelineCI.pRasterizationState = &rasterizationState;
@@ -442,109 +406,87 @@ public:
 		pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
 		pipelineCI.pStages = shaderStages.data();
 		pipelineCI.pVertexInputState = vkglTF::Vertex::getPipelineVertexInputState({ vkglTF::VertexComponent::Position, vkglTF::VertexComponent::Normal });
-
-		// Skybox pipeline (background cube)
+		// Skybox pipeline - Uses the cubemap array as a background
 		shaderStages[0] = loadShader(getShadersPath() + "texturecubemaparray/skybox.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		shaderStages[1] = loadShader(getShadersPath() + "texturecubemaparray/skybox.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
 		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.skybox));
-
-		// Cube map reflect pipeline
+		// Reflection pipeline - Uses the cubemap array for reflections on the selected object
 		shaderStages[0] = loadShader(getShadersPath() + "texturecubemaparray/reflect.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		shaderStages[1] = loadShader(getShadersPath() + "texturecubemaparray/reflect.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		// Enable depth test and write
 		depthStencilState.depthWriteEnable = VK_TRUE;
 		depthStencilState.depthTestEnable = VK_TRUE;
-		// Flip cull mode
 		rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
 		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.reflect));
-	}
-
-	void prepareUniformBuffers()
-	{
-		// Object vertex shader uniform buffer
-		VK_CHECK_RESULT(vulkanDevice->createBuffer(
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&uniformBuffers.object,
-			sizeof(ShaderData)));
-
-		// Skybox vertex shader uniform buffer
-		VK_CHECK_RESULT(vulkanDevice->createBuffer(
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&uniformBuffers.skybox,
-			sizeof(ShaderData)));
-
-		// Map persistent
-		VK_CHECK_RESULT(uniformBuffers.object.map());
-		VK_CHECK_RESULT(uniformBuffers.skybox.map());
-
-		updateUniformBuffers();
-	}
-
-	void updateUniformBuffers()
-	{
-		// 3D object
-		shaderData.projection = camera.matrices.perspective;
-		shaderData.modelView = camera.matrices.view;
-		shaderData.inverseModelview = glm::inverse(camera.matrices.view);
-		memcpy(uniformBuffers.object.mapped, &shaderData, sizeof(ShaderData));
-
-		// Skybox
-		shaderData.modelView = camera.matrices.view;
-		// Cancel out translation
-		shaderData.modelView[3] = glm::vec4(0.0f, 0.0f, 0.0f, 1.0f);
-		memcpy(uniformBuffers.skybox.mapped, &shaderData, sizeof(ShaderData));
-	}
-
-	void draw()
-	{
-		VulkanExampleBase::prepareFrame();
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-		VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-		VulkanExampleBase::submitFrame();
 	}
 
 	void prepare()
 	{
 		VulkanExampleBase::prepare();
+		// Prepare per-frame resources
+		frameObjects.resize(getFrameCount());
+		for (FrameObjects& frame : frameObjects) {
+			createBaseFrameObjects(frame);
+			// Uniform buffers
+			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.uniformBuffer, sizeof(UniformData)));
+		}
 		loadAssets();
-		prepareUniformBuffers();
-		setupDescriptorSetLayout();
-		preparePipelines();
-		setupDescriptorPool();
-		setupDescriptorSets();
-		buildCommandBuffers();
+		createDescriptors();
+		createPipelines();
 		prepared = true;
 	}
 
 	virtual void render()
 	{
-		if (!prepared)
-			return;
-		draw();
-		if (camera.updated) {
-			updateUniformBuffers();
+		FrameObjects currentFrame = frameObjects[getCurrentFrameIndex()];
+
+		VulkanExampleBase::prepareFrame(currentFrame);
+
+		// Update uniform data for the next frame
+		uniformData.projection = camera.matrices.perspective;
+		uniformData.modelView = camera.matrices.view;
+		uniformData.inverseModelview = glm::inverse(camera.matrices.view);
+		memcpy(currentFrame.uniformBuffer.mapped, &uniformData, sizeof(uniformData));
+
+		// Build the command buffer
+		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
+		const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
+		const VkRect2D renderArea = getRenderArea();
+		const VkViewport viewport = getViewport();
+		const VkRenderPassBeginInfo renderPassBeginInfo = getRenderPassBeginInfo(renderPass, defaultClearValues);
+		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
+		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSet, 0, nullptr);
+
+		// Render the Skybox using the cubemap as a background
+		if (displaySkybox) {
+			// Note: As the skybox needs to stay at the center, the tranlation part of the modelview matrix is cancelled out in the skybox.vert shader
+			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.skybox);
+			models.skybox.draw(commandBuffer);
 		}
+
+		// Render the selected model using the cubemap as a reflector
+		// The cube map layer to be drawn is set via the uniform stored in uniformData.cubemapIndex
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.reflect);
+		models.objects[models.objectIndex].draw(commandBuffer);
+
+		drawUI(commandBuffer);
+		vkCmdEndRenderPass(commandBuffer);
+		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
+
+		VulkanExampleBase::submitFrame(currentFrame);
 	}
 
 	virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay)
 	{
 		if (overlay->header("Settings")) {
-			if (overlay->sliderInt("Cube map", &shaderData.cubeMapIndex, 0, cubeMapArray.layerCount - 1)) {
-				updateUniformBuffers();
-			}
-			if (overlay->sliderFloat("LOD bias", &shaderData.lodBias, 0.0f, (float)cubeMapArray.mipLevels)) {
-				updateUniformBuffers();
-			}
-			if (overlay->comboBox("Object type", &models.objectIndex, objectNames)) {
-				buildCommandBuffers();
-			}
-			if (overlay->checkBox("Skybox", &displaySkybox)) {
-				buildCommandBuffers();
-			}
+			overlay->sliderInt("Cube map", &uniformData.selectedCubemapLayer, 0, cubemapArray.layerCount - 1);
+			overlay->sliderFloat("LOD bias", &uniformData.lodBias, 0.0f, (float)cubemapArray.mipLevels);
+			overlay->comboBox("Object type", &models.objectIndex, models.names);
+			overlay->checkBox("Skybox", &displaySkybox);
 		}
 	}
 };

@@ -9,12 +9,12 @@ struct UBO
 	float4x4 model;
 	float4x4 invModel;
 	float lodBias;
-	int cubeMapIndex;
+	int selectedCubemapLayer;
 };
 
 cbuffer ubo : register(b0) { UBO ubo; }
 
 float4 main([[vk::location(0)]] float3 inUVW : TEXCOORD0) : SV_TARGET
 {
-	return textureCubeMapArray.SampleLevel(samplerCubeMapArray, float4(inUVW, ubo.cubeMapIndex), ubo.lodBias);
+	return textureCubeMapArray.SampleLevel(samplerCubeMapArray, float4(inUVW, ubo.selectedCubemapLayer), ubo.lodBias);
 }

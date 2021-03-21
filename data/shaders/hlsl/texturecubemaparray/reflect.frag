@@ -9,7 +9,7 @@ struct UBO
 	float4x4 model;
 	float4x4 invModel;
 	float lodBias;
-	int cubeMapIndex;
+	int selectedCubemapLayer;
 };
 
 cbuffer ubo : register(b0) { UBO ubo; }
@@ -31,7 +31,7 @@ float4 main(VSOutput input) : SV_TARGET
 	cR = mul(ubo.invModel, float4(cR, 0.0)).xyz;
 	cR *= float3(1.0, -1.0, -1.0);
 
-	float4 color = textureCubeMapArray.SampleLevel(samplerCubeMapArray, float4(cR, ubo.cubeMapIndex), input.LodBias);
+	float4 color = textureCubeMapArray.SampleLevel(samplerCubeMapArray, float4(cR, ubo.selectedCubemapLayer), input.LodBias);
 
 	float3 N = normalize(input.Normal);
 	float3 L = normalize(input.LightVec);
