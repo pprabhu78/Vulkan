@@ -9,7 +9,7 @@ struct VSInput
 struct UBO
 {
 	float4x4 projection;
-	float4x4 model;
+	float4x4 view;
 	float4 lightPos;
 	float outlineWidth;
 };
@@ -20,5 +20,5 @@ float4 main(VSInput input) : SV_POSITION
 {
 	// Extrude along normal
 	float4 pos = float4(input.Pos.xyz + input.Normal * ubo.outlineWidth, input.Pos.w);
-	return mul(ubo.projection, mul(ubo.model, pos));
+	return mul(ubo.projection, mul(ubo.view, pos));
 }

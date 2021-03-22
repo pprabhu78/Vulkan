@@ -7,7 +7,7 @@
 */
 
 /*
- * This samples renders an outline for a 3d model using the stencil buffer
+ * This sample renders an outline for a 3d model using the stencil buffer
  * This is done via two passes, with the first pass rendering the visible model and also filling the stencil buffer with a reference value
  * The second pass then renders extruded version of the model using the stencil buffer and to only draw where the stencil buffer doesn't contain the previosuly set reference value
  */
@@ -57,13 +57,15 @@ public:
 
 	~VulkanExample()
 	{
-		vkDestroyPipeline(device, pipelines.stencil, nullptr);
-		vkDestroyPipeline(device, pipelines.outline, nullptr);
-		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-		for (FrameObjects& frame : frameObjects) {
-			frame.uniformBuffer.destroy();
-			destroyBaseFrameObjects(frame);
+		if (device) {
+			vkDestroyPipeline(device, pipelines.stencil, nullptr);
+			vkDestroyPipeline(device, pipelines.outline, nullptr);
+			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+			for (FrameObjects& frame : frameObjects) {
+				frame.uniformBuffer.destroy();
+				destroyBaseFrameObjects(frame);
+			}
 		}
 	}
 

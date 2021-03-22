@@ -10,7 +10,7 @@ struct VSInput
 struct UBO
 {
 	float4x4 projection;
-	float4x4 model;
+	float4x4 view;
 	float4 lightPos;
 };
 
@@ -28,10 +28,10 @@ VSOutput main(VSInput input)
 {
 	VSOutput output = (VSOutput)0;
 	output.Color = float3(1.0, 0.0, 0.0);
-	output.Pos = mul(ubo.projection, mul(ubo.model, float4(input.Pos.xyz, 1.0)));
-	output.Normal = mul((float3x3)ubo.model, input.Normal);
-	float4 pos = mul(ubo.model, float4(input.Pos, 1.0));
-	float3 lPos = mul((float3x3)ubo.model, ubo.lightPos.xyz);
+	output.Pos = mul(ubo.projection, mul(ubo.view, float4(input.Pos.xyz, 1.0)));
+	output.Normal = mul((float3x3)ubo.view, input.Normal);
+	float4 pos = mul(ubo.view, float4(input.Pos, 1.0));
+	float3 lPos = mul((float3x3)ubo.view, ubo.lightPos.xyz);
 	output.LightVec = lPos - pos.xyz;
 	return output;
 }
