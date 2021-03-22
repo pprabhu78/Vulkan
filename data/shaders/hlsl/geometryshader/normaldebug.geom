@@ -4,9 +4,10 @@ struct UBO
 {
 	float4x4 projection;
 	float4x4 model;
+	float normalScale;
 };
 
-cbuffer ubo : register(b1) { UBO ubo; }
+cbuffer ubo : register(b0) { UBO ubo; }
 
 struct VSOutput
 {
@@ -23,7 +24,7 @@ struct GSOutput
 [maxvertexcount(6)]
 void main(triangle VSOutput input[3], inout LineStream<GSOutput> outStream)
 {
-	float normalLength = 0.02;
+	float normalLength = 0.02 * ubo.normalScale;
 	for(int i=0; i<3; i++)
 	{
 		float3 pos = input[i].Pos.xyz;
