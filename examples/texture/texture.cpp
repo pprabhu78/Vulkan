@@ -73,23 +73,22 @@ public:
 
 	~VulkanExample()
 	{
-		vkDestroyPipeline(device, pipeline, nullptr);
-		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-		destroyTextureImage(texture);
-		for (FrameObjects& frame : frameObjects) {
-			frame.uniformBuffer.destroy();
-			destroyBaseFrameObjects(frame);
+		if (device) {
+			vkDestroyPipeline(device, pipeline, nullptr);
+			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+			destroyTextureImage(texture);
+			for (FrameObjects& frame : frameObjects) {
+				frame.uniformBuffer.destroy();
+				destroyBaseFrameObjects(frame);
+			}
 		}
 	}
 
-	// Enable physical device features required for this example
 	virtual void getEnabledFeatures()
 	{
 		// Enable anisotropic filtering if supported
-		if (deviceFeatures.samplerAnisotropy) {
-			enabledFeatures.samplerAnisotropy = VK_TRUE;
-		};
+		enabledFeatures.samplerAnisotropy = deviceFeatures.samplerAnisotropy;
 	}
 
 	// Upload texture image data to the GPU
@@ -490,27 +489,28 @@ public:
 		std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
 			// Binding 0 : Vertex shader uniform buffer
 			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0),
-			// Binding 1 : Fragment shader combined image sampler for our 2D texture
+			// Binding 1 : Fragment shader combined image sampler for sampling from the 2D texture
 			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
 		};
 		VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
 		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
 
 		// Sets
+
+		// Setup a descriptor image info for the current texture to be used as a combined image sampler
+		// We need to setup a descriptor image info for our texture, that'll be used for updating the descriptor slot
+		VkDescriptorImageInfo textureDescriptor;
+		// The image's view (images are never directly accessed by the shader, but rather through views defining subresources)
+		textureDescriptor.imageView = texture.view;
+		// The sampler (Telling the shader how to sample the texture, including repeat, border, etc.)
+		textureDescriptor.sampler = texture.sampler;
+		// The current layout of the image, in our case shader read
+		// Note that the image needs to be in that layout, e.g. by doing a manual layout transition
+		textureDescriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;;
+
 		for (FrameObjects& frame : frameObjects) {
 			VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
 			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &frame.descriptorSet));
-
-			// Setup a descriptor image info for the current texture to be used as a combined image sampler
-			// We need to setup a descriptor image info for our texture, that'll be used for updating the descriptor slot
-			VkDescriptorImageInfo textureDescriptor;
-			// The image's view (images are never directly accessed by the shader, but rather through views defining subresources)
-			textureDescriptor.imageView = texture.view;
-			// The sampler (Telling the shader how to sample the texture, including repeat, border, etc.)
-			textureDescriptor.sampler = texture.sampler;
-			// The current layout of the image, in our case shader read
-			// Note that the image needs to be in that layout, e.g. by doing a manual layout transition
-			textureDescriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;;
 
 			std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
 				// Binding 0 : Vertex shader uniform buffer

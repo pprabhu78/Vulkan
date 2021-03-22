@@ -164,15 +164,17 @@ public:
 
 	~VulkanExample()
 	{
-		vkDestroyPipeline(device, pipeline, nullptr);
-		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-		destroyTextureImage(texture);
-		vertexBuffer.destroy();
-		indexBuffer.destroy();
-		for (FrameObjects& frame : frameObjects) {
-			frame.uniformBuffer.destroy();
-			destroyBaseFrameObjects(frame);
+		if (device) {
+			vkDestroyPipeline(device, pipeline, nullptr);
+			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+			destroyTextureImage(texture);
+			vertexBuffer.destroy();
+			indexBuffer.destroy();
+			for (FrameObjects& frame : frameObjects) {
+				frame.uniformBuffer.destroy();
+				destroyBaseFrameObjects(frame);
+			}
 		}
 	}
 

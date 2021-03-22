@@ -76,18 +76,20 @@ public:
 
 	~VulkanExample()
 	{
-		vkDestroyImageView(device, textureArray.view, nullptr);
-		vkDestroyImage(device, textureArray.image, nullptr);
-		vkDestroySampler(device, textureArray.sampler, nullptr);
-		vkFreeMemory(device, textureArray.deviceMemory, nullptr);
-		vkDestroyPipeline(device, pipeline, nullptr);
-		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-		vertexBuffer.destroy();
-		indexBuffer.destroy();
-		for (FrameObjects& frame : frameObjects) {
-			frame.uniformBuffer.destroy();
-			destroyBaseFrameObjects(frame);
+		if (device) {
+			vkDestroyImageView(device, textureArray.view, nullptr);
+			vkDestroyImage(device, textureArray.image, nullptr);
+			vkDestroySampler(device, textureArray.sampler, nullptr);
+			vkFreeMemory(device, textureArray.deviceMemory, nullptr);
+			vkDestroyPipeline(device, pipeline, nullptr);
+			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+			vertexBuffer.destroy();
+			indexBuffer.destroy();
+			for (FrameObjects& frame : frameObjects) {
+				frame.uniformBuffer.destroy();
+				destroyBaseFrameObjects(frame);
+			}
 		}
 	}
 
@@ -351,23 +353,24 @@ public:
 		std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
 			// Binding 0 : Vertex shader uniform buffer
 			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0),
-			// Binding 1 : Fragment shader image sampler (texture array)
+			// Binding 1 : Fragment shader image sampler for sampling from texture array
 			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
 		};
 		VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
 		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
 
 		// Sets
+
+		// Image descriptor for the texture array
+		VkDescriptorImageInfo textureDescriptor =
+			vks::initializers::descriptorImageInfo(
+				textureArray.sampler,
+				textureArray.view,
+				textureArray.imageLayout);
+
 		for (FrameObjects& frame : frameObjects) {
 			VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
 			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &frame.descriptorSet));
-
-			// Image descriptor for the texture array
-			VkDescriptorImageInfo textureDescriptor =
-				vks::initializers::descriptorImageInfo(
-					textureArray.sampler,
-					textureArray.view,
-					textureArray.imageLayout);
 
 			std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
 				// Binding 0 : Vertex shader uniform buffer

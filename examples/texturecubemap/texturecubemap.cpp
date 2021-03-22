@@ -21,7 +21,7 @@
 class VulkanExample : public VulkanExampleBase
 {
 public:
-	// Contains all Vulkan objects that are required to store and use a texture
+	// Contains all Vulkan objects that are required to store and use a cubemap
 	struct Cubemap {
 		VkImage image;
 		VkSampler sampler;
