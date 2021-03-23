@@ -1,52 +1,67 @@
 /*
-* Vulkan Example - Multisampling using resolve attachments
-*
-* Copyright (C) 2016 by Sascha Willems - www.saschawillems.de
-*
-* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
-*/
+ * Vulkan Example - Multisampling using resolve attachments
+ *
+ * Copyright (C) 2016-2021 by Sascha Willems - www.saschawillems.de
+ *
+ * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+ */
+
+/*
+ * This sample shows how to do multisample anti-aliasing (MSAA) 
+ * This involves the creation of so-called resolve attachments with a sample count > 1 to which the scene is rendered to (see createMultisampleTarget)
+ * These are then resolved into the actual frame buffer with a sampling pattern applied to determine the final, anti-aliased color
+ * The resolve process also requires a specific render pass to be created, overriding the base class default render pass setup
+ * In addition to the MSAA pipeline, the sample also creates a MSAA pipeline with sample shading enabled
+ */
 
 #include "vulkanexamplebase.h"
 #include "VulkanglTFModel.h"
 
 #define ENABLE_VALIDATION false
 
-struct {
-	struct {
-		VkImage image;
-		VkImageView view;
-		VkDeviceMemory memory;
-	} color;
-	struct {
-		VkImage image;
-		VkImageView view;
-		VkDeviceMemory memory;
-	} depth;
-} multisampleTarget;
-
 class VulkanExample : public VulkanExampleBase
 {
 public:
 	bool useSampleShading = false;
+	
+	// The sample count to be used for multi-sampling
+	// The actual value is determined in the prepare function based on the supported sample counts of the implementation
 	VkSampleCountFlagBits sampleCount = VK_SAMPLE_COUNT_1_BIT;
+
+	// Stores all Vulkan objects needed to store a color and depth attachment
+	struct MultiSampleTarget {
+		struct Color {
+			VkImage image;
+			VkImageView view;
+			VkDeviceMemory memory;
+		} color;
+		struct Depth {
+			VkImage image;
+			VkImageView view;
+			VkDeviceMemory memory;
+		} depth;
+	} multisampleTarget;
 
 	vkglTF::Model model;
 
-	vks::Buffer uniformBuffer;
-
-	struct UBOVS {
+	struct UniformData {
 		glm::mat4 projection;
-		glm::mat4 model;
+		glm::mat4 view;
 		glm::vec4 lightPos = glm::vec4(5.0f, -5.0f, 5.0f, 1.0f);
-	} uboVS;
+	} uniformData;
 
-	struct {
+	struct FrameObjects : public VulkanFrameObjects {
+		vks::Buffer uniformBuffer;
+		VkDescriptorSet descriptorSet;
+	};
+	std::vector<FrameObjects> frameObjects;
+
+	struct Pipelines {
 		VkPipeline MSAA;
 		VkPipeline MSAASampleShading;
 	} pipelines;
 
 	VkPipelineLayout pipelineLayout;
-	VkDescriptorSet descriptorSet;
 	VkDescriptorSetLayout descriptorSetLayout;
 
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
@@ -61,41 +76,35 @@ public:
 
 	~VulkanExample()
 	{
-		// Clean up used Vulkan resources
-		// Note : Inherited destructor cleans up resources stored in base class
-		vkDestroyPipeline(device, pipelines.MSAA, nullptr);
-		vkDestroyPipeline(device, pipelines.MSAASampleShading, nullptr);
-
-		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-
-		// Destroy MSAA target
-		vkDestroyImage(device, multisampleTarget.color.image, nullptr);
-		vkDestroyImageView(device, multisampleTarget.color.view, nullptr);
-		vkFreeMemory(device, multisampleTarget.color.memory, nullptr);
-		vkDestroyImage(device, multisampleTarget.depth.image, nullptr);
-		vkDestroyImageView(device, multisampleTarget.depth.view, nullptr);
-		vkFreeMemory(device, multisampleTarget.depth.memory, nullptr);
-
-		uniformBuffer.destroy();
+		if (device) {
+			vkDestroyPipeline(device, pipelines.MSAA, nullptr);
+			vkDestroyPipeline(device, pipelines.MSAASampleShading, nullptr);
+			vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+			vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+			// Destroy the MSAA targets
+			vkDestroyImage(device, multisampleTarget.color.image, nullptr);
+			vkDestroyImageView(device, multisampleTarget.color.view, nullptr);
+			vkFreeMemory(device, multisampleTarget.color.memory, nullptr);
+			vkDestroyImage(device, multisampleTarget.depth.image, nullptr);
+			vkDestroyImageView(device, multisampleTarget.depth.view, nullptr);
+			vkFreeMemory(device, multisampleTarget.depth.memory, nullptr);
+			for (FrameObjects& frame : frameObjects) {
+				frame.uniformBuffer.destroy();
+				destroyBaseFrameObjects(frame);
+			}
+		}
 	}
 
-	// Enable physical device features required for this example
 	virtual void getEnabledFeatures()
 	{
-		// Enable sample rate shading filtering if supported
-		if (deviceFeatures.sampleRateShading) {
-			enabledFeatures.sampleRateShading = VK_TRUE;
-		}
-		// Enable anisotropic filtering if supported
-		if (deviceFeatures.samplerAnisotropy) {
-			enabledFeatures.samplerAnisotropy = VK_TRUE;
-		}
+		// Enable sample rate shading filtering if supported by the device
+		enabledFeatures.sampleRateShading = deviceFeatures.sampleRateShading;
+		// Enable anisotropic filtering if supported by the device
+		enabledFeatures.samplerAnisotropy = deviceFeatures.samplerAnisotropy;
 	}
 
-	// Creates a multi sample render target (image and view) that is used to resolve
-	// into the visible frame buffer target in the render pass
-	void setupMultisampleTarget()
+	// Creates a multi sample render target for color and depth (image and view) that the multi-sampled scene is rendered to
+	void createMultisampleTarget()
 	{
 		// Check if device supports requested sample count for color and depth frame buffer
 		assert((deviceProperties.limits.framebufferColorSampleCounts >= sampleCount) && (deviceProperties.limits.framebufferDepthSampleCounts >= sampleCount));
@@ -112,22 +121,20 @@ public:
 		info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		info.tiling = VK_IMAGE_TILING_OPTIMAL;
 		info.samples = sampleCount;
-		// Image will only be used as a transient target
-		info.usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		// Aside from color attachment, we also add the transient usage flag which may result in better performance or lower memory requirements for some implementations
+		info.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
 		info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
 		VK_CHECK_RESULT(vkCreateImage(device, &info, nullptr, &multisampleTarget.color.image));
 
 		VkMemoryRequirements memReqs;
 		vkGetImageMemoryRequirements(device, multisampleTarget.color.image, &memReqs);
 		VkMemoryAllocateInfo memAlloc = vks::initializers::memoryAllocateInfo();
 		memAlloc.allocationSize = memReqs.size;
-		// We prefer a lazily allocated memory type
-		// This means that the memory gets allocated when the implementation sees fit, e.g. when first using the images
+		// We prefer a lazily allocated memory type, this means that the memory gets allocated when the implementation sees fit, e.g. when first using the images
+		// This is mostly supported on mobile and results in better performance for tile-based architectures
 		VkBool32 lazyMemTypePresent;
 		memAlloc.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT, &lazyMemTypePresent);
-		if (!lazyMemTypePresent)
-		{
+		if (!lazyMemTypePresent) {
 			// If this is not available, fall back to device local memory
 			memAlloc.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		}
@@ -146,7 +153,6 @@ public:
 		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		viewInfo.subresourceRange.levelCount = 1;
 		viewInfo.subresourceRange.layerCount = 1;
-
 		VK_CHECK_RESULT(vkCreateImageView(device, &viewInfo, nullptr, &multisampleTarget.color.view));
 
 		// Depth target
@@ -163,19 +169,15 @@ public:
 		// Image will only be used as a transient target
 		info.usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
 		VK_CHECK_RESULT(vkCreateImage(device, &info, nullptr, &multisampleTarget.depth.image));
 
 		vkGetImageMemoryRequirements(device, multisampleTarget.depth.image, &memReqs);
 		memAlloc = vks::initializers::memoryAllocateInfo();
 		memAlloc.allocationSize = memReqs.size;
-
 		memAlloc.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT, &lazyMemTypePresent);
-		if (!lazyMemTypePresent)
-		{
+		if (!lazyMemTypePresent) {
 			memAlloc.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 		}
-
 		VK_CHECK_RESULT(vkAllocateMemory(device, &memAlloc, nullptr, &multisampleTarget.depth.memory));
 		vkBindImageMemory(device, multisampleTarget.depth.image, multisampleTarget.depth.memory, 0);
 
@@ -190,21 +192,19 @@ public:
 		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 		viewInfo.subresourceRange.levelCount = 1;
 		viewInfo.subresourceRange.layerCount = 1;
-
 		VK_CHECK_RESULT(vkCreateImageView(device, &viewInfo, nullptr, &multisampleTarget.depth.view));
 	}
 
-	// Setup a render pass for using a multi sampled attachment
-	// and a resolve attachment that the msaa image is resolved
-	// to at the end of the render pass
+	// Create a render pass for using the multi sampled attachment and resolving it into the frame buffer
+	// This overrides the default render pass setup of the example base class
 	void setupRenderPass()
 	{
-		// Overrides the virtual function of the base class
-
+		// Setup the attachments used in this render pass
 		std::array<VkAttachmentDescription, 3> attachments = {};
 
-		// Multisampled attachment that we render to
+		// Multisampled color attachment that the sample will render to
 		attachments[0].format = swapChain.colorFormat;
+		// We need to set the sample count for this attachment
 		attachments[0].samples = sampleCount;
 		attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -213,41 +213,42 @@ public:
 		attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		// This is the frame buffer attachment to where the multisampled image
-		// will be resolved to and which will be presented to the swapchain
-		attachments[1].format = swapChain.colorFormat;
-		attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-		attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		// Multisampled depth attachment that the sample will render to
+		attachments[1].format = depthFormat;
+		// We need to set the sample count for this attachment
+		attachments[1].samples = sampleCount;
+		attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachments[1].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-		// Multisampled depth attachment we render to
-		attachments[2].format = depthFormat;
-		attachments[2].samples = sampleCount;
-		attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		// This is the frame buffer attachment to which the multisampled image will be resolved to and which will be presented to the swapchain
+		attachments[2].format = swapChain.colorFormat;
+		attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		attachments[2].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachments[2].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		attachments[2].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		attachments[2].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
-		VkAttachmentReference colorReference = {};
+		// Setup the attachment references
+		// Multisampled attachments
+		VkAttachmentReference colorReference{};
 		colorReference.attachment = 0;
 		colorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-		VkAttachmentReference depthReference = {};
-		depthReference.attachment = 2;
+		VkAttachmentReference depthReference{};
+		depthReference.attachment = 1;
 		depthReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
 		// Resolve attachment reference for the color attachment
-		VkAttachmentReference resolveReference = {};
-		resolveReference.attachment = 1;
+		VkAttachmentReference resolveReference{};
+		resolveReference.attachment = 2;
 		resolveReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		VkSubpassDescription subpass = {};
+		// Similar to the default render pass, this sample uses one subpass with two dependencies
+		VkSubpassDescription subpass{};
 		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 		subpass.colorAttachmentCount = 1;
 		subpass.pColorAttachments = &colorReference;
@@ -256,7 +257,8 @@ public:
 		subpass.pDepthStencilAttachment = &depthReference;
 
 		std::array<VkSubpassDependency, 2> dependencies;
-
+		
+		// Dependency from external (everything before this subpass) will transform the image to the layouts of the references
 		dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
 		dependencies[0].dstSubpass = 0;
 		dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
@@ -265,6 +267,7 @@ public:
 		dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 		dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
+		// Dependency from our single subpass to external (everything after this subpass) will transform the images to their final layouts
 		dependencies[1].srcSubpass = 0;
 		dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
 		dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -280,85 +283,33 @@ public:
 		renderPassInfo.pSubpasses = &subpass;
 		renderPassInfo.dependencyCount = 2;
 		renderPassInfo.pDependencies = dependencies.data();
-
 		VK_CHECK_RESULT(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass));
 	}
 
-	// Frame buffer attachments must match with render pass setup,
-	// so we need to adjust frame buffer creation to cover our
-	// multisample target
+	// Create the frame buffers for the swap chain images using the msaa and resolve attachments created above
+	// This overrides the default frame buffer setup of the example base class
 	void setupFrameBuffer()
 	{
-		// Overrides the virtual function of the base class
+		createMultisampleTarget();
 
+		// The image views for the attachments must match the references specified at render pass creation
 		std::array<VkImageView, 3> attachments;
-
-		setupMultisampleTarget();
-
 		attachments[0] = multisampleTarget.color.view;
-		// attachment[1] = swapchain image
-		attachments[2] = multisampleTarget.depth.view;
+		attachments[1] = multisampleTarget.depth.view;
 
-		VkFramebufferCreateInfo frameBufferCreateInfo = {};
+		VkFramebufferCreateInfo frameBufferCreateInfo{};
 		frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-		frameBufferCreateInfo.pNext = NULL;
 		frameBufferCreateInfo.renderPass = renderPass;
 		frameBufferCreateInfo.attachmentCount = attachments.size();
 		frameBufferCreateInfo.pAttachments = attachments.data();
 		frameBufferCreateInfo.width = width;
 		frameBufferCreateInfo.height = height;
 		frameBufferCreateInfo.layers = 1;
-
-		// Create frame buffers for every swap chain image
+		// Create a frame buffer for every swap chain image
 		frameBuffers.resize(swapChain.imageCount);
-		for (uint32_t i = 0; i < frameBuffers.size(); i++)
-		{
-			attachments[1] = swapChain.buffers[i].view;
+		for (uint32_t i = 0; i < frameBuffers.size(); i++) {
+			attachments[2] = swapChain.buffers[i].view;
 			VK_CHECK_RESULT(vkCreateFramebuffer(device, &frameBufferCreateInfo, nullptr, &frameBuffers[i]));
-		}
-	}
-
-	void buildCommandBuffers()
-	{
-		VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-
-		VkClearValue clearValues[3];
-		// Clear to a white background for higher contrast
-		clearValues[0].color = { { 1.0f, 1.0f, 1.0f, 1.0f } };
-		clearValues[1].color = { { 1.0f, 1.0f, 1.0f, 1.0f } };
-		clearValues[2].depthStencil = { 1.0f, 0 };
-
-		VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
-		renderPassBeginInfo.renderPass = renderPass;
-		renderPassBeginInfo.renderArea.extent.width = width;
-		renderPassBeginInfo.renderArea.extent.height = height;
-		renderPassBeginInfo.clearValueCount = 3;
-		renderPassBeginInfo.pClearValues = clearValues;
-
-		for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
-		{
-			// Set target frame buffer
-			renderPassBeginInfo.framebuffer = frameBuffers[i];
-
-			VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
-
-			vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-			VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-			vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-
-			VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
-			vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
-
-			vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, NULL);
-			vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, useSampleShading ? pipelines.MSAASampleShading : pipelines.MSAA);
-			model.draw(drawCmdBuffers[i], vkglTF::RenderFlags::BindImages, pipelineLayout);
-
-			drawUI(drawCmdBuffers[i]);
-
-			vkCmdEndRenderPass(drawCmdBuffers[i]);
-
-			VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
 		}
 	}
 
@@ -367,55 +318,39 @@ public:
 		model.loadFromFile(getAssetPath() + "models/voyager.gltf", vulkanDevice, queue, vkglTF::FileLoadingFlags::PreTransformVertices | vkglTF::FileLoadingFlags::FlipY);
 	}
 
-	void setupDescriptorPool()
+	void createDescriptors()
 	{
-		// Example uses one ubo and one combined image sampler
-		std::vector<VkDescriptorPoolSize> poolSizes =
-		{
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1),
-		};
-
-		VkDescriptorPoolCreateInfo descriptorPoolInfo =
-			vks::initializers::descriptorPoolCreateInfo(
-				poolSizes.size(),
-				poolSizes.data(),
-				2);
-
+		// Pool
+		VkDescriptorPoolSize poolSize = vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, getFrameCount());
+		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSize, getFrameCount());
 		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
+
+		// Layout
+		VkDescriptorSetLayoutBinding setLayoutBinding = vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
+		VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBinding);
+		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
+		
+		// Sets
+		for (FrameObjects& frame : frameObjects) {
+			VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
+			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &frame.descriptorSet));
+			VkWriteDescriptorSet modelWriteDescriptorSet = vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.uniformBuffer.descriptor);
+			vkUpdateDescriptorSets(device, 1, &modelWriteDescriptorSet, 0, nullptr);
+		}
 	}
 
-	void setupDescriptorSetLayout()
+	void createPipelines()
 	{
-		const std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
-			// Binding 0 : Vertex shader uniform buffer
-			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0),
-		};
-		VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
-		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
-
-		// Layout uses set 0 for passing vertex shader ubo and set 1 for fragment shader images (taken from glTF model)
+		// Layout 
+		// The layout uses set 0 for passing the uniform buffer to the vertex shader and set 1 for passing images to the fragment shader (taken from glTF model)
 		const std::vector<VkDescriptorSetLayout> setLayouts = {
 			descriptorSetLayout,
 			vkglTF::descriptorSetLayoutImage,
 		};
-		VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo = vks::initializers::pipelineLayoutCreateInfo(setLayouts.data(), 2);
-		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout));
-	}
+		VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = vks::initializers::pipelineLayoutCreateInfo(setLayouts.data(), 2);
+		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
 
-	void setupDescriptorSet()
-	{
-		VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
-		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet));
-		std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-			// Binding 0 : Vertex shader uniform buffer
-			vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &uniformBuffer.descriptor),
-		};
-		vkUpdateDescriptorSets(device, writeDescriptorSets.size(), writeDescriptorSets.data(), 0, NULL);
-	}
-
-	void preparePipelines()
-	{
+		// Pipelines
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = vks::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 		VkPipelineRasterizationStateCreateInfo rasterizationState = vks::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
 		VkPipelineColorBlendAttachmentState blendAttachmentState = vks::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
@@ -449,102 +384,113 @@ public:
 		shaderStages[1] = loadShader(getShadersPath() + "multisampling/mesh.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.MSAA));
 
-		if (vulkanDevice->features.sampleRateShading)
-		{
-			// MSAA with sample shading pipeline
+		if (vulkanDevice->features.sampleRateShading) {
+			// Create a MSAA pipeline with sample shading enabled
 			// Sample shading enables per-sample shading to avoid shader aliasing and smooth out e.g. high frequency texture maps
-			// Note: This will trade performance for are more stable image
-			
-			// Enable per-sample shading (instead of per-fragment)
-			multisampleState.sampleShadingEnable = VK_TRUE;
-			// Minimum fraction for sample shading
+			// Note: This will trade performance for are more stable image			
+			multisampleState.sampleShadingEnable = VK_TRUE;			
+			// Specify the minimum number of unique samples to process for each fragment which, results in a smoother image on high frequency textures
+			// While this improves image stability, it also comes with a performance cost
 			multisampleState.minSampleShading = 0.25f;
 			VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.MSAASampleShading));
 		}
 	}
 
-	// Prepare and initialize uniform buffer containing shader uniforms
-	void prepareUniformBuffers()
+	// Returns the maximum (multi) sample count supported by the implementation
+	// This would usually be a graphics option in a real-world application that the user can choose from
+	VkSampleCountFlagBits getMaxUsableSampleCount()
 	{
-		// Vertex shader uniform buffer block
-		VK_CHECK_RESULT(vulkanDevice->createBuffer(
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&uniformBuffer,
-			sizeof(uboVS)));
-
-		// Map persistent
-		VK_CHECK_RESULT(uniformBuffer.map());
-
-		updateUniformBuffers();
-	}
-
-	void updateUniformBuffers()
-	{
-		uboVS.projection = camera.matrices.perspective;
-		uboVS.model = camera.matrices.view;
-		memcpy(uniformBuffer.mapped, &uboVS, sizeof(uboVS));
-	}
-
-	void draw()
-	{
-		VulkanExampleBase::prepareFrame();
-
-		// Command buffer to be sumitted to the queue
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-
-		// Submit to queue
-		VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-
-		VulkanExampleBase::submitFrame();
+		// Maximum sample count we can use is determined by the color and depth sample counts, so we set the lower of the two as the upper limit for this sample
+		VkSampleCountFlags counts = std::min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
+		if (counts & VK_SAMPLE_COUNT_64_BIT) {
+			return VK_SAMPLE_COUNT_64_BIT; 
+		}
+		if (counts & VK_SAMPLE_COUNT_32_BIT) {
+			return VK_SAMPLE_COUNT_32_BIT; 
+		}
+		if (counts & VK_SAMPLE_COUNT_16_BIT) {
+			return VK_SAMPLE_COUNT_16_BIT; 
+		}
+		if (counts & VK_SAMPLE_COUNT_8_BIT) {
+			return VK_SAMPLE_COUNT_8_BIT;
+		}
+		if (counts & VK_SAMPLE_COUNT_4_BIT) {
+			return VK_SAMPLE_COUNT_4_BIT;
+		}
+		if (counts & VK_SAMPLE_COUNT_2_BIT) {
+			return VK_SAMPLE_COUNT_2_BIT;
+		}
+		return VK_SAMPLE_COUNT_1_BIT;
 	}
 
 	void prepare()
 	{
 		sampleCount = getMaxUsableSampleCount();
-		UIOverlay.rasterizationSamples = sampleCount;
+		if (sampleCount == VK_SAMPLE_COUNT_1_BIT) {
+			vks::tools::exitFatal("Multi sampling is not supported", -1);
+		}
+		// As the UI overlay is rendered as part of the samples' render pass, we need to pass the sample count so the overlay can adjust it's setup accordingly
+		UIOverlay.setSampleCount(sampleCount);
 		VulkanExampleBase::prepare();
+		// Prepare per-frame resources
+		frameObjects.resize(getFrameCount());
+		for (FrameObjects& frame : frameObjects) {
+			createBaseFrameObjects(frame);
+			// Uniform buffers
+			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.uniformBuffer, sizeof(UniformData)));
+		}
 		loadAssets();
-		prepareUniformBuffers();
-		setupDescriptorSetLayout();
-		preparePipelines();
-		setupDescriptorPool();
-		setupDescriptorSet();
-		buildCommandBuffers();
+		createDescriptors();
+		createPipelines();
 		prepared = true;
 	}
 
 	virtual void render()
 	{
-		if (!prepared)
-			return;
-		draw();
-		if (camera.updated) {
-			updateUniformBuffers();
-		}
-	}
+		FrameObjects currentFrame = frameObjects[getCurrentFrameIndex()];
 
-	// Returns the maximum sample count usable by the platform
-	VkSampleCountFlagBits getMaxUsableSampleCount()
-	{
-		VkSampleCountFlags counts = std::min(deviceProperties.limits.framebufferColorSampleCounts, deviceProperties.limits.framebufferDepthSampleCounts);
-		if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
-		if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
-		if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
-		if (counts & VK_SAMPLE_COUNT_8_BIT) { return VK_SAMPLE_COUNT_8_BIT; }
-		if (counts & VK_SAMPLE_COUNT_4_BIT) { return VK_SAMPLE_COUNT_4_BIT; }
-		if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
-		return VK_SAMPLE_COUNT_1_BIT;
+		VulkanExampleBase::prepareFrame(currentFrame);
+
+		// Update uniform data for the next frame
+		uniformData.projection = camera.matrices.perspective;
+		uniformData.view = camera.matrices.view;
+		memcpy(currentFrame.uniformBuffer.mapped, &uniformData, sizeof(uniformData));
+
+		// Build the command buffer
+		
+		// For each attachment used by this render pass, a clear value has to be specified
+		VkClearValue clearValues[3];
+		clearValues[0].color = { { 1.0f, 1.0f, 1.0f, 1.0f } };
+		clearValues[1].depthStencil = { 1.0f, 0 };
+		clearValues[2].color = { { 1.0f, 1.0f, 1.0f, 1.0f } };
+
+		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
+		const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
+		const VkRect2D renderArea = getRenderArea();
+		const VkViewport viewport = getViewport();
+		const VkRenderPassBeginInfo renderPassBeginInfo = getRenderPassBeginInfo(renderPass, clearValues, 3);
+		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
+		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+		vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSet, 0, nullptr);
+
+		// Render the model using the selected MSAA pipeline
+		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, useSampleShading ? pipelines.MSAASampleShading : pipelines.MSAA);
+		model.draw(commandBuffer, vkglTF::RenderFlags::BindImages, pipelineLayout);
+
+		drawUI(commandBuffer);
+		vkCmdEndRenderPass(commandBuffer);
+		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
+
+		VulkanExampleBase::submitFrame(currentFrame);
 	}
 
 	virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay)
 	{
 		if (vulkanDevice->features.sampleRateShading) {
 			if (overlay->header("Settings")) {
-				if (overlay->checkBox("Sample rate shading", &useSampleShading)) {
-					buildCommandBuffers();
-				}
+				overlay->checkBox("Sample rate shading", &useSampleShading);
 			}
 		}
 	}
