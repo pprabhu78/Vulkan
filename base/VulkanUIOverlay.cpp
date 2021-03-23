@@ -482,4 +482,9 @@ namespace vks
 		ImGui::TextV(formatstr, args);
 		va_end(args);
 	}
+	void UIOverlay::setSampleCount(VkSampleCountFlagBits sampleCount)
+	{
+		rasterizationSamples = sampleCount;
+	}
+
 }
