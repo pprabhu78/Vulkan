@@ -7,7 +7,9 @@
  */
 
  /*
-  * @todo
+  * This sample shows how to use a query pool for fetching occlusion information on rendered objects
+  * The first render pass will render all objects and an occluder while fetching the number of samples passed (non-occluded) into an array
+  * This information is then used in a second pass to display the number of samples that passed the occlusion test and to toggle the visuals of fully occluded objects
   */
 
 #include "vulkanexamplebase.h"
@@ -152,7 +154,7 @@ public:
 		pipelineCI.pViewportState = &viewportState;
 		pipelineCI.pDepthStencilState = &depthStencilState;
 		pipelineCI.pDynamicState = &dynamicState;
-		pipelineCI.stageCount = shaderStages.size();
+		pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
 		pipelineCI.pStages = shaderStages.data();
 		pipelineCI.pVertexInputState = vkglTF::Vertex::getPipelineVertexInputState({ vkglTF::VertexComponent::Position, vkglTF::VertexComponent::Normal, vkglTF::VertexComponent::Color });;
 
@@ -228,7 +230,6 @@ public:
 		uniformData.projection = camera.matrices.perspective;
 		uniformData.view = camera.matrices.view;
 
-		uint8_t* pData;
 		// Occluder
 		uniformData.visible = 1.0f;
 		uniformData.model = glm::scale(glm::mat4(1.0f), glm::vec3(6.0f));
