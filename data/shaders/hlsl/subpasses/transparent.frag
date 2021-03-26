@@ -1,8 +1,8 @@
 // Copyright 2020 Google LLC
 
-[[vk::input_attachment_index(0)]][[vk::binding(1)]] SubpassInput samplerPositionDepth;
-Texture2D textureTexture : register(t2);
-SamplerState samplerTexture : register(s2);
+[[vk::input_attachment_index(0)]][[vk::binding(0)]] SubpassInput samplerPositionDepth;
+Texture2D textureTexture : register(t0, space1);
+SamplerState samplerTexture : register(s0, space1);
 
 struct VSOutput
 {

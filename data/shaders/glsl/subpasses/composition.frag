@@ -1,8 +1,8 @@
 #version 450
 
-layout (input_attachment_index = 0, binding = 0) uniform subpassInput samplerposition;
-layout (input_attachment_index = 1, binding = 1) uniform subpassInput samplerNormal;
-layout (input_attachment_index = 2, binding = 2) uniform subpassInput samplerAlbedo;
+layout (input_attachment_index = 0, set = 0, binding = 0) uniform subpassInput samplerPosition;
+layout (input_attachment_index = 1, set = 0, binding = 1) uniform subpassInput samplerNormal;
+layout (input_attachment_index = 2, set = 0, binding = 2) uniform subpassInput samplerAlbedo;
 
 layout (location = 0) in vec2 inUV;
 
@@ -16,8 +16,11 @@ struct Light {
 	float radius;
 };
 
-layout (binding = 3) uniform UBO 
+layout (set = 1, binding = 0) uniform UBO 
 {
+	mat4 projection;
+	mat4 model;
+	mat4 view;
 	vec4 viewPos;
 	Light lights[NUM_LIGHTS];
 } ubo;
@@ -26,7 +29,7 @@ layout (binding = 3) uniform UBO
 void main() 
 {
 	// Read G-Buffer values from previous sub pass
-	vec3 fragPos = subpassLoad(samplerposition).rgb;
+	vec3 fragPos = subpassLoad(samplerPosition).rgb;
 	vec3 normal = subpassLoad(samplerNormal).rgb;
 	vec4 albedo = subpassLoad(samplerAlbedo);
 	

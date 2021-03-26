@@ -15,7 +15,7 @@ struct UBO
 	float4x4 view;
 };
 
-cbuffer ubo : register(b0) { UBO ubo; }
+cbuffer ubo : register(b0, space2) { UBO ubo; }
 
 struct VSOutput
 {
