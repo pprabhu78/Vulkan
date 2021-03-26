@@ -487,4 +487,9 @@ namespace vks
 		rasterizationSamples = sampleCount;
 	}
 
+	void UIOverlay::setSubpass(uint32_t subpass)
+	{
+		this->subpass = subpass;
+	}
+
 }

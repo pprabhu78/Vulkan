@@ -89,5 +89,6 @@ namespace vks
 		void text(const char* formatstr, ...);
 		// @todo
 		void setSampleCount(VkSampleCountFlagBits sampleCount);
+		void setSubpass(uint32_t subpass);
 	};
 }
