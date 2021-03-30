@@ -16,20 +16,6 @@ struct UBO
 
 cbuffer ubo : register(b0) { UBO ubo; }
 
-struct Node
-{
-	float4x4 transform;
-};
-
-cbuffer NodeBuf : register(b0, space1) { Node node; }
-
-struct PushConstant
-{
-	float4 baseColorFactor;
-};
-
-[[vk::push_constant]] PushConstant material;
-
 struct VSOutput
 {
 	float4 Pos : SV_POSITION;
@@ -43,14 +29,14 @@ VSOutput main(VSInput input)
 {
 	VSOutput output = (VSOutput)0;
 	output.Normal = input.Normal;
-	output.Color = material.baseColorFactor.rgb;
+	output.Color = input.Color;
 	float4 pos = float4(input.Pos, 1.0);
-	output.Pos = mul(ubo.projection, mul(ubo.view, mul(ubo.model, mul(node.transform, pos))));
+	output.Pos = mul(ubo.projection, mul(ubo.view, mul(ubo.model, pos)));
 
-	output.Normal = mul((float4x3)mul(ubo.view, mul(ubo.model, node.transform)), input.Normal).xyz;
+	output.Normal = mul((float4x3)mul(ubo.view, ubo.model), input.Normal).xyz;
 
-	float4 localpos = mul(ubo.view, mul(ubo.model, mul(node.transform, pos)));
-	float3 lightPos = float3(10.0f, -10.0f, 10.0f);
+	float4 localpos = mul(ubo.view, mul(ubo.model, pos));
+	float3 lightPos = float3(10.0f, 10.0f, 10.0f);
 	output.LightVec = lightPos.xyz - localpos.xyz;
 	output.ViewVec = -localpos.xyz;
 	return output;

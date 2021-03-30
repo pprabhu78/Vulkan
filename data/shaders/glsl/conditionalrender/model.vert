@@ -10,14 +10,6 @@ layout (set = 0, binding = 0) uniform UBO {
 	mat4 model;
 } ubo;
 
-layout (set = 1, binding = 0) uniform Node {
-	mat4 matrix;
-} node;
-
-layout(push_constant) uniform PushBlock {
-	vec4 baseColorFactor;
-} material;
-
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec3 outViewVec;
@@ -31,14 +23,14 @@ out gl_PerVertex
 void main() 
 {
 	outNormal = inNormal;
-	outColor = material.baseColorFactor.rgb;
+	outColor = inColor;
 	vec4 pos = vec4(inPos, 1.0);
-	gl_Position = ubo.projection * ubo.view * ubo.model * node.matrix * pos;
+	gl_Position = ubo.projection * ubo.view * ubo.model * pos;
 
-	outNormal = mat3(ubo.view * ubo.model * node.matrix) * inNormal;
+	outNormal = mat3(ubo.view * ubo.model) * inNormal;
 
-	vec4 localpos = ubo.view * ubo.model * node.matrix * pos;
-	vec3 lightPos = vec3(10.0f, -10.0f, 10.0f);
+	vec4 localpos = ubo.view * ubo.model * pos;
+	vec3 lightPos = vec3(10.0f, 10.0f, 10.0f);
 	outLightVec = lightPos.xyz - localpos.xyz;
 	outViewVec = -localpos.xyz;		
 }
