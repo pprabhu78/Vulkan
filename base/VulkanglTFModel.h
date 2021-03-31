@@ -38,13 +38,19 @@
 namespace vkglTF
 {
 	enum DescriptorBindingFlags {
+		// Add a descriptor for the base color image of a node's material to the descriptor set
 		ImageBaseColor = 0x00000001,
+		// Add a descriptor for the normal map image of a node's material to the descriptor set
 		ImageNormalMap = 0x00000002
 	};
 
+	// A descriptor set for the per-material images of the scene node's that can be used for custom pipeline layout setup
 	extern VkDescriptorSetLayout descriptorSetLayoutImage;
+	// A descriptor set for the per-node uniform buffers containing the matrices that can be used for custom pipeline layout setup
 	extern VkDescriptorSetLayout descriptorSetLayoutUbo;
+	// Can be used to pass additional memory property flags for the vertex and index buffers from the glTF file
 	extern VkMemoryPropertyFlags memoryPropertyFlags;
+	// Flags for creating the descriptor sets for the scene's nodes (see DescriptorBindingFlags)
 	extern uint32_t descriptorBindingFlags;
 
 	struct Node;
@@ -228,18 +234,28 @@ namespace vkglTF
 		static VkPipelineVertexInputStateCreateInfo* getPipelineVertexInputState(const std::vector<VertexComponent> components);
 	};
 
+	// These flags alter the way glTF files are loaded into memory
 	enum FileLoadingFlags {
 		None = 0x00000000,
+		// Apply node matrices to the vertices after loading the scene
 		PreTransformVertices = 0x00000001,
+		// Apply material colors to the vertex colors after loading scene
 		PreMultiplyVertexColors = 0x00000002,
+		// Flip the Y component of all vertices after loading the scene
 		FlipY = 0x00000004,
+		// Don't load the images stored in the glTF file
 		DontLoadImages = 0x00000008
 	};
 
+	// These flags alter the way glTF scenes are drawn
 	enum RenderFlags {
+		// Bind the descriptor sets for a mesh's material at draw time
 		BindImages = 0x00000001,
+		// Only draw opaque meshes (defined by their material)
 		RenderOpaqueNodes = 0x00000002,
+		// Only draw alpha masked meshes (defined by their material)
 		RenderAlphaMaskedNodes = 0x00000004,
+		// Only draw transparent meshes (defined by their material)
 		RenderAlphaBlendedNodes = 0x00000008
 	};
 
