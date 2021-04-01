@@ -2,8 +2,12 @@
 
 layout (binding = 0) uniform UBO 
 {
+	mat4 projection;
+	mat4 modelview;
+	vec4 lightPos;
+	float tessStrength;
 	float tessLevel;
-} ubo; 
+} ubo;
  
 layout (vertices = 3) out;
  

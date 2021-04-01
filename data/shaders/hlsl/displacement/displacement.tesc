@@ -2,6 +2,10 @@
 
 struct UBO
 {
+	float4x4 projection;
+	float4x4 model;
+	float4 lightPos;
+	float tessStrength;
 	float tessLevel;
 };
 
