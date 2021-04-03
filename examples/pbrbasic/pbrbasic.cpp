@@ -1,11 +1,17 @@
 /*
- * Vulkan Example - Physical based shading basics
- *
- * See http://graphicrants.blogspot.de/2013/08/specular-brdf-reference.html for a good reference to the different functions that make up a specular BRDF
+ * Vulkan Example - Physical based rendering basics
  *
  * Copyright (C) 2017-2021 by Sascha Willems - www.saschawillems.de
  *
  * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+ */
+
+/*
+ * This sample shows how to implement basic physically based rendering (PBR)
+ * PBR is a lighting technique using realistic material properties such as metallic and roughness along with bidirectional reflectance distribution functions
+ * The sample draws a grid of objects with varying metallic and roughness values and materials with real-life parameters
+ * The physically based rendering equation is implemented in the pbr.frag shader
+ * See http://graphicrants.blogspot.de/2013/08/specular-brdf-reference.html for a good reference to the different functions that make up a specular BRDF
  */
 
 #include "vulkanexamplebase.h"
@@ -15,7 +21,7 @@
 
 // PBR Material definition
 struct Material {
-	// Material proberties will be passed to the shaders as push constants
+	// Material properties will be passed to the shaders as push constants
 	struct PushBlock {
 		float roughness;
 		float metallic;
@@ -37,6 +43,7 @@ class VulkanExample : public VulkanExampleBase
 public:
 	struct Meshes {
 		std::vector<vkglTF::Model> objects;
+		std::vector<std::string> names;
 		int32_t objectIndex = 0;
 	} models;
 
@@ -62,7 +69,6 @@ public:
 	int32_t materialIndex = 0;
 
 	std::vector<std::string> materialNames;
-	std::vector<std::string> objectNames;
 
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 	{
@@ -90,12 +96,9 @@ public:
 		materials.push_back(Material("Red", glm::vec3(1.0f, 0.0f, 0.0f), 0.1f, 1.0f));
 		materials.push_back(Material("Blue", glm::vec3(0.0f, 0.0f, 1.0f), 0.1f, 1.0f));
 		materials.push_back(Material("Black", glm::vec3(0.0f), 0.1f, 1.0f));
-
 		for (auto material : materials) {
 			materialNames.push_back(material.name);
 		}
-		objectNames = { "Sphere", "Teapot", "Torusknot", "Venus" };
-
 		materialIndex = 0;
 	}
 
@@ -114,10 +117,11 @@ public:
 
 	void loadAssets()
 	{
-		std::vector<std::string> filenames = { "sphere.gltf", "teapot.gltf", "torusknot.gltf", "venus.gltf" };
-		models.objects.resize(filenames.size());
-		for (size_t i = 0; i < filenames.size(); i++) {			
-			models.objects[i].loadFromFile(getAssetPath() + "models/" + filenames[i], vulkanDevice, queue, vkglTF::FileLoadingFlags::PreTransformVertices | vkglTF::FileLoadingFlags::FlipY);
+		uint32_t glTFLoadingFlags = vkglTF::FileLoadingFlags::PreTransformVertices | vkglTF::FileLoadingFlags::FlipY;
+		models.names = { "sphere", "teapot", "torusknot", "venus" };
+		models.objects.resize(models.names.size());
+		for (size_t i = 0; i < models.names.size(); i++) {
+			models.objects[i].loadFromFile(getAssetPath() + "models/" + models.names[i] + ".gltf", vulkanDevice, queue, glTFLoadingFlags);
 		}
 	}
 
@@ -150,7 +154,7 @@ public:
 
 	void createPipelines()
 	{
-		// Layout with push constant for passing object positions
+		// Layout with push constant for passing object positions and materials
 		VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
 		std::vector<VkPushConstantRange> pushConstantRanges = {
 			vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(glm::vec3), 0),
@@ -170,8 +174,8 @@ public:
 		VkPipelineMultisampleStateCreateInfo multisampleState = vks::initializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT);
 		std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 		VkPipelineDynamicStateCreateInfo dynamicState = vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
-
 		std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
+
 		VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass);
 		pipelineCI.pInputAssemblyState = &inputAssemblyState;
 		pipelineCI.pRasterizationState = &rasterizationState;
@@ -269,7 +273,7 @@ public:
 	{
 		if (overlay->header("Settings")) {
 			overlay->comboBox("Material", &materialIndex, materialNames);
-			overlay->comboBox("Object type", &models.objectIndex, objectNames);
+			overlay->comboBox("Object type", &models.objectIndex, models.names);
 		}
 	}
 };
