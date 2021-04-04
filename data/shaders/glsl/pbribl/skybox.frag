@@ -1,16 +1,20 @@
 #version 450
 
-layout (binding = 2) uniform samplerCube samplerEnv;
+layout (set = 1, binding = 0) uniform samplerCube samplerEnv;
 
 layout (location = 0) in vec3 inUVW;
 
 layout (location = 0) out vec4 outColor;
 
-layout (binding = 1) uniform UBOParams {
+layout (set = 0, binding = 0) uniform UBO {
+	mat4 projection;
+	mat4 model;
+	mat4 view;
+	vec4 camPos;
 	vec4 lights[4];
 	float exposure;
 	float gamma;
-} uboParams;
+} ubo;
 
 // From http://filmicworlds.com/blog/filmic-tonemapping-operators/
 vec3 Uncharted2Tonemap(vec3 color)
@@ -30,10 +34,10 @@ void main()
 	vec3 color = texture(samplerEnv, inUVW).rgb;
 
 	// Tone mapping
-	color = Uncharted2Tonemap(color * uboParams.exposure);
+	color = Uncharted2Tonemap(color * ubo.exposure);
 	color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));	
 	// Gamma correction
-	color = pow(color, vec3(1.0f / uboParams.gamma));
+	color = pow(color, vec3(1.0f / ubo.gamma));
 	
 	outColor = vec4(color, 1.0);
 }

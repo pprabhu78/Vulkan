@@ -11,17 +11,13 @@ struct UBO  {
 	float4x4 projection;
 	float4x4 model;
 	float4x4 view;
-	float3 camPos;
-};
-
-cbuffer ubo : register(b0) { UBO ubo; }
-
-struct UBOParams {
+	float4 camPos;
 	float4 lights[4];
 	float exposure;
 	float gamma;
 };
-cbuffer uboParams : register(b1) { UBOParams uboParams; };
+
+cbuffer ubo : register(b0) { UBO ubo; }
 
 struct PushConsts {
 [[vk::offset(12)]] float roughness;
@@ -33,12 +29,12 @@ struct PushConsts {
 };
 [[vk::push_constant]] PushConsts material;
 
-TextureCube textureIrradiance : register(t2);
-SamplerState samplerIrradiance : register(s2);
-Texture2D textureBRDFLUT : register(t3);
-SamplerState samplerBRDFLUT : register(s3);
-TextureCube prefilteredMapTexture : register(t4);
-SamplerState prefilteredMapSampler : register(s4);
+TextureCube textureIrradiance : register(t1, space1);
+SamplerState samplerIrradiance : register(s1, space1);
+Texture2D textureBRDFLUT : register(t2, space1);
+SamplerState samplerBRDFLUT : register(s2, space1);
+TextureCube prefilteredMapTexture : register(t3, space1);
+SamplerState prefilteredMapSampler : register(s3, space1);
 
 #define PI 3.1415926535897932384626433832795
 #define ALBEDO float3(material.r, material.g, material.b)
@@ -137,7 +133,7 @@ float4 main(VSOutput input) : SV_TARGET
 
 	float3 Lo = float3(0.0, 0.0, 0.0);
 	for(int i = 0; i < 4; i++) {
-		float3 L = normalize(uboParams.lights[i].xyz - input.WorldPos);
+		float3 L = normalize(ubo.lights[i].xyz - input.WorldPos);
 		Lo += specularContribution(L, V, N, F0, metallic, roughness);
 	}
 
@@ -161,10 +157,10 @@ float4 main(VSOutput input) : SV_TARGET
 	float3 color = ambient + Lo;
 
 	// Tone mapping
-	color = Uncharted2Tonemap(color * uboParams.exposure);
+	color = Uncharted2Tonemap(color * ubo.exposure);
 	color = color * (1.0f / Uncharted2Tonemap((11.2f).xxx));
 	// Gamma correction
-	color = pow(color, (1.0f / uboParams.gamma).xxx);
+	color = pow(color, (1.0f / ubo.gamma).xxx);
 
 	return float4(color, 1.0);
 }

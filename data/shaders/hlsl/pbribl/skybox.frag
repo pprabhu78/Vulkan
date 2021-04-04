@@ -1,14 +1,18 @@
 // Copyright 2020 Google LLC
 
-TextureCube textureEnv : register(t2);
-SamplerState samplerEnv : register(s2);
+TextureCube textureEnv : register(t0, space1);
+SamplerState samplerEnv : register(s0, space1);
 
 struct UBOParams {
+	float4x4 projection;
+	float4x4 model;
+	float4x4 view;
+	float4 camPos;
 	float4 lights[4];
 	float exposure;
 	float gamma;
 };
-cbuffer uboParams : register(b1) { UBOParams uboParams; };
+cbuffer uboParams : register(b0) { UBOParams uboParams; };
 
 // From http://filmicworlds.com/blog/filmic-tonemapping-operators/
 float3 Uncharted2Tonemap(float3 color)

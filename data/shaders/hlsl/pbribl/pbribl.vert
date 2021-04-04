@@ -12,7 +12,7 @@ struct UBO
 	float4x4 projection;
 	float4x4 model;
 	float4x4 view;
-	float3 camPos;
+	float4 camPos;
 };
 
 cbuffer ubo : register(b0) { UBO ubo; }

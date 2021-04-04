@@ -4,12 +4,11 @@ layout (location = 0) in vec3 inPos;
 layout (location = 1) in vec3 inNormal;
 layout (location = 2) in vec2 inUV;
 
-layout (binding = 0) uniform UBO 
-{
+layout (set = 0, binding = 0) uniform UBO {
 	mat4 projection;
 	mat4 model;
 	mat4 view;
-	vec3 camPos;
+	vec4 camPos;
 } ubo;
 
 layout (location = 0) out vec3 outWorldPos;
@@ -19,11 +18,6 @@ layout (location = 2) out vec2 outUV;
 layout(push_constant) uniform PushConsts {
 	vec3 objPos;
 } pushConsts;
-
-out gl_PerVertex 
-{
-	vec4 gl_Position;
-};
 
 void main() 
 {
