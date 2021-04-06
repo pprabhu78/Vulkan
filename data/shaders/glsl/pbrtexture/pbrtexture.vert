@@ -10,8 +10,7 @@ layout (binding = 0) uniform UBO
 	mat4 projection;
 	mat4 model;
 	mat4 view;
-	//mat4 normal;
-	vec3 camPos;
+	vec4 camPos;
 } ubo;
 
 layout (location = 0) out vec3 outWorldPos;

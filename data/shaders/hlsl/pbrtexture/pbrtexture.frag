@@ -12,35 +12,31 @@ struct UBO  {
 	float4x4 projection;
 	float4x4 model;
 	float4x4 view;
-	float3 camPos;
-};
-
-cbuffer ubo : register(b0) { UBO ubo; }
-
-struct UBOParams {
+	float4 camPos;
 	float4 lights[4];
 	float exposure;
 	float gamma;
 };
-cbuffer uboParams : register(b1) { UBOParams uboParams; };
 
-TextureCube textureIrradiance : register(t2);
-SamplerState samplerIrradiance : register(s2);
-Texture2D textureBRDFLUT : register(t3);
-SamplerState samplerBRDFLUT : register(s3);
-TextureCube prefilteredMapTexture : register(t4);
-SamplerState prefilteredMapSampler : register(s4);
+cbuffer ubo : register(b0) { UBO ubo; }
 
-Texture2D albedoMapTexture : register(t5);
-SamplerState albedoMapSampler : register(s5);
-Texture2D normalMapTexture : register(t6);
-SamplerState normalMapSampler : register(s6);
-Texture2D aoMapTexture : register(t7);
-SamplerState aoMapSampler : register(s7);
-Texture2D metallicMapTexture : register(t8);
-SamplerState metallicMapSampler : register(s8);
-Texture2D roughnessMapTexture : register(t9);
-SamplerState roughnessMapSampler : register(s9);
+TextureCube textureIrradiance : register(t1, space1);
+SamplerState samplerIrradiance : register(s1, space1);
+Texture2D textureBRDFLUT : register(t2, space1);
+SamplerState samplerBRDFLUT : register(s2, space1);
+TextureCube prefilteredMapTexture : register(t3, space1);
+SamplerState prefilteredMapSampler : register(s3, space1);
+
+Texture2D albedoMapTexture : register(t4, space1);
+SamplerState albedoMapSampler : register(s4, space1);
+Texture2D normalMapTexture : register(t5, space1);
+SamplerState normalMapSampler : register(s5, space1);
+Texture2D aoMapTexture : register(t6, space1);
+SamplerState aoMapSampler : register(s6, space1);
+Texture2D metallicMapTexture : register(t7, space1);
+SamplerState metallicMapSampler : register(s7, space1);
+Texture2D roughnessMapTexture : register(t8, space1);
+SamplerState roughnessMapSampler : register(s8, space1);
 
 #define PI 3.1415926535897932384626433832795
 #define ALBEDO(uv) pow(albedoMapTexture.Sample(albedoMapSampler, uv).rgb, float3(2.2, 2.2, 2.2))
@@ -140,7 +136,7 @@ float3 calculateNormal(VSOutput input)
 float4 main(VSOutput input) : SV_TARGET
 {
 	float3 N = calculateNormal(input);
-	float3 V = normalize(ubo.camPos - input.WorldPos);
+	float3 V = normalize(ubo.camPos.xyz - input.WorldPos);
 	float3 R = reflect(-V, N);
 
 	float metallic = metallicMapTexture.Sample(metallicMapSampler, input.UV).r;
@@ -151,7 +147,7 @@ float4 main(VSOutput input) : SV_TARGET
 
 	float3 Lo = float3(0.0, 0.0, 0.0);
 	for(int i = 0; i < 4; i++) {
-		float3 L = normalize(uboParams.lights[i].xyz - input.WorldPos);
+		float3 L = normalize(ubo.lights[i].xyz - input.WorldPos);
 		Lo += specularContribution(input.UV, L, V, N, F0, metallic, roughness);
 	}
 
@@ -175,10 +171,10 @@ float4 main(VSOutput input) : SV_TARGET
 	float3 color = ambient + Lo;
 
 	// Tone mapping
-	color = Uncharted2Tonemap(color * uboParams.exposure);
+	color = Uncharted2Tonemap(color * ubo.exposure);
 	color = color * (1.0f / Uncharted2Tonemap((11.2f).xxx));
 	// Gamma correction
-	color = pow(color, (1.0f / uboParams.gamma).xxx);
+	color = pow(color, (1.0f / ubo.gamma).xxx);
 
 	return float4(color, 1.0);
 }

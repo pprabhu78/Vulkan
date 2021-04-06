@@ -9,25 +9,21 @@ layout (binding = 0) uniform UBO {
 	mat4 projection;
 	mat4 model;
 	mat4 view;
-	vec3 camPos;
-} ubo;
-
-layout (binding = 1) uniform UBOParams {
+	vec4 camPos;
 	vec4 lights[4];
 	float exposure;
 	float gamma;
-} uboParams;
+} ubo;
 
-layout (binding = 2) uniform samplerCube samplerIrradiance;
-layout (binding = 3) uniform sampler2D samplerBRDFLUT;
-layout (binding = 4) uniform samplerCube prefilteredMap;
+layout (set = 1, binding = 1) uniform samplerCube samplerIrradiance;
+layout (set = 1, binding = 2) uniform sampler2D samplerBRDFLUT;
+layout (set = 1, binding = 3) uniform samplerCube prefilteredMap;
 
-layout (binding = 5) uniform sampler2D albedoMap;
-layout (binding = 6) uniform sampler2D normalMap;
-layout (binding = 7) uniform sampler2D aoMap;
-layout (binding = 8) uniform sampler2D metallicMap;
-layout (binding = 9) uniform sampler2D roughnessMap;
-
+layout (set = 1, binding = 4) uniform sampler2D albedoMap;
+layout (set = 1, binding = 5) uniform sampler2D normalMap;
+layout (set = 1, binding = 6) uniform sampler2D aoMap;
+layout (set = 1, binding = 7) uniform sampler2D metallicMap;
+layout (set = 1, binding = 8) uniform sampler2D roughnessMap;
 
 layout (location = 0) out vec4 outColor;
 
@@ -129,7 +125,7 @@ void main()
 {		
 	vec3 N = calculateNormal();
 
-	vec3 V = normalize(ubo.camPos - inWorldPos);
+	vec3 V = normalize(ubo.camPos.xyz - inWorldPos);
 	vec3 R = reflect(-V, N); 
 
 	float metallic = texture(metallicMap, inUV).r;
@@ -139,8 +135,8 @@ void main()
 	F0 = mix(F0, ALBEDO, metallic);
 
 	vec3 Lo = vec3(0.0);
-	for(int i = 0; i < uboParams.lights[i].length(); i++) {
-		vec3 L = normalize(uboParams.lights[i].xyz - inWorldPos);
+	for(int i = 0; i < ubo.lights[i].length(); i++) {
+		vec3 L = normalize(ubo.lights[i].xyz - inWorldPos);
 		Lo += specularContribution(L, V, N, F0, metallic, roughness);
 	}   
 	
@@ -164,10 +160,10 @@ void main()
 	vec3 color = ambient + Lo;
 
 	// Tone mapping
-	color = Uncharted2Tonemap(color * uboParams.exposure);
+	color = Uncharted2Tonemap(color * ubo.exposure);
 	color = color * (1.0f / Uncharted2Tonemap(vec3(11.2f)));	
 	// Gamma correction
-	color = pow(color, vec3(1.0f / uboParams.gamma));
+	color = pow(color, vec3(1.0f / ubo.gamma));
 
 	outColor = vec4(color, 1.0);
 }
