@@ -1,16 +1,17 @@
 /*
-* Vulkan Example - Scene rendering
-*
-* Copyright (C) 2020 by Sascha Willems - www.saschawillems.de
-*
-* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
-*
-* Summary:
-* Render a complete scene loaded from an glTF file. The sample is based on the glTF model loading sample,
-* and adds data structures, functions and shaders required to render a more complex scene using Crytek's Sponza model.
-*
-* This sample comes with a tutorial, see the README.md in this folder
-*/
+ * Vulkan Example - glTF scene rendering
+ *
+ * Copyright (C) 2020-2021 by Sascha Willems - www.saschawillems.de
+ *
+ * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+ */
+
+ /*
+  * This sample builds on the gltfloading sample and renders a more complex scene (Crytek's Sponza)
+  * It makes use of additional material parameters and adds normal mapping and alpha masked materials
+  * The biggest difference is in how material information is passed by using per-material pipelines
+  * See the README.MD in this folder for a tutorial
+  */
 
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
@@ -117,8 +118,9 @@ public:
 
 	std::string path;
 
+	VulkanglTFScene(vks::VulkanDevice* device, VkQueue copyQueue);
 	~VulkanglTFScene();
-	VkDescriptorImageInfo getTextureDescriptor(const size_t index);
+	void loadFromFile(const std::string& filename);
 	void loadImages(tinygltf::Model& input);
 	void loadTextures(tinygltf::Model& input);
 	void loadMaterials(tinygltf::Model& input);
@@ -130,36 +132,33 @@ public:
 class VulkanExample : public VulkanExampleBase
 {
 public:
-	VulkanglTFScene glTFScene;
+	VulkanglTFScene* glTFScene;
 
 	struct ShaderData {
-		vks::Buffer buffer;
-		struct Values {
-			glm::mat4 projection;
-			glm::mat4 view;
-			glm::vec4 lightPos = glm::vec4(0.0f, 2.5f, 0.0f, 1.0f);
-			glm::vec4 viewPos;
-		} values;
+		glm::mat4 projection;
+		glm::mat4 view;
+		glm::vec4 lightPos = glm::vec4(0.0f, 2.5f, 0.0f, 1.0f);
+		glm::vec4 viewPos;
 	} shaderData;
+	struct FrameObjects : public VulkanFrameObjects {
+		vks::Buffer uniformBuffer;
+		VkDescriptorSet descriptorSet;
+	};
+	std::vector<FrameObjects> frameObjects;
 
 	VkPipelineLayout pipelineLayout;
-	VkDescriptorSet descriptorSet;
 
 	struct DescriptorSetLayouts {
-		VkDescriptorSetLayout matrices;
-		VkDescriptorSetLayout textures;
+		VkDescriptorSetLayout uniformbuffers;
+		VkDescriptorSetLayout images;
 	} descriptorSetLayouts;
 
 	VulkanExample();
 	~VulkanExample();
 	virtual void getEnabledFeatures();
-	void buildCommandBuffers();
-	void loadglTFFile(std::string filename);
 	void loadAssets();
-	void setupDescriptors();
-	void preparePipelines();
-	void prepareUniformBuffers();
-	void updateUniformBuffers();
+	void createDescriptors();
+	void createPipelines();
 	void prepare();
 	virtual void render();
 	virtual void OnUpdateUIOverlay(vks::UIOverlay* overlay);
