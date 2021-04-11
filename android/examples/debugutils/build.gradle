@@ -4,7 +4,7 @@ apply from: '../gradle/outputfilename.gradle'
 android {
     compileSdkVersion 26
     defaultConfig {
-        applicationId "de.saschawillems.vulkanDebugmarker"
+        applicationId "de.saschawillems.vulkanDebugutils"
         minSdkVersion 19
         targetSdkVersion 26
         versionCode 1
@@ -49,8 +49,8 @@ task copyTask {
     }
 
     copy {
-       from '../../../data/shaders/glsl/debugmarker'
-       into 'assets/shaders/glsl/debugmarker'
+       from '../../../data/shaders/glsl/debugutils'
+       into 'assets/shaders/glsl/debugutils'
        include '*.*'
     }
 
