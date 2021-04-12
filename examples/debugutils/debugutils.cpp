@@ -8,7 +8,8 @@
 
 /*
  * This sample shows how to use the debug utilities to add debugging information to Vulkan objects
- * The debug utilities extension adds functions for e.g. naming regions and objects to be displayed in a graphics debugger
+ * The debug utilities extension adds functions for e.g. structuring commands into named regions and add ing debug names to objects to be displayed in a graphics debugger
+ * It replaces the VK_EXT_debug_marker extension and improves upon it's concepts
  * This makes it easier to structure frame traces and find Vulkan objects in a debugger like RenderDoc (https://renderdoc.org/)
  * The sample implements a basic multi-pass bloom and:
  * - Loads the function pointers for the debug utils naming functions (see prepare)
@@ -77,13 +78,13 @@ public:
 	} offscreenPass;
 
 	// Function pointers for the debug utils extension
-	PFN_vkQueueBeginDebugUtilsLabelEXT vkQueueBeginDebugUtilsLabelEXT;
-	PFN_vkQueueInsertDebugUtilsLabelEXT vkQueueInsertDebugUtilsLabelEXT;
-	PFN_vkQueueEndDebugUtilsLabelEXT vkQueueEndDebugUtilsLabelEXT;
+	PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT;
 	PFN_vkCmdBeginDebugUtilsLabelEXT vkCmdBeginDebugUtilsLabelEXT;
 	PFN_vkCmdEndDebugUtilsLabelEXT vkCmdEndDebugUtilsLabelEXT;
 	PFN_vkCmdInsertDebugUtilsLabelEXT vkCmdInsertDebugUtilsLabelEXT;
-	PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectNameEXT;
+	PFN_vkQueueBeginDebugUtilsLabelEXT vkQueueBeginDebugUtilsLabelEXT;
+	PFN_vkQueueInsertDebugUtilsLabelEXT vkQueueInsertDebugUtilsLabelEXT;
+	PFN_vkQueueEndDebugUtilsLabelEXT vkQueueEndDebugUtilsLabelEXT;
 
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 	{
@@ -387,7 +388,7 @@ public:
 			VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.wireframe));
 		}
 
-		// Post processing effect
+		// Post processing bloom effect
 		shaderStages[0] = loadShader(getShadersPath() + "debugutils/postprocess.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		shaderStages[1] = loadShader(getShadersPath() + "debugutils/postprocess.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		depthStencilStateCI.depthTestEnable = VK_FALSE;
@@ -418,8 +419,10 @@ public:
 		vkSetDebugUtilsObjectNameEXT(device, &objectNameInfo);
 	}
 
-	// Start a new debug label in the given command buffer. All following commands until the next endDebugLabel will be considered part of this label
-	void beginDebugLabel(VkCommandBuffer cmdbuffer, const std::string& labelName, std::vector<float> color)
+	// These function are based on command buffers
+
+	// Open a new debug label region in the given command buffer. All following commands will be considered part of this label until it's closed with the corresponding end label function.
+	void cmdBeginDebugLabel(VkCommandBuffer cmdbuffer, const std::string& labelName, std::vector<float> color)
 	{
 		VkDebugUtilsLabelEXT debugLabel{};
 		debugLabel.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
@@ -431,8 +434,8 @@ public:
 		vkCmdBeginDebugUtilsLabelEXT(cmdbuffer, &debugLabel);
 	}
 
-	// Insert a label into the given command buffer
-	void insertDebugLabel(VkCommandBuffer commandBuffer, const std::string& labelName, std::vector<float> color)
+	// Insert a single label into the given command buffer
+	void cmdInsertDebugLabel(VkCommandBuffer commandBuffer, const std::string& labelName, std::vector<float> color)
 	{
 		VkDebugUtilsLabelEXT debugLabel{};
 		debugLabel.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
@@ -444,14 +447,49 @@ public:
 		vkCmdInsertDebugUtilsLabelEXT(commandBuffer, &debugLabel);
 	}
 
-	// End the last opened debug label in the given command buffer
-	void endDebugLabel(VkCommandBuffer cmdBuffer)
+	// Close the current debug label region in the given command buffer
+	void cmdEndDebugLabel(VkCommandBuffer cmdBuffer)
 	{
 		vkCmdEndDebugUtilsLabelEXT(cmdBuffer);
 	}
 
-	// We name and/or tag some of the Vulkan objects used in this sample
-	// These objects will then show up with those names in a graphics debugging application instead of just their handles
+	// These functions are based on a queue
+
+	// Open a new debug label region in the given queue. All following commands will be considered part of this label until it's closed with the corresponding end label function.
+	void queueBeginDebugLabel(VkQueue queue, const std::string& labelName, std::vector<float> color)
+	{
+		VkDebugUtilsLabelEXT debugLabel{};
+		debugLabel.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+		debugLabel.pLabelName = labelName.c_str();
+		debugLabel.color[0] = color[0];
+		debugLabel.color[1] = color[1];
+		debugLabel.color[2] = color[2];
+		debugLabel.color[3] = color[3];
+		vkQueueBeginDebugUtilsLabelEXT(queue, &debugLabel);
+	}
+
+	// Insert a single label into the given queue
+	void queueInsterDebugLabel(VkQueue queue, const std::string& labelName, std::vector<float> color)
+	{
+		VkDebugUtilsLabelEXT debugLabel{};
+		debugLabel.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+		debugLabel.pLabelName = labelName.c_str();
+		debugLabel.color[0] = color[0];
+		debugLabel.color[1] = color[1];
+		debugLabel.color[2] = color[2];
+		debugLabel.color[3] = color[3];
+		vkQueueInsertDebugUtilsLabelEXT(queue, &debugLabel);
+	}
+
+	// Closes the current debug label region in the given queue
+	void queueEndDebugLabel(VkQueue queue)
+	{
+		vkQueueEndDebugUtilsLabelEXT(queue);
+	}
+
+	// We will name the Vulkan objects used in this sample
+	// These will then show up with those names in a graphics debugging application instead of auto generated names
+	// So in RenderDoc e.g. "Pipeline 17" becomes "Toon shading pipeline"
 	void nameDebugObjects()
 	{
 		// Descriptors
@@ -491,40 +529,10 @@ public:
 		setObjectName(VK_OBJECT_TYPE_BUFFER, (uint64_t)models.glowParts.vertices.buffer, "Glow vertex buffer");
 		setObjectName(VK_OBJECT_TYPE_BUFFER, (uint64_t)models.glowParts.indices.buffer, "Glow index buffer");
 		for (size_t i = 0; i < frameObjects.size(); i++) {
+			setObjectName(VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)frameObjects[i].commandBuffer, "Command buffer for frame " + std::to_string(i));
 			setObjectName(VK_OBJECT_TYPE_BUFFER, (uint64_t)frameObjects[i].uniformBuffer.buffer, "Scene matrices uniform buffer for frame " + std::to_string(i));
 			setObjectName(VK_OBJECT_TYPE_DEVICE_MEMORY, (uint64_t)frameObjects[i].uniformBuffer.memory, "Scene matrices uniform buffer memory for frame " + std::to_string(i));
 		}
-	}
-
-	// Start a new debug label in the given queue. All following commands until the next endDebugLabel will be considered part of this label
-	void queueBeginDebugLabel(VkQueue queue, const std::string& labelName, std::vector<float> color)
-	{
-		VkDebugUtilsLabelEXT debugLabel{};
-		debugLabel.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-		debugLabel.pLabelName = labelName.c_str();
-		debugLabel.color[0] = color[0];
-		debugLabel.color[1] = color[1];
-		debugLabel.color[2] = color[2];
-		debugLabel.color[3] = color[3];
-		vkQueueBeginDebugUtilsLabelEXT(queue, &debugLabel);
-	}
-
-	void queueInsterDebugLabel(VkQueue queue, const std::string& labelName, std::vector<float> color)
-	{
-		VkDebugUtilsLabelEXT debugLabel{};
-		debugLabel.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
-		debugLabel.pLabelName = labelName.c_str();
-		debugLabel.color[0] = color[0];
-		debugLabel.color[1] = color[1];
-		debugLabel.color[2] = color[2];
-		debugLabel.color[3] = color[3];
-		vkQueueInsertDebugUtilsLabelEXT(queue, &debugLabel);
-	}
-
-	// End the last opened debug label in the given queue
-	void queueEndDebugLabel(VkQueue queue)
-	{
-		vkQueueEndDebugUtilsLabelEXT(queue);
 	}
 
 	void prepare()
@@ -545,13 +553,13 @@ public:
 
 		// As the debug utils extension is not part of the core, we need ot manually load the function pointers before we can use them
 		if (extensionPresent) {
-			vkQueueBeginDebugUtilsLabelEXT = (PFN_vkQueueBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance, "vkQueueBeginDebugUtilsLabelEXT");
-			vkQueueInsertDebugUtilsLabelEXT = (PFN_vkQueueInsertDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance, "vkQueueInsertDebugUtilsLabelEXT");
-			vkQueueEndDebugUtilsLabelEXT = (PFN_vkQueueEndDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance, "vkQueueEndDebugUtilsLabelEXT");
+			vkSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT");
 			vkCmdBeginDebugUtilsLabelEXT = (PFN_vkCmdBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance, "vkCmdBeginDebugUtilsLabelEXT");
 			vkCmdEndDebugUtilsLabelEXT = (PFN_vkCmdEndDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance, "vkCmdEndDebugUtilsLabelEXT");
 			vkCmdInsertDebugUtilsLabelEXT = (PFN_vkCmdInsertDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance, "vkCmdInsertDebugUtilsLabelEXT");
-			vkSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(instance, "vkSetDebugUtilsObjectNameEXT");
+			vkQueueBeginDebugUtilsLabelEXT = (PFN_vkQueueBeginDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance, "vkQueueBeginDebugUtilsLabelEXT");
+			vkQueueInsertDebugUtilsLabelEXT = (PFN_vkQueueInsertDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance, "vkQueueInsertDebugUtilsLabelEXT");
+			vkQueueEndDebugUtilsLabelEXT = (PFN_vkQueueEndDebugUtilsLabelEXT)vkGetInstanceProcAddr(instance, "vkQueueEndDebugUtilsLabelEXT");
 		} else {
 			std::cout << "Warning: " << VK_EXT_DEBUG_UTILS_EXTENSION_NAME << " not present, debug utils can't be used.";
 		}
@@ -577,7 +585,7 @@ public:
 		model.bindBuffers(commandBuffer);
 		for (size_t i = 0; i < model.nodes.size(); i++) {
 			// We add labels for each node's draw call into the command buffer so the graphics debugger can display these in the frame trace
-			insertDebugLabel(commandBuffer, "Draw \"" + model.nodes[i]->name + "\"", { 0.0f, 0.0f, 0.0f, 0.0f });
+			cmdInsertDebugLabel(commandBuffer, "Draw \"" + model.nodes[i]->name + "\"", { 0.0f, 0.0f, 0.0f, 0.0f });
 			models.glowParts.drawNode(model.nodes[i], commandBuffer);
 		}
 	}
@@ -600,6 +608,10 @@ public:
 		const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
 		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
 
+		// Render the scene using multiple passes, and use cmdBeginDebugLabel and cmEndDebugLabel to put commands into named regions
+		// These regions are visualized in the frame trace of the graphics debugger, with the visualization up to the debugging application
+		// Usually they are displayed as named and colored groups (as specified in the begin label function)
+
 		// First render pass: Render the glowing parts of the scene to an offscreen buffer that'll be used for the post process blur later on
 		if (bloom) {
 			const VkViewport viewport = vks::initializers::viewport((float)offscreenPass.width, (float)offscreenPass.height, 0.0f, 1.0f);
@@ -612,7 +624,7 @@ public:
 			renderPassBeginInfo.clearValueCount = 2;
 			renderPassBeginInfo.pClearValues = defaultClearValues;
 			// Start a new debug label, all following commands will be part of this label until the next call to endDebugLabel
-			beginDebugLabel(commandBuffer, "Off-screen scene rendering", { 1.0f, 0.78f, 0.05f, 1.0f });
+			cmdBeginDebugLabel(commandBuffer, "Off-screen scene rendering", { 1.0f, 0.78f, 0.05f, 1.0f });
 			vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 			vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 			vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
@@ -620,7 +632,7 @@ public:
 			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.color);
 			drawModel(commandBuffer, models.glowParts);
 			vkCmdEndRenderPass(commandBuffer);
-			endDebugLabel(commandBuffer);
+			cmdEndDebugLabel(commandBuffer);
 		}
 
 		// Note: Explicit synchronization is not required between the render pass, as this is done implicit via sub pass dependencies
@@ -630,7 +642,7 @@ public:
 		const VkViewport viewport = getViewport();
 		const VkRenderPassBeginInfo renderPassBeginInfo = getRenderPassBeginInfo(renderPass, defaultClearValues);
 		// Start a new debug marker region
-		beginDebugLabel(commandBuffer, "Render scene", { 0.5f, 0.76f, 0.34f, 1.0f });
+		cmdBeginDebugLabel(commandBuffer, "Render scene", { 0.5f, 0.76f, 0.34f, 1.0f });
 		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
@@ -641,22 +653,22 @@ public:
 			renderArea.extent.width = width / 2;
 		}
 		vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
-		beginDebugLabel(commandBuffer, "Toon shading draw", { 0.78f, 0.74f, 0.9f, 1.0f });
+		cmdBeginDebugLabel(commandBuffer, "Toon shading draw", { 0.78f, 0.74f, 0.9f, 1.0f });
 		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSet, 0, nullptr);
 		vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.toonshading);	
 		drawModel(commandBuffer, models.scene);
-		endDebugLabel(commandBuffer);
+		cmdEndDebugLabel(commandBuffer);
 
 		// Wireframe rendering
 		if (wireframe) {
 			// Split the screen in half
 			renderArea.offset.x = width / 2;
 			// Start a new debug label, all following commands will be part of this label until the next call to endDebugLabel
-			beginDebugLabel(commandBuffer, "Wireframe draw", { 0.53f, 0.78f, 0.91f, 1.0f });
+			cmdBeginDebugLabel(commandBuffer, "Wireframe draw", { 0.53f, 0.78f, 0.91f, 1.0f });
 			vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
 			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.wireframe);
 			drawModel(commandBuffer, models.scene);
-			endDebugLabel(commandBuffer);
+			cmdEndDebugLabel(commandBuffer);
 			// Reset scissor to full render area
 			renderArea.offset.x = 0;
 			renderArea.extent.width = width;
@@ -665,15 +677,20 @@ public:
 
 		// Apply a bloom filter based on the glowing parts of the scene rendered to the offscreen framebuffer
 		if (bloom) {
-			beginDebugLabel(commandBuffer, "Apply post processing", { 0.93f, 0.89f, 0.69f, 1.0f });
+			cmdBeginDebugLabel(commandBuffer, "Apply post processing", { 0.93f, 0.89f, 0.69f, 1.0f });
 			vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &offscreenimageDescriptorSet, 0, nullptr);
 			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.postprocess);
 			// A full screen triangle is generated by the vertex shaders, so we reuse 3 vertices (for 3 invocations) from current vertex buffer
 			vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-			endDebugLabel(commandBuffer);
+			cmdEndDebugLabel(commandBuffer);
 		}
 
+		cmdEndDebugLabel(commandBuffer); // "Render scene"
+
+		cmdBeginDebugLabel(commandBuffer, "Render user interface", { 0.0f, 0.6f, 0.6f, 1.0f });
 		drawUI(commandBuffer);
+		cmdEndDebugLabel(commandBuffer);
+
 		vkCmdEndRenderPass(commandBuffer);
 		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
 
