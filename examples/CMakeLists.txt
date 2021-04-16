@@ -71,7 +71,7 @@ set(EXAMPLES
 	computeshader
 	conditionalrender
 	conservativeraster
-	debugmarker
+	debugutils
 	deferred
 	deferredmultisampling
 	deferredshadows
