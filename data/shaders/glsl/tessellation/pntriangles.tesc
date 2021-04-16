@@ -16,10 +16,13 @@ struct PnPatch
 };
 
 // tessellation levels
-layout (binding = 0) uniform UBO 
+layout (set = 0, binding = 0) uniform UBO 
 {
-	float tessLevel;
-} ubo; 
+    mat4 projection;
+    mat4 model;
+    float tessAlpha;
+    float tessLevel;
+} ubo;
 
 layout(vertices=3) out;
 
@@ -78,6 +81,14 @@ void main()
 	outPatch[gl_InvocationID].n101 = N2+N0-vij(2,0)*(P0-P2);
 
 	// set tess levels
-	gl_TessLevelOuter[gl_InvocationID] = ubo.tessLevel;
-	gl_TessLevelInner[0] = ubo.tessLevel;
+	if (ubo.tessLevel > 1.0)
+	{
+		gl_TessLevelOuter[gl_InvocationID] = ubo.tessLevel;
+		gl_TessLevelInner[0] = ubo.tessLevel;
+	}
+	else
+	{
+		gl_TessLevelOuter[gl_InvocationID] = 1.0;
+		gl_TessLevelInner[0] = 1.0;
+	}
 }

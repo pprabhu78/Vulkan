@@ -13,6 +13,7 @@
   * This results in the terrain close to the camera getting more detail than terrain in distance
   * The TCS also does frustum culling on the terrain patches, so patches not inside the current view frustum are culled away
   * The tessellation evaluation shader (TES) then displaces the tessellated patches based on the terrain height map
+  * Note: Requires a device that supports tessellation shaders
   */
 
 #include "vulkanexamplebase.h"
