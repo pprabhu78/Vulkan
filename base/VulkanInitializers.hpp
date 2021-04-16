@@ -73,6 +73,23 @@ namespace vks
 			return renderPassBeginInfo;
 		}
 
+		inline VkRenderPassBeginInfo renderPassBeginInfo(
+			VkRenderPass renderPass,
+			VkExtent2D renderExtent,
+			VkFramebuffer framebuffer,
+			VkClearValue* clearValues,
+			uint32_t clearValueCount)
+		{
+			VkRenderPassBeginInfo renderPassBeginInfo{};
+			renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+			renderPassBeginInfo.renderPass = renderPass;
+			renderPassBeginInfo.renderArea.extent = renderExtent;
+			renderPassBeginInfo.framebuffer = framebuffer;
+			renderPassBeginInfo.pClearValues = clearValues;
+			renderPassBeginInfo.clearValueCount = clearValueCount;
+			return renderPassBeginInfo;
+		}
+
 		inline VkRenderPassCreateInfo renderPassCreateInfo()
 		{
 			VkRenderPassCreateInfo renderPassCreateInfo {};
