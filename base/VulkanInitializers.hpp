@@ -456,6 +456,13 @@ namespace vks
 			return pipelineInputAssemblyStateCreateInfo;
 		}
 
+		inline VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo()
+		{
+			VkPipelineInputAssemblyStateCreateInfo pipelineInputAssemblyStateCreateInfo{};
+			pipelineInputAssemblyStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+			return pipelineInputAssemblyStateCreateInfo;
+		}
+
 		inline VkPipelineRasterizationStateCreateInfo pipelineRasterizationStateCreateInfo(
 			VkPolygonMode polygonMode,
 			VkCullModeFlags cullMode,
