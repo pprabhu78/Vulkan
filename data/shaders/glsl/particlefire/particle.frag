@@ -1,7 +1,7 @@
 #version 450
 
-layout (binding = 1) uniform sampler2D samplerSmoke;
-layout (binding = 2) uniform sampler2D samplerFire;
+layout (set = 1, binding = 0) uniform sampler2D samplerSmoke;
+layout (set = 1, binding = 1) uniform sampler2D samplerFire;
 
 layout (location = 0) in vec4 inColor;
 layout (location = 1) in float inAlpha;

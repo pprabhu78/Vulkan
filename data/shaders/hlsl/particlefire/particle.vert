@@ -26,6 +26,8 @@ struct UBO
 {
 	float4x4 projection;
 	float4x4 modelview;
+	float4x4 normal;
+	float4 lightPos;
 	float2 viewportDim;
 	float pointSize;
 };

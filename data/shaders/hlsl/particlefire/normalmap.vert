@@ -14,6 +14,8 @@ struct UBO
 	float4x4 model;
 	float4x4 normal;
 	float4 lightPos;
+	float2 viewportDim;
+	float pointSize;
 };
 
 cbuffer ubo : register(b0) { UBO ubo; }

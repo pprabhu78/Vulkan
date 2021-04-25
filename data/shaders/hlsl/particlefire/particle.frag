@@ -1,9 +1,9 @@
 // Copyright 2020 Google LLC
 
-Texture2D textureSmoke : register(t1);
-SamplerState samplerSmoke : register(s1);
-Texture2D textureFire : register(t2);
-SamplerState samplerFire : register(s2);
+Texture2D textureSmoke : register(t0, space1);
+SamplerState samplerSmoke : register(s0, space1);
+Texture2D textureFire : register(t1, space1);
+SamplerState samplerFire : register(s1, space1);
 
 struct VSOutput
 {

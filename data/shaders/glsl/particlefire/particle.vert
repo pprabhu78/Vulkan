@@ -12,19 +12,15 @@ layout (location = 1) out float outAlpha;
 layout (location = 2) out flat int outType;
 layout (location = 3) out float outRotation;
 
-layout (binding = 0) uniform UBO 
+layout (set = 0, binding = 0) uniform UBO 
 {
 	mat4 projection;
 	mat4 modelview;
+	mat4 normal;
+	vec4 lightPos;
 	vec2 viewportDim;
 	float pointSize;
 } ubo;
-
-out gl_PerVertex
-{
-	vec4 gl_Position;
-	float gl_PointSize;
-};
 
 void main () 
 {
