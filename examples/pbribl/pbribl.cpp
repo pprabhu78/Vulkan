@@ -52,7 +52,7 @@ public:
 		vks::TextureCubeMap prefilteredCube;
 	} textures;
 
-	struct Meshes {
+	struct Models {
 		vkglTF::Model skybox;
 		std::vector<vkglTF::Model> objects;
 		std::vector<std::string> names;
@@ -201,7 +201,7 @@ public:
 			VkWriteDescriptorSet writeDescriptorSet = vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.uniformBuffer.descriptor);
 			vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
 		}
-		// Global for static images that don't change
+		// Global for static images
 		VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayouts.images, 1);
 		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &imagesDescriptorSet));
 		std::vector<VkWriteDescriptorSet> writeDescriptorSets = {

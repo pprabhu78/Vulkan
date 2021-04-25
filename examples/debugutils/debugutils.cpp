@@ -55,8 +55,8 @@ public:
 		VkPipeline wireframe = VK_NULL_HANDLE;
 		VkPipeline postprocess;
 	} pipelines;
-
 	VkPipelineLayout pipelineLayout;
+
 	struct DescriptorSetLayouts {
 		VkDescriptorSetLayout uniformbuffers;
 		VkDescriptorSetLayout offscreenimage;
@@ -336,7 +336,6 @@ public:
 		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &offscreenimageDescriptorSet));
 		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::writeDescriptorSet(offscreenimageDescriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER , 0, &offscreenPass.descriptor);
 		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
-
 	}
 
 	void createPipelines()

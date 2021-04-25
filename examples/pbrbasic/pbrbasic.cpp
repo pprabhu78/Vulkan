@@ -66,9 +66,8 @@ public:
 	VkDescriptorSetLayout descriptorSetLayout;
 
 	std::vector<Material> materials;
-	int32_t materialIndex = 0;
-
 	std::vector<std::string> materialNames;
+	int32_t materialIndex = 0;
 
 	VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 	{
