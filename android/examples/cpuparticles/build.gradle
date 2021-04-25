@@ -4,7 +4,7 @@ apply from: '../gradle/outputfilename.gradle'
 android {
     compileSdkVersion 26
     defaultConfig {
-        applicationId "de.saschawillems.vulkanParticlefire"
+        applicationId "de.saschawillems.vulkanCPUParticles"
         minSdkVersion 19
         targetSdkVersion 26
         versionCode 1
@@ -49,8 +49,8 @@ task copyTask {
     }
 
     copy {
-       from '../../../data/shaders/glsl/particlefire'
-       into 'assets/shaders/glsl/particlefire'
+       from '../../../data/shaders/glsl/cpuparticles'
+       into 'assets/shaders/glsl/cpuparticles'
        include '*.*'
     }
 

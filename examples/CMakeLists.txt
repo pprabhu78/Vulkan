@@ -71,6 +71,7 @@ set(EXAMPLES
 	computeshader
 	conditionalrender
 	conservativeraster
+	cpuparticles
 	debugutils
 	deferred
 	deferredmultisampling
@@ -99,7 +100,6 @@ set(EXAMPLES
 	offscreen
 	oit
 	parallaxmapping
-	particlefire
 	pbrbasic
 	pbribl
 	pbrtexture
