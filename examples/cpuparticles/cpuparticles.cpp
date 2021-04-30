@@ -447,7 +447,8 @@ public:
 		const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
 		const VkRect2D renderArea = getRenderArea();
 		const VkViewport viewport = getViewport();
-		const VkRenderPassBeginInfo renderPassBeginInfo = getRenderPassBeginInfo(renderPass, defaultClearValuesLight);
+		VkClearValue clearValues[2] = { { 0.4f, 0.4f, 0.4f, 1.0f }, { 1.0f, 0 } };
+		const VkRenderPassBeginInfo renderPassBeginInfo = getRenderPassBeginInfo(renderPass, clearValues);
 		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
 		vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 		vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
