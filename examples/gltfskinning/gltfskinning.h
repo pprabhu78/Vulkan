@@ -1,19 +1,19 @@
 /*
-* Vulkan Example - glTF skinned animation
-*
-* Copyright (C) 2020 by Sascha Willems - www.saschawillems.de
-*
-* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
-*/
-
-/*
- * Shows how to load and display an animated scene from a glTF file using vertex skinning
- * See the accompanying README.md for a short tutorial on the data structures and functions required for vertex skinning
+ * Vulkan Example - glTF skinned animation
  *
- * For details on how glTF 2.0 works, see the official spec at https://github.com/KhronosGroup/glTF/tree/master/specification/2.0
+ * Copyright (C) 2020-2021 by Sascha Willems - www.saschawillems.de
  *
- * If you are looking for a complete glTF implementation, check out https://github.com/SaschaWillems/Vulkan-glTF-PBR/
+ * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
  */
+
+ /*
+  * This sample builds on the gltfloading sample and shows how to render an animated glTF model using vertex skinning
+  * It loads the additional glTF structures required for vertex skinning and converts these into Vulkan objects (see VulkanglTFModel::loadSkins)
+  * This requires information on the joints of the model's skeleton passed to the shader
+  * Joint matrices are passed via shader storage buffer objects, joint indices and weights (see VulkanglTFModel::loadNode) are passed via ertex attributes
+  * The skinning itself is done on the GPU in the vertex shader (skinnedmodel.vert) using the above information
+  * See the accompanying README.md for a short tutorial on the data structures and functions required for vertex skinning
+  */
 
 #include <assert.h>
 #include <stdio.h>
@@ -40,7 +40,7 @@
 
 #define ENABLE_VALIDATION false
 
-// Contains everything required to render a glTF model in Vulkan
+// Contains everything required to render an animated glTF model with vertex skinning in Vulkan
 // This class is heavily simplified (compared to glTF's feature set) but retains the basic glTF structure
 class VulkanglTFModel
 {
@@ -48,10 +48,7 @@ class VulkanglTFModel
 	vks::VulkanDevice *vulkanDevice;
 	VkQueue            copyQueue;
 
-	/*
-		Base glTF structures, see gltfscene sample for details
-	*/
-
+	// Base glTF structures, see gltfscene sample for details
 	struct Vertices
 	{
 		VkBuffer       buffer;
@@ -120,23 +117,19 @@ class VulkanglTFModel
 		glm::vec4 jointWeights;
 	};
 
-	/*
-		Skin structure
-	*/
+	// Skin structure
 
 	struct Skin
 	{
-		std::string            name;
-		Node *                 skeletonRoot = nullptr;
-		std::vector<glm::mat4> inverseBindMatrices;
-		std::vector<Node *>    joints;
-		vks::Buffer            ssbo;
-		VkDescriptorSet        descriptorSet;
+		std::string                  name;
+		Node *                       skeletonRoot = nullptr;
+		std::vector<glm::mat4>       inverseBindMatrices;
+		std::vector<Node *>          joints;
+		std::vector<vks::Buffer>     ssbo;
+		std::vector<VkDescriptorSet> descriptorSet;
 	};
 
-	/*
-		Animation related structures
-	*/
+	// Animation related structures
 
 	struct AnimationSampler
 	{
@@ -170,21 +163,24 @@ class VulkanglTFModel
 	std::vector<Animation> animations;
 
 	uint32_t activeAnimation = 0;
+	uint32_t frameCount      = 0;
 
+	VulkanglTFModel(vks::VulkanDevice* device, VkQueue copyQueue, uint32_t frameCount);
 	~VulkanglTFModel();
 	void      loadImages(tinygltf::Model &input);
 	void      loadTextures(tinygltf::Model &input);
 	void      loadMaterials(tinygltf::Model &input);
 	Node *    findNode(Node *parent, uint32_t index);
 	Node *    nodeFromIndex(uint32_t index);
+	void loadFromFile(const std::string& filename);
 	void      loadSkins(tinygltf::Model &input);
 	void      loadAnimations(tinygltf::Model &input);
 	void      loadNode(const tinygltf::Node &inputNode, const tinygltf::Model &input, VulkanglTFModel::Node *parent, uint32_t nodeIndex, std::vector<uint32_t> &indexBuffer, std::vector<VulkanglTFModel::Vertex> &vertexBuffer);
 	glm::mat4 getNodeMatrix(VulkanglTFModel::Node *node);
-	void      updateJoints(VulkanglTFModel::Node *node);
-	void      updateAnimation(float deltaTime);
-	void      drawNode(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, VulkanglTFModel::Node node);
-	void      draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout);
+	void      updateJoints(VulkanglTFModel::Node *node, uint32_t frameIndex);
+	void      updateAnimation(float deltaTime, uint32_t frameIndex);
+	void      drawNode(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, VulkanglTFModel::Node node, uint32_t frameIndex);
+	void      draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, uint32_t frameIndex);
 };
 
 class VulkanExample : public VulkanExampleBase
@@ -192,16 +188,20 @@ class VulkanExample : public VulkanExampleBase
   public:
 	bool wireframe = false;
 
-	struct ShaderData
+	VulkanglTFModel* glTFModel;
+
+	struct UniformData
 	{
-		vks::Buffer buffer;
-		struct Values
-		{
-			glm::mat4 projection;
-			glm::mat4 model;
-			glm::vec4 lightPos = glm::vec4(5.0f, 5.0f, 5.0f, 1.0f);
-		} values;
-	} shaderData;
+		glm::mat4 projection;
+		glm::mat4 model;
+		glm::vec4 lightPos = glm::vec4(5.0f, 5.0f, 5.0f, 1.0f);
+	} uniformData;
+	struct FrameObjects : public VulkanFrameObjects
+	{
+		vks::Buffer     ubo;
+		VkDescriptorSet descriptorSet;
+	};
+	std::vector<FrameObjects> frameObjects;
 
 	VkPipelineLayout pipelineLayout;
 	struct Pipelines
@@ -216,20 +216,13 @@ class VulkanExample : public VulkanExampleBase
 		VkDescriptorSetLayout textures;
 		VkDescriptorSetLayout jointMatrices;
 	} descriptorSetLayouts;
-	VkDescriptorSet descriptorSet;
-
-	VulkanglTFModel glTFModel;
 
 	VulkanExample();
 	~VulkanExample();
-	void         loadglTFFile(std::string filename);
 	virtual void getEnabledFeatures();
-	void         buildCommandBuffers();
 	void         loadAssets();
-	void         setupDescriptors();
-	void         preparePipelines();
-	void         prepareUniformBuffers();
-	void         updateUniformBuffers();
+	void         createDescriptors();
+	void         createPipelines();
 	void         prepare();
 	virtual void render();
 	virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay);
