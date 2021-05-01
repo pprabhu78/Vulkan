@@ -9,17 +9,17 @@ struct Node
     uint next;
 };
 
-layout (set = 0, binding = 1) buffer GeometrySBO
+layout (set = 1, binding = 0, r32ui) uniform uimage2D headIndexImage;
+
+layout (set = 1, binding = 1) buffer LinkedListSBO
+{
+    Node nodes[];
+};
+
+layout (set = 1, binding = 2) buffer GeometrySBO
 {
     uint count;
     uint maxNodeCount;
-};
-
-layout (set = 0, binding = 2, r32ui) uniform uimage2D headIndexImage;
-
-layout (set = 0, binding = 3) buffer LinkedListSBO
-{
-    Node nodes[];
 };
 
 layout(push_constant) uniform PushConsts {

@@ -14,7 +14,7 @@ struct Node
     uint next;
 };
 
-RWTexture2D<uint> headIndexImage : register(u0);
+RWTexture2D<uint> headIndexImage : register(u0, space1);
 
 struct Particle
 {
@@ -23,8 +23,7 @@ struct Particle
 	float4 gradientPos;
 };
 
-// Binding 0 : Position storage buffer
-RWStructuredBuffer<Node> nodes : register(u1);
+RWStructuredBuffer<Node> nodes : register(u1, space1);
 
 float4 main(VSOutput input) : SV_TARGET
 {

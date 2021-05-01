@@ -17,12 +17,12 @@ struct GeometrySBO
     uint count;
     uint maxNodeCount;
 };
-// Binding 0 : Position storage buffer
-RWStructuredBuffer<GeometrySBO> geometrySBO : register(u1);
 
-RWTexture2D<uint> headIndexImage : register(u2);
+RWTexture2D<uint> headIndexImage : register(u0, space1);
 
-RWStructuredBuffer<Node> nodes : register(u3);
+RWStructuredBuffer<Node> nodes : register(u1, space1);
+
+RWStructuredBuffer<GeometrySBO> geometrySBO : register(u2, space1);
 
 struct PushConsts {
 	float4x4 model;
