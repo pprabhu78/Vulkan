@@ -1,14 +1,14 @@
 /*
-* Vulkan Example - Sparse texture residency example
-*
-* Copyright (C) 2016-2020 by Sascha Willems - www.saschawillems.de
-*
-* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
-*/
+ * Vulkan Example - Sparse texture residency example
+ *
+ * Copyright (C) 2016-2021 by Sascha Willems - www.saschawillems.de
+ *
+ * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+ */
 
-/*
-* Note : This sample is work-in-progress and works basically, but it's not yet finished
-*/
+ /*
+  * Note : This sample is work-in-progress and works basically, but it's not yet finished
+  */
 
 #include "vulkanexamplebase.h"
 #include "VulkanglTFModel.h"
@@ -56,7 +56,6 @@ struct VirtualTexture
 
 	VirtualTexturePage *addPage(VkOffset3D offset, VkExtent3D extent, const VkDeviceSize size, const uint32_t mipLevel, uint32_t layer);
 	void updateSparseBindInfo();
-	// @todo: replace with dtor?
 	void destroy();
 };
 
@@ -77,18 +76,27 @@ public:
 
 	vkglTF::Model plane;
 
-	struct UboVS {
+	struct UniformData {
 		glm::mat4 projection;
-		glm::mat4 model;
+		glm::mat4 modelview;
 		glm::vec4 viewPos;
 		float lodBias = 0.0f;
-	} uboVS;
-	vks::Buffer uniformBufferVS;
+	} uniformData;
+
+	struct FrameObjects : public VulkanFrameObjects {
+		vks::Buffer uniformBuffer;
+		VkDescriptorSet descriptorSet;
+	};
+	std::vector<FrameObjects> frameObjects;
+	VkDescriptorSet imageDescriptorSet;
+
+	struct DescriptorSetLayouts {
+		VkDescriptorSetLayout uniformbuffers;
+		VkDescriptorSetLayout image;
+	} descriptorSetLayouts;
 
 	VkPipeline pipeline;
 	VkPipelineLayout pipelineLayout;
-	VkDescriptorSet descriptorSet;
-	VkDescriptorSetLayout descriptorSetLayout;
 
 	//todo: comment
 	VkSemaphore bindSparseSemaphore = VK_NULL_HANDLE;
@@ -97,18 +105,12 @@ public:
 	~VulkanExample();
 	virtual void getEnabledFeatures();
 	glm::uvec3 alignedDivision(const VkExtent3D& extent, const VkExtent3D& granularity);
-	void prepareSparseTexture(uint32_t width, uint32_t height, uint32_t layerCount, VkFormat format);
+	void createSparseTexture(uint32_t width, uint32_t height, uint32_t layerCount, VkFormat format);
 	// @todo: move to dtor of texture
 	void destroyTextureImage(SparseTexture texture);
-	void buildCommandBuffers();
-	void draw();
 	void loadAssets();
-	void setupDescriptorPool();
-	void setupDescriptorSetLayout();
-	void setupDescriptorSet();
-	void preparePipelines();
-	void prepareUniformBuffers();
-	void updateUniformBuffers();
+	void createDescriptors();
+	void createPipelines();
 	void prepare();
 	virtual void render();
 	void uploadContent(VirtualTexturePage page, VkImage image);
