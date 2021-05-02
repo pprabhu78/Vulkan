@@ -1,6 +1,6 @@
 #version 450
 
-layout (binding = 0) uniform sampler2D samplerSSAO;
+layout (set = 1, binding = 3) uniform sampler2D samplerSSAO;
 
 layout (location = 0) in vec2 inUV;
 

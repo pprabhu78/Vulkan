@@ -196,6 +196,19 @@ namespace vks
 			return viewport;
 		}
 
+		inline VkViewport viewport(
+			VkExtent2D extent,
+			float minDepth,
+			float maxDepth)
+		{
+			VkViewport viewport{};
+			viewport.width = (float)extent.width;
+			viewport.height = (float)extent.height;
+			viewport.minDepth = minDepth;
+			viewport.maxDepth = maxDepth;
+			return viewport;
+		}
+
 		inline VkRect2D rect2D(
 			int32_t width,
 			int32_t height,
@@ -207,6 +220,16 @@ namespace vks
 			rect2D.extent.height = height;
 			rect2D.offset.x = offsetX;
 			rect2D.offset.y = offsetY;
+			return rect2D;
+		}
+
+		inline VkRect2D rect2D(
+			VkExtent2D extent,
+			VkOffset2D offset = { 0, 0 })
+		{
+			VkRect2D rect2D{};
+			rect2D.extent = extent;
+			rect2D.offset = offset;
 			return rect2D;
 		}
 

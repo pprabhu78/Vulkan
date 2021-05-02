@@ -1,11 +1,17 @@
 // Copyright 2020 Google LLC
 
-Texture2D texturePositionDepth : register(t0);
-SamplerState samplerPositionDepth : register(s0);
-Texture2D textureNormal : register(t1);
-SamplerState samplerNormal : register(s1);
-Texture2D ssaoNoiseTexture : register(t2);
-SamplerState ssaoNoiseSampler : register(s2);
+struct UBO
+{
+	float4x4 projection;
+};
+cbuffer ubo : register(b0, space0) { UBO ubo; };
+
+Texture2D texturePositionDepth : register(t0, space1);
+SamplerState samplerPositionDepth : register(s0, space1);
+Texture2D textureNormal : register(t1, space1);
+SamplerState samplerNormal : register(s1, space1);
+Texture2D ssaoNoiseTexture : register(t5, space1);
+SamplerState ssaoNoiseSampler : register(s5, space1);
 
 #define SSAO_KERNEL_ARRAY_SIZE 64
 [[vk::constant_id(0)]] const int SSAO_KERNEL_SIZE = 64;
@@ -15,13 +21,7 @@ struct UBOSSAOKernel
 {
 	float4 samples[SSAO_KERNEL_ARRAY_SIZE];
 };
-cbuffer uboSSAOKernel : register(b3) { UBOSSAOKernel uboSSAOKernel; };
-
-struct UBO
-{
-	float4x4 projection;
-};
-cbuffer ubo : register(b4) { UBO ubo; };
+cbuffer uboSSAOKernel : register(b6, space1) { UBOSSAOKernel uboSSAOKernel; };
 
 float main([[vk::location(0)]] float2 inUV : TEXCOORD0) : SV_TARGET
 {

@@ -1,23 +1,30 @@
 // Copyright 2020 Google LLC
 
-Texture2D textureposition : register(t0);
-SamplerState samplerposition : register(s0);
-Texture2D textureNormal : register(t1);
-SamplerState samplerNormal : register(s1);
-Texture2D textureAlbedo : register(t2);
-SamplerState samplerAlbedo : register(s2);
-Texture2D textureSSAO : register(t3);
-SamplerState samplerSSAO : register(s3);
-Texture2D textureSSAOBlur : register(t4);
-SamplerState samplerSSAOBlur : register(s4);
 struct UBO
 {
-	float4x4 _dummy;
+	float4x4 projection;
+	float4x4 model;
+	float4x4 view;
+	float nearPlane;
+	float farPlane;
+	float _pad0;
+	float _pad1;
 	int ssao;
 	int ssaoOnly;
 	int ssaoBlur;
 };
-cbuffer uboParams : register(b5) { UBO uboParams; };
+cbuffer uboParams : register(b0, space0) { UBO uboParams; };
+
+Texture2D textureposition : register(t0, space1);
+SamplerState samplerposition : register(s0, space1);
+Texture2D textureNormal : register(t1, space1);
+SamplerState samplerNormal : register(s1, space1);
+Texture2D textureAlbedo : register(t2, space1);
+SamplerState samplerAlbedo : register(s2, space1);
+Texture2D textureSSAO : register(t3, space1);
+SamplerState samplerSSAO : register(s3, space1);
+Texture2D textureSSAOBlur : register(t4, space1);
+SamplerState samplerSSAOBlur : register(s4, space1);
 
 float4 main([[vk::location(0)]] float2 inUV : TEXCOORD0) : SV_TARGET
 {

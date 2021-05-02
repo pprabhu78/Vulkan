@@ -1,7 +1,7 @@
 // Copyright 2020 Google LLC
 
-Texture2D textureSSAO : register(t0);
-SamplerState samplerSSAO : register(s0);
+Texture2D textureSSAO : register(t3, space1);
+SamplerState samplerSSAO : register(s3, space1);
 
 float4 main([[vk::location(0)]] float2 inUV : TEXCOORD0) : SV_TARGET
 {
