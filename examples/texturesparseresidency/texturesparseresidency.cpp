@@ -1,21 +1,16 @@
 /*
-* Vulkan Example - Sparse texture residency example
-*
-* Copyright (C) 2016-2020 by Sascha Willems - www.saschawillems.de
-*
-* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
-*/
+ * Vulkan Example - Sparse texture residency example
+ *
+ * Copyright (C) 2016-2021 by Sascha Willems - www.saschawillems.de
+ *
+ * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+ */
 
 /*
-* Note : This sample is work-in-progress and works basically, but it's not yet finished
-*/
+ * Note : This sample is work-in-progress and works basically, but it's not yet finished
+ */
 
 #include "texturesparseresidency.h"
-
-/*
-	Virtual texture page 
-	Contains all functions and objects for a single page of a virtual texture
- */
 
 VirtualTexturePage::VirtualTexturePage()
 {
@@ -146,14 +141,18 @@ VulkanExample::VulkanExample() : VulkanExampleBase(ENABLE_VALIDATION)
 
 VulkanExample::~VulkanExample()
 {
-	// Clean up used Vulkan resources
-	// Note : Inherited destructor cleans up resources stored in base class
-	destroyTextureImage(texture);
-	vkDestroySemaphore(device, bindSparseSemaphore, nullptr);
-	vkDestroyPipeline(device, pipeline, nullptr);
-	vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-	vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-	uniformBufferVS.destroy();
+	if (device) {
+		destroyTextureImage(texture);
+		vkDestroySemaphore(device, bindSparseSemaphore, nullptr);
+		vkDestroyPipeline(device, pipeline, nullptr);
+		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+		vkDestroyDescriptorSetLayout(device, descriptorSetLayouts.uniformbuffers, nullptr);
+		vkDestroyDescriptorSetLayout(device, descriptorSetLayouts.image, nullptr);
+		for (FrameObjects& frame : frameObjects) {
+			frame.uniformBuffer.destroy();
+			destroyBaseFrameObjects(frame);
+		}
+	}
 }
 
 void VulkanExample::getEnabledFeatures()
@@ -163,8 +162,7 @@ void VulkanExample::getEnabledFeatures()
 		enabledFeatures.shaderResourceMinLod = VK_TRUE;
 		enabledFeatures.sparseBinding = VK_TRUE;
 		enabledFeatures.sparseResidencyImage2D = VK_TRUE;
-	}
-	else {
+	} else {
 		std::cout << "Sparse binding not supported" << std::endl;
 	}
 }
@@ -178,7 +176,7 @@ glm::uvec3 VulkanExample::alignedDivision(const VkExtent3D& extent, const VkExte
 	return res;
 }
 
-void VulkanExample::prepareSparseTexture(uint32_t width, uint32_t height, uint32_t layerCount, VkFormat format)
+void VulkanExample::createSparseTexture(uint32_t width, uint32_t height, uint32_t layerCount, VkFormat format)
 {
 	texture.device = vulkanDevice->logicalDevice;
 	texture.width = width;
@@ -475,144 +473,53 @@ void VulkanExample::destroyTextureImage(SparseTexture texture)
 	texture.destroy();
 }
 
-void VulkanExample::buildCommandBuffers()
-{
-	VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-
-	VkClearValue clearValues[2];
-	clearValues[0].color = defaultClearColor;
-	clearValues[1].depthStencil = { 1.0f, 0 };
-
-	VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
-	renderPassBeginInfo.renderPass = renderPass;
-	renderPassBeginInfo.renderArea.offset.x = 0;
-	renderPassBeginInfo.renderArea.offset.y = 0;
-	renderPassBeginInfo.renderArea.extent.width = width;
-	renderPassBeginInfo.renderArea.extent.height = height;
-	renderPassBeginInfo.clearValueCount = 2;
-	renderPassBeginInfo.pClearValues = clearValues;
-
-	for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
-	{
-		renderPassBeginInfo.framebuffer = frameBuffers[i];
-
-		VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
-
-		vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-		VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-		vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-
-		VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
-		vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
-
-		vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, NULL);
-		vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-		plane.draw(drawCmdBuffers[i]);
-
-		drawUI(drawCmdBuffers[i]);
-
-		vkCmdEndRenderPass(drawCmdBuffers[i]);
-
-		VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
-	}
-}
-
-void VulkanExample::draw()
-{
-	VulkanExampleBase::prepareFrame();
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-	VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
-	VulkanExampleBase::submitFrame();
-}
-
 void VulkanExample::loadAssets()
 {
 	const uint32_t glTFLoadingFlags = vkglTF::FileLoadingFlags::PreTransformVertices | vkglTF::FileLoadingFlags::PreMultiplyVertexColors | vkglTF::FileLoadingFlags::FlipY;
 	plane.loadFromFile(getAssetPath() + "models/plane.gltf", vulkanDevice, queue, glTFLoadingFlags);
 }
 
-void VulkanExample::setupDescriptorPool()
+void VulkanExample::createDescriptors()
 {
-	// Example uses one ubo and one image sampler
-	std::vector<VkDescriptorPoolSize> poolSizes =
-	{
-		vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
+	// Pool
+	std::vector<VkDescriptorPoolSize> poolSizes = {
+		vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, getFrameCount()),
 		vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
 	};
-
-	VkDescriptorPoolCreateInfo descriptorPoolInfo =
-		vks::initializers::descriptorPoolCreateInfo(
-			static_cast<uint32_t>(poolSizes.size()),
-			poolSizes.data(),
-			2);
-
+	VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, getFrameCount() + 1);
 	VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
+
+	// Layout for passing matrices
+	VkDescriptorSetLayoutBinding setLayoutBinding = vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
+	VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI = vks::initializers::descriptorSetLayoutCreateInfo(&setLayoutBinding, 1);
+	VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &descriptorSetLayouts.uniformbuffers));
+	// Layout for passing the texture image
+	setLayoutBinding = vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+	VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &descriptorSetLayouts.image));
+
+	// Sets
+	// Per-Frame uniform buffers
+	for (FrameObjects& frame : frameObjects) {
+		VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayouts.uniformbuffers, 1);
+		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &frame.descriptorSet));
+		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.uniformBuffer.descriptor);
+		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+	}
+	// Texture image is static, so we need only one global set
+	VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayouts.image, 1);
+	VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &imageDescriptorSet));
+	VkWriteDescriptorSet writeDescriptorSet = vks::initializers::writeDescriptorSet(imageDescriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &texture.descriptor);
+	vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
 }
 
-void VulkanExample::setupDescriptorSetLayout()
+void VulkanExample::createPipelines()
 {
-	std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
-	{
-		// Binding 0 : Vertex shader uniform buffer
-		vks::initializers::descriptorSetLayoutBinding(
-			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			VK_SHADER_STAGE_VERTEX_BIT,
-			0),
-		// Binding 1 : Fragment shader image sampler
-		vks::initializers::descriptorSetLayoutBinding(
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			VK_SHADER_STAGE_FRAGMENT_BIT,
-			1)
-	};
+	// Layout
+	std::array<VkDescriptorSetLayout, 2> setLayouts = { descriptorSetLayouts.uniformbuffers, descriptorSetLayouts.image };
+	VkPipelineLayoutCreateInfo pipelineLayoutCI = vks::initializers::pipelineLayoutCreateInfo(setLayouts.data(), static_cast<uint32_t>(setLayouts.size()));
+	VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayout));
 
-	VkDescriptorSetLayoutCreateInfo descriptorLayout =
-		vks::initializers::descriptorSetLayoutCreateInfo(
-			setLayoutBindings.data(),
-			static_cast<uint32_t>(setLayoutBindings.size()));
-
-	VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
-
-	VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo =
-		vks::initializers::pipelineLayoutCreateInfo(
-			&descriptorSetLayout,
-			1);
-
-	VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout));
-}
-
-void VulkanExample::setupDescriptorSet()
-{
-	VkDescriptorSetAllocateInfo allocInfo =
-		vks::initializers::descriptorSetAllocateInfo(
-			descriptorPool,
-			&descriptorSetLayout,
-			1);
-
-	VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &descriptorSet));
-
-	std::vector<VkWriteDescriptorSet> writeDescriptorSets =
-	{
-		// Binding 0 : Vertex shader uniform buffer
-		vks::initializers::writeDescriptorSet(
-			descriptorSet,
-			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			0,
-			&uniformBufferVS.descriptor),
-		// Binding 1 : Fragment shader texture sampler
-		vks::initializers::writeDescriptorSet(
-			descriptorSet,
-			VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			1,
-			&texture.descriptor)
-	};
-
-	vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, NULL);
-}
-
-void VulkanExample::preparePipelines()
-{
+	// Pipeline
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = vks::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 	VkPipelineRasterizationStateCreateInfo rasterizationState = vks::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
 	VkPipelineColorBlendAttachmentState blendAttachmentState = vks::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
@@ -639,60 +546,6 @@ void VulkanExample::preparePipelines()
 	shaderStages[0] = loadShader(getShadersPath() + "texturesparseresidency/sparseresidency.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 	shaderStages[1] = loadShader(getShadersPath() + "texturesparseresidency/sparseresidency.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 	VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipeline));
-}
-
-// Prepare and initialize uniform buffer containing shader uniforms
-void VulkanExample::prepareUniformBuffers()
-{
-	// Vertex shader uniform buffer block
-	VK_CHECK_RESULT(vulkanDevice->createBuffer(
-		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		&uniformBufferVS,
-		sizeof(uboVS),
-		&uboVS));
-
-	updateUniformBuffers();
-}
-
-void VulkanExample::updateUniformBuffers()
-{
-	uboVS.projection = camera.matrices.perspective;
-	uboVS.model = camera.matrices.view;
-	uboVS.viewPos = camera.viewPos;
-
-	VK_CHECK_RESULT(uniformBufferVS.map());
-	memcpy(uniformBufferVS.mapped, &uboVS, sizeof(uboVS));
-	uniformBufferVS.unmap();
-}
-
-void VulkanExample::prepare()
-{
-	VulkanExampleBase::prepare();
-	// Check if the GPU supports sparse residency for 2D images
-	if (!vulkanDevice->features.sparseResidencyImage2D) {
-		vks::tools::exitFatal("Device does not support sparse residency for 2D images!", VK_ERROR_FEATURE_NOT_PRESENT);
-	}
-	loadAssets();
-	prepareUniformBuffers();
-	// Create a virtual texture with max. possible dimension (does not take up any VRAM yet)
-	prepareSparseTexture(4096, 4096, 1, VK_FORMAT_R8G8B8A8_UNORM);
-	setupDescriptorSetLayout();
-	preparePipelines();
-	setupDescriptorPool();
-	setupDescriptorSet();
-	buildCommandBuffers();
-	prepared = true;
-}
-
-void VulkanExample::render()
-{
-	if (!prepared)
-		return;
-	draw();
-	if (camera.updated) {
-		updateUniformBuffers();
-	}
 }
 
 void VulkanExample::uploadContent(VirtualTexturePage page, VkImage image)
@@ -890,12 +743,67 @@ void VulkanExample::flushRandomPages()
 	vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
 }
 
+void VulkanExample::prepare()
+{
+	VulkanExampleBase::prepare();
+	// Check if the GPU supports sparse residency for 2D images
+	if (!vulkanDevice->features.sparseResidencyImage2D) {
+		vks::tools::exitFatal("Device does not support sparse residency for 2D images!", VK_ERROR_FEATURE_NOT_PRESENT);
+	}
+	// Prepare per-frame resources
+	frameObjects.resize(getFrameCount());
+	for (FrameObjects& frame : frameObjects) {
+		createBaseFrameObjects(frame);
+		// Uniform buffers
+		VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.uniformBuffer, sizeof(UniformData)));
+	}
+	loadAssets();
+	// Create a virtual texture with max. possible dimension (does not take up any VRAM yet)
+	createSparseTexture(4096, 4096, 1, VK_FORMAT_R8G8B8A8_UNORM);
+	createDescriptors();
+	createPipelines();
+	prepared = true;
+}
+
+void VulkanExample::render()
+{
+	FrameObjects currentFrame = frameObjects[getCurrentFrameIndex()];
+
+	VulkanExampleBase::prepareFrame(currentFrame);
+
+	// Update uniform data for the next frame
+	uniformData.projection = camera.matrices.perspective;
+	uniformData.modelview = camera.matrices.view;
+	uniformData.viewPos = camera.viewPos;
+	memcpy(currentFrame.uniformBuffer.mapped, &uniformData, sizeof(uniformData));
+
+	// Build the command buffer
+	const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
+	const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
+	const VkRect2D renderArea = getRenderArea();
+	const VkViewport viewport = getViewport();
+	const VkRenderPassBeginInfo renderPassBeginInfo = getRenderPassBeginInfo(renderPass, defaultClearValues);
+	VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
+	vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+	vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
+
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSet, 0, nullptr);
+	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &imageDescriptorSet, 0, nullptr);
+	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+	plane.draw(commandBuffer);
+
+	drawUI(commandBuffer);
+	vkCmdEndRenderPass(commandBuffer);
+	VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
+
+	VulkanExampleBase::submitFrame(currentFrame);
+}
+
 void VulkanExample::OnUpdateUIOverlay(vks::UIOverlay* overlay)
 {
 	if (overlay->header("Settings")) {
-		if (overlay->sliderFloat("LOD bias", &uboVS.lodBias, -(float)texture.mipLevels, (float)texture.mipLevels)) {
-			updateUniformBuffers();
-		}
+		if (overlay->sliderFloat("LOD bias", &uniformData.lodBias, -(float)texture.mipLevels, (float)texture.mipLevels));
 		if (overlay->button("Fill random pages")) {
 			fillRandomPages();
 		}
