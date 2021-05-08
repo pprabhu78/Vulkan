@@ -473,11 +473,11 @@ public:
 
 	VulkanglTFModel* glTFModel;
 
-	struct ShaderData {
+	struct UniformData {
 		glm::mat4 projection;
 		glm::mat4 model;
 		glm::vec4 lightPos = glm::vec4(5.0f, 5.0f, -5.0f, 1.0f);
-	} shaderData;
+	} uniformData;
 	struct FrameObjects : public VulkanFrameObjects {
 		vks::Buffer uniformBuffer;
 		VkDescriptorSet descriptorSet;
@@ -647,7 +647,7 @@ public:
 		for (FrameObjects& frame : frameObjects) {
 			createBaseFrameObjects(frame);
 			// Uniform buffers
-			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.uniformBuffer, sizeof(ShaderData)));
+			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.uniformBuffer, sizeof(UniformData)));
 		}
 		loadAssets();
 		createDescriptors();
@@ -662,9 +662,9 @@ public:
 		VulkanExampleBase::prepareFrame(currentFrame);
 
 		// Update uniform-buffers for the next frame
-		shaderData.projection = camera.matrices.perspective;
-		shaderData.model = camera.matrices.view;
-		memcpy(currentFrame.uniformBuffer.mapped, &shaderData, sizeof(shaderData));
+		uniformData.projection = camera.matrices.perspective;
+		uniformData.model = camera.matrices.view;
+		memcpy(currentFrame.uniformBuffer.mapped, &uniformData, sizeof(UniformData));
 
 		// Build the command buffer
 		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;

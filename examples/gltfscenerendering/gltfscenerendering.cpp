@@ -571,7 +571,7 @@ void VulkanExample::render()
 	vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
 	// Bind global scene matrices descriptor to set 0
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSet, 0, nullptr);
-	// Draw the glTF scane, this also takes care of binding the image descriptors to set 1 and passing material paraneters
+	// Draw the glTF scene, this also takes care of binding the image descriptors to set 1 and passing material parameters
 	glTFScene->draw(commandBuffer, pipelineLayout);
 
 	drawUI(commandBuffer);

@@ -108,9 +108,6 @@ public:
 		int32_t imageIndex;
 	};
 
-	/*
-		Model data
-	*/
 	std::vector<Image> images;
 	std::vector<Texture> textures;
 	std::vector<Material> materials;
