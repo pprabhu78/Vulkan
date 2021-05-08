@@ -1,19 +1,25 @@
 // Copyright 2020 Google LLC
 
-Texture2D textureColorMap : register(t1);
-SamplerState samplerColorMap : register(s1);
-Texture2D textureNormalHeightMap : register(t2);
-SamplerState samplerNormalHeightMap : register(s2);
+Texture2D textureColorMap : register(t0, space1);
+SamplerState samplerColorMap : register(s0, space1);
+Texture2D textureNormalHeightMap : register(t1, space1);
+SamplerState samplerNormalHeightMap : register(s1, space1);
 
 struct UBO
 {
+	float4x4 projection;
+	float4x4 view;
+	float4x4 model;
+	float4 lightPos;
+	float4 cameraPos;
 	float heightScale;
 	float parallaxBias;
 	float numLayers;
 	int mappingMode;
+
 };
 
-cbuffer ubo : register(b3) { UBO ubo; }
+cbuffer ubo : register(b0, space0) { UBO ubo; }
 
 struct VSOutput
 {

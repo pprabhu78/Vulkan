@@ -1,15 +1,20 @@
 #version 450
 
-layout (binding = 1) uniform sampler2D sColorMap;
-layout (binding = 2) uniform sampler2D sNormalHeightMap;
-
-layout (binding = 3) uniform UBO 
+layout (set = 0, binding = 0) uniform UBO 
 {
+	mat4 projection;
+	mat4 view;
+	mat4 model;
+	vec4 lightPos;
+	vec4 cameraPos;
 	float heightScale;
 	float parallaxBias;
 	float numLayers;
 	int mappingMode;
 } ubo;
+
+layout (set = 1, binding = 0) uniform sampler2D sColorMap;
+layout (set = 1, binding = 1) uniform sampler2D sNormalHeightMap;
 
 layout (location = 0) in vec2 inUV;
 layout (location = 1) in vec3 inTangentLightPos;

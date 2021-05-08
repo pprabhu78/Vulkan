@@ -15,9 +15,13 @@ struct UBO
 	float4x4 model;
 	float4 lightPos;
 	float4 cameraPos;
+	float heightScale;
+	float parallaxBias;
+	float numLayers;
+	int mappingMode;
 };
 
-cbuffer ubo : register(b0) { UBO ubo; }
+cbuffer ubo : register(b0, space0) { UBO ubo; }
 
 struct VSOutput
 {
