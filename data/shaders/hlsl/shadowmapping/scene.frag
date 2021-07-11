@@ -1,7 +1,7 @@
 // Copyright 2020 Google LLC
 
-Texture2D shadowMapTexture : register(t1);
-SamplerState shadowMapSampler : register(s1);
+Texture2D shadowMapTexture : register(t0, space1);
+SamplerState shadowMapSampler : register(s0, space1);
 
 struct VSOutput
 {
