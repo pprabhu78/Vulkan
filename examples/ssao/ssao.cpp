@@ -54,13 +54,13 @@ public:
 		VkDescriptorSet descriptorSet;
 	};
 	std::vector<FrameObjects> frameObjects;
+	// The descriptors for the images and SSAO kernel are static, and not required to be per-frame
+	VkDescriptorSet ssaoDescriptorSet;
 
 	struct DescriptorSetLayouts {
 		VkDescriptorSetLayout uniformbuffers;
 		VkDescriptorSetLayout ssao;
 	} descriptorSetLayouts;
-	// The descriptor set for the images and SSAO kernel are static, and not required to be per-frame
-	VkDescriptorSet ssaoDescriptorSet;
 
 	struct Pipelines {
 		VkPipeline offscreen;
@@ -565,32 +565,32 @@ public:
 		VkPipelineDynamicStateCreateInfo dynamicState = vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 		std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
 
-		VkGraphicsPipelineCreateInfo pipelineCreateInfo = vks::initializers::pipelineCreateInfo();
-		pipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
-		pipelineCreateInfo.pRasterizationState = &rasterizationState;
-		pipelineCreateInfo.pColorBlendState = &colorBlendState;
-		pipelineCreateInfo.pMultisampleState = &multisampleState;
-		pipelineCreateInfo.pViewportState = &viewportState;
-		pipelineCreateInfo.pDepthStencilState = &depthStencilState;
-		pipelineCreateInfo.pDynamicState = &dynamicState;
-		pipelineCreateInfo.stageCount = static_cast<uint32_t>(shaderStages.size());
-		pipelineCreateInfo.pStages = shaderStages.data();
+		VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::pipelineCreateInfo();
+		pipelineCI.pInputAssemblyState = &inputAssemblyState;
+		pipelineCI.pRasterizationState = &rasterizationState;
+		pipelineCI.pColorBlendState = &colorBlendState;
+		pipelineCI.pMultisampleState = &multisampleState;
+		pipelineCI.pViewportState = &viewportState;
+		pipelineCI.pDepthStencilState = &depthStencilState;
+		pipelineCI.pDynamicState = &dynamicState;
+		pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
+		pipelineCI.pStages = shaderStages.data();
 
-		// Empty vertex input state for fullscreen passes
+		// Empty vertex input state for fullscreen passes (vertices are generated in the vertex shader)
 		VkPipelineVertexInputStateCreateInfo emptyVertexInputState = vks::initializers::pipelineVertexInputStateCreateInfo();
-		pipelineCreateInfo.pVertexInputState = &emptyVertexInputState;
-		rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
+		pipelineCI.pVertexInputState = &emptyVertexInputState;
 
 		// Final image composition pipeline, which combines the G-Buffer attachments and the blurred SSAO image into the final image
-		pipelineCreateInfo.renderPass = renderPass;
-		pipelineCreateInfo.layout = pipelineLayouts.composition;
+		rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT;
+		pipelineCI.renderPass = renderPass;
+		pipelineCI.layout = pipelineLayouts.composition;
 		shaderStages[0] = loadShader(getShadersPath() + "ssao/fullscreen.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		shaderStages[1] = loadShader(getShadersPath() + "ssao/composition.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipelines.composition));
+		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.composition));
 
 		// Pipeline for the SSAO image generation
-		pipelineCreateInfo.renderPass = ssaoPass.renderPass;
-		pipelineCreateInfo.layout = pipelineLayouts.ssao;
+		pipelineCI.renderPass = ssaoPass.renderPass;
+		pipelineCI.layout = pipelineLayouts.ssao;
 		// SSAO Kernel size and radius are constant for this pipeline, so we set them using specialization constants
 		struct SpecializationData {
 			uint32_t kernelSize;
@@ -605,19 +605,19 @@ public:
 		VkSpecializationInfo specializationInfo = vks::initializers::specializationInfo(2, specializationMapEntries.data(), sizeof(specializationData), &specializationData);
 		shaderStages[1] = loadShader(getShadersPath() + "ssao/ssao.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		shaderStages[1].pSpecializationInfo = &specializationInfo;
-		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipelines.ssao));
+		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.ssao));
 
 		// Pipeline for the SSAO blur from the low-res SSAO image to full-screen size
-		pipelineCreateInfo.renderPass = ssaoBlurPass.renderPass;
-		pipelineCreateInfo.layout = pipelineLayouts.ssaoBlur;
+		pipelineCI.renderPass = ssaoBlurPass.renderPass;
+		pipelineCI.layout = pipelineLayouts.ssaoBlur;
 		shaderStages[1] = loadShader(getShadersPath() + "ssao/blur.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipelines.ssaoBlur));
+		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.ssaoBlur));
 
 		// Pipeline for the deffered G-Buffer generation
 		// We use the vertex input state from glTF model loader
-		pipelineCreateInfo.pVertexInputState = vkglTF::Vertex::getPipelineVertexInputState({ vkglTF::VertexComponent::Position, vkglTF::VertexComponent::UV, vkglTF::VertexComponent::Color, vkglTF::VertexComponent::Normal });
-		pipelineCreateInfo.renderPass = offscreenPass.renderPass;
-		pipelineCreateInfo.layout = pipelineLayouts.offscreen;
+		pipelineCI.pVertexInputState = vkglTF::Vertex::getPipelineVertexInputState({ vkglTF::VertexComponent::Position, vkglTF::VertexComponent::UV, vkglTF::VertexComponent::Color, vkglTF::VertexComponent::Normal });
+		pipelineCI.renderPass = offscreenPass.renderPass;
+		pipelineCI.layout = pipelineLayouts.offscreen;
 		// We need to set blend attachment states for all color attachments in this pass
 		std::array<VkPipelineColorBlendAttachmentState, 3> blendAttachmentStates = {
 			vks::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE),
@@ -629,7 +629,7 @@ public:
 		rasterizationState.cullMode = VK_CULL_MODE_BACK_BIT;
 		shaderStages[0] = loadShader(getShadersPath() + "ssao/gbuffer.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		shaderStages[1] = loadShader(getShadersPath() + "ssao/gbuffer.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipelines.offscreen));
+		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.offscreen));
 	}
 
 	float lerp(float a, float b, float f)
