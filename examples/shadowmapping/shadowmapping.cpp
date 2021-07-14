@@ -58,7 +58,7 @@ public:
 		VkDescriptorSet descriptorSet;
 	};
 	std::vector<FrameObjects> frameObjects;
-	// The descriptors for shadow map are static, and not required to be per-frame
+	// The descriptor for the shadow map is static, and not required to be per-frame
 	VkDescriptorSet shadowDescriptorSet;
 
 	struct Pipelines {
@@ -173,30 +173,29 @@ public:
 		dependencies[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 		dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 
-		VkRenderPassCreateInfo renderPassCreateInfo = vks::initializers::renderPassCreateInfo();
-		renderPassCreateInfo.attachmentCount = 1;
-		renderPassCreateInfo.pAttachments = &attachmentDescription;
-		renderPassCreateInfo.subpassCount = 1;
-		renderPassCreateInfo.pSubpasses = &subpass;
-		renderPassCreateInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
-		renderPassCreateInfo.pDependencies = dependencies.data();
-
-		VK_CHECK_RESULT(vkCreateRenderPass(device, &renderPassCreateInfo, nullptr, &shadowmap.renderPass));
+		VkRenderPassCreateInfo renderPassCI = vks::initializers::renderPassCreateInfo();
+		renderPassCI.attachmentCount = 1;
+		renderPassCI.pAttachments = &attachmentDescription;
+		renderPassCI.subpassCount = 1;
+		renderPassCI.pSubpasses = &subpass;
+		renderPassCI.dependencyCount = static_cast<uint32_t>(dependencies.size());
+		renderPassCI.pDependencies = dependencies.data();
+		VK_CHECK_RESULT(vkCreateRenderPass(device, &renderPassCI, nullptr, &shadowmap.renderPass));
 
 		// Ceate the offscreen framebuffer for rendering the depth information from the light's point-of-view to
 		// The depth attachment of that framebuffer will then be used to sample from in the fragment shader of the shadowing pass
-		VkImageCreateInfo image = vks::initializers::imageCreateInfo();
-		image.imageType = VK_IMAGE_TYPE_2D;
-		image.extent.width = shadowMapExtent.width;
-		image.extent.height = shadowMapExtent.height;
-		image.extent.depth = 1;
-		image.mipLevels = 1;
-		image.arrayLayers = 1;
-		image.samples = VK_SAMPLE_COUNT_1_BIT;
-		image.tiling = VK_IMAGE_TILING_OPTIMAL;
-		image.format = shadowMapFormat;
-		image.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-		VK_CHECK_RESULT(vkCreateImage(device, &image, nullptr, &shadowmap.image));
+		VkImageCreateInfo imageCI = vks::initializers::imageCreateInfo();
+		imageCI.imageType = VK_IMAGE_TYPE_2D;
+		imageCI.extent.width = shadowMapExtent.width;
+		imageCI.extent.height = shadowMapExtent.height;
+		imageCI.extent.depth = 1;
+		imageCI.mipLevels = 1;
+		imageCI.arrayLayers = 1;
+		imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageCI.format = shadowMapFormat;
+		imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		VK_CHECK_RESULT(vkCreateImage(device, &imageCI, nullptr, &shadowmap.image));
 
 		VkMemoryAllocateInfo memAlloc = vks::initializers::memoryAllocateInfo();
 		VkMemoryRequirements memReqs;
@@ -206,45 +205,45 @@ public:
 		VK_CHECK_RESULT(vkAllocateMemory(device, &memAlloc, nullptr, &shadowmap.memory));
 		VK_CHECK_RESULT(vkBindImageMemory(device, shadowmap.image, shadowmap.memory, 0));
 
-		// Create the image View
-		VkImageViewCreateInfo depthStencilView = vks::initializers::imageViewCreateInfo();
-		depthStencilView.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		depthStencilView.format = shadowMapFormat;
-		depthStencilView.subresourceRange = {};
-		depthStencilView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-		depthStencilView.subresourceRange.baseMipLevel = 0;
-		depthStencilView.subresourceRange.levelCount = 1;
-		depthStencilView.subresourceRange.baseArrayLayer = 0;
-		depthStencilView.subresourceRange.layerCount = 1;
-		depthStencilView.image = shadowmap.image;
-		VK_CHECK_RESULT(vkCreateImageView(device, &depthStencilView, nullptr, &shadowmap.view));
+		// Create the image view for the depth attachment
+		VkImageViewCreateInfo imageViewCI = vks::initializers::imageViewCreateInfo();
+		imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		imageViewCI.format = shadowMapFormat;
+		imageViewCI.subresourceRange = {};
+		imageViewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		imageViewCI.subresourceRange.baseMipLevel = 0;
+		imageViewCI.subresourceRange.levelCount = 1;
+		imageViewCI.subresourceRange.baseArrayLayer = 0;
+		imageViewCI.subresourceRange.layerCount = 1;
+		imageViewCI.image = shadowmap.image;
+		VK_CHECK_RESULT(vkCreateImageView(device, &imageViewCI, nullptr, &shadowmap.view));
 
-		// Create the frame buffer
-		VkFramebufferCreateInfo fbufCreateInfo = vks::initializers::framebufferCreateInfo();
-		fbufCreateInfo.renderPass = shadowmap.renderPass;
-		fbufCreateInfo.attachmentCount = 1;
-		fbufCreateInfo.pAttachments = &shadowmap.view;
-		fbufCreateInfo.width = shadowMapExtent.width;
-		fbufCreateInfo.height = shadowMapExtent.height;
-		fbufCreateInfo.layers = 1;
-		VK_CHECK_RESULT(vkCreateFramebuffer(device, &fbufCreateInfo, nullptr, &shadowmap.framebuffer));
+		// Create the frame buffer with the shadow map's image attachments
+		VkFramebufferCreateInfo framebufferCI = vks::initializers::framebufferCreateInfo();
+		framebufferCI.renderPass = shadowmap.renderPass;
+		framebufferCI.attachmentCount = 1;
+		framebufferCI.pAttachments = &shadowmap.view;
+		framebufferCI.width = shadowMapExtent.width;
+		framebufferCI.height = shadowMapExtent.height;
+		framebufferCI.layers = 1;
+		VK_CHECK_RESULT(vkCreateFramebuffer(device, &framebufferCI, nullptr, &shadowmap.framebuffer));
 
 		// Create the sampler used to sample from the depth attachment in the scene rendering pass
 		// Check if the current implementation supports linear filtering for the desired shadow map format
 		VkFilter shadowmapFilter = vks::tools::formatIsFilterable(physicalDevice, shadowMapFormat, VK_IMAGE_TILING_OPTIMAL) ? VK_FILTER_LINEAR : VK_FILTER_NEAREST;
-		VkSamplerCreateInfo sampler = vks::initializers::samplerCreateInfo();
-		sampler.magFilter = shadowmapFilter;
-		sampler.minFilter = shadowmapFilter;
-		sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-		sampler.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		sampler.addressModeV = sampler.addressModeU;
-		sampler.addressModeW = sampler.addressModeU;
-		sampler.mipLodBias = 0.0f;
-		sampler.maxAnisotropy = 1.0f;
-		sampler.minLod = 0.0f;
-		sampler.maxLod = 1.0f;
-		sampler.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-		VK_CHECK_RESULT(vkCreateSampler(device, &sampler, nullptr, &shadowmap.sampler));
+		VkSamplerCreateInfo samplerCI = vks::initializers::samplerCreateInfo();
+		samplerCI.magFilter = shadowmapFilter;
+		samplerCI.minFilter = shadowmapFilter;
+		samplerCI.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerCI.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerCI.addressModeV = samplerCI.addressModeU;
+		samplerCI.addressModeW = samplerCI.addressModeU;
+		samplerCI.mipLodBias = 0.0f;
+		samplerCI.maxAnisotropy = 1.0f;
+		samplerCI.minLod = 0.0f;
+		samplerCI.maxLod = 1.0f;
+		samplerCI.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+		VK_CHECK_RESULT(vkCreateSampler(device, &samplerCI, nullptr, &shadowmap.sampler));
 	}
 
 	void loadAssets()
@@ -317,7 +316,9 @@ public:
 		VkPipelineDynamicStateCreateInfo dynamicStateCI = vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 		std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
 
-		VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::pipelineCreateInfo(pipelineLayouts.sceneRendering, renderPass, 0);
+		VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::pipelineCreateInfo();
+		pipelineCI.layout = pipelineLayouts.sceneRendering;
+		pipelineCI.renderPass = renderPass;
 		pipelineCI.pInputAssemblyState = &inputAssemblyStateCI;
 		pipelineCI.pRasterizationState = &rasterizationStateCI;
 		pipelineCI.pColorBlendState = &colorBlendStateCI;
@@ -328,7 +329,7 @@ public:
 		pipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
 		pipelineCI.pStages = shaderStages.data();
 
-		// mpty vertex input state for the fullscreen debug visualization overlay (vertices are generated in the vertex shader)
+		// Empty vertex input state for the fullscreen debug visualization overlay (vertices are generated in the vertex shader)
 		VkPipelineVertexInputStateCreateInfo emptyInputState = vks::initializers::pipelineVertexInputStateCreateInfo();
 		pipelineCI.pVertexInputState = &emptyInputState;
 
@@ -407,7 +408,7 @@ public:
 		uniformData.projection = camera.matrices.perspective;
 		uniformData.view = camera.matrices.view;
 		uniformData.model = glm::mat4(1.0f);
-		// Calcualte the matrix from light's point of view as the depth view model-view-projection matrix
+		// Calculate the matrix from light's point of view as the depth view model-view-projection matrix
 		// The field-of-view should be kept as small as possible to maximize geometry to depth map resolution ratio
 		glm::mat4 depthProjectionMatrix = glm::perspective(glm::radians(45.0f), 1.0f, zNear, zFar);
 		glm::mat4 depthViewMatrix = glm::lookAt(glm::vec3(uniformData.lightPos), glm::vec3(0.0f), glm::vec3(0, 1, 0));
