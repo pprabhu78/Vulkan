@@ -12,6 +12,10 @@ layout (binding = 0) uniform UBO
 	vec4 lightPos;
 } ubo;
 
+layout(push_constant) uniform PushConsts {
+	mat4 model;
+} pushConsts;
+
 layout (location = 0) out vec3 outNormal;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec3 outEyePos;
@@ -21,11 +25,7 @@ void main()
 {
 	outNormal = inNormal;
 	outColor = inColor;
-	gl_Position = ubo.projection * ubo.view * ubo.model * vec4(inPos, 1.0);
-	outEyePos = vec3(ubo.view * ubo.model * vec4(inPos, 1.0));
+	gl_Position = ubo.projection * ubo.view * pushConsts.model * vec4(inPos, 1.0);
+	outEyePos = vec3(ubo.view * pushConsts.model * vec4(inPos, 1.0));
 	outLightVec = normalize(ubo.lightPos.xyz - outEyePos);
-
-	// Clip against reflection plane
-	vec4 clipPlane = vec4(0.0, -1.0, 0.0, 1.5);	
-	gl_ClipDistance[0] = dot(vec4(inPos, 1.0), clipPlane);	
 }

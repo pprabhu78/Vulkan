@@ -15,6 +15,11 @@ struct UBO
 
 cbuffer ubo : register(b0) { UBO ubo; }
 
+struct PushConsts {
+	float4x4 model;
+};
+[[vk::push_constant]] PushConsts pushConsts;
+
 struct VSOutput
 {
 	float4 Pos : SV_POSITION;
@@ -26,7 +31,7 @@ VSOutput main(VSInput input)
 {
 	VSOutput output = (VSOutput)0;
 	output.UV = input.UV;
-	output.ProjCoord = mul(ubo.projection, mul(ubo.view, mul(ubo.model, float4(input.Pos.xyz, 1.0))));
+	output.ProjCoord = mul(ubo.projection, mul(ubo.view, mul(pushConsts.model, float4(input.Pos.xyz, 1.0))));
 	output.Pos = output.ProjCoord;
 	return output;
 }
