@@ -354,10 +354,6 @@ Advanced fullscreen effect example adding a bloom effect to a scene. Glowing sce
 
 Implements multiple texture mapping methods to simulate depth based on texture information: Normal mapping, parallax mapping, steep parallax mapping and parallax occlusion mapping (best quality, worst performance).
 
-#### [Spherical environment mapping](examples/sphericalenvmapping/)
-
-Uses a spherical material capture texture array defining environment lighting and reflection information to fake complex lighting.
-
 ### Extensions
 
 #### [Conservative rasterization (VK_EXT_conservative_rasterization)](examples/conservativeraster/)
