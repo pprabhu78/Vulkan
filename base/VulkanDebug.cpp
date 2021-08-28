@@ -27,22 +27,23 @@ namespace vks
 			std::string prefix("");
 
 			if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
-				prefix = "VERBOSE: ";
+				prefix = "Validation verbose";
 			}
 			else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
-				prefix = "INFO: ";
+				prefix = "Validation info";
 			}
 			else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-				prefix = "WARNING: ";
+				prefix = "Validation warning";
 			}
 			else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-				prefix = "ERROR: ";
+				prefix = "Validation error";
 			}
 
 
 			// Display message to default output (console/logcat)
 			std::stringstream debugMessage;
-			debugMessage << prefix << "[" << pCallbackData->messageIdNumber << "][" << pCallbackData->pMessageIdName << "] : " << pCallbackData->pMessage;
+			debugMessage << pCallbackData->pMessage;
+//			debugMessage << prefix << ":\n" << pCallbackData->pMessageIdName << " :\n" << pCallbackData->pMessage;
 
 #if defined(__ANDROID__)
 			if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
@@ -52,9 +53,9 @@ namespace vks
 			}
 #else
 			if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-				std::cerr << debugMessage.str() << "\n";
+				std::cerr << debugMessage.str() << "\n\n";
 			} else {
-				std::cout << debugMessage.str() << "\n";
+				std::cout << debugMessage.str() << "\n\n";
 			}
 			fflush(stdout);
 #endif
