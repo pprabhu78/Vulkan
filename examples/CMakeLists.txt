@@ -119,7 +119,6 @@ set(EXAMPLES
 	shadowmappingomni
 	shadowmappingcascade
 	specializationconstants
-	sphericalenvmapping
 	ssao
 	stencilbuffer
 	subpasses
