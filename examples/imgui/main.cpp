@@ -1,8 +1,6 @@
 /*
  * Vulkan Example - User interfaces with Dear ImGui (https://github.com/ocornut/imgui)
  *
- * Shows how to integrate an immediate mode user interface into a Vulkan application
- * 
  * Copyright (C) 2017-2021 by Sascha Willems - www.saschawillems.de
  *
  * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
@@ -136,7 +134,7 @@ public:
 	}
 
 	// Initialize all Vulkan resources used by the UI
-	void createResources(VkRenderPass renderPass, VkQueue copyQueue)
+	void createOverlayResources(VkRenderPass renderPass, VkQueue copyQueue)
 	{
 		// Create and upload the font texture provided by ImGui
 		// Get the image data for the font atlas that we'll upload to the GPU
@@ -146,20 +144,20 @@ public:
 		io.Fonts->GetTexDataAsRGBA32(&fontData, &texWidth, &texHeight);
 		VkDeviceSize uploadSize = texWidth*texHeight * 4 * sizeof(char);
 		// Create an optimal tiled device local (VRAM) target image to copy the font atlas to
-		VkImageCreateInfo imageInfo = vks::initializers::imageCreateInfo();
-		imageInfo.imageType = VK_IMAGE_TYPE_2D;
-		imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-		imageInfo.extent.width = texWidth;
-		imageInfo.extent.height = texHeight;
-		imageInfo.extent.depth = 1;
-		imageInfo.mipLevels = 1;
-		imageInfo.arrayLayers = 1;
-		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		VK_CHECK_RESULT(vkCreateImage(device->logicalDevice, &imageInfo, nullptr, &fontImage));
+		VkImageCreateInfo imageCI = vks::initializers::imageCreateInfo();
+		imageCI.imageType = VK_IMAGE_TYPE_2D;
+		imageCI.format = VK_FORMAT_R8G8B8A8_UNORM;
+		imageCI.extent.width = texWidth;
+		imageCI.extent.height = texHeight;
+		imageCI.extent.depth = 1;
+		imageCI.mipLevels = 1;
+		imageCI.arrayLayers = 1;
+		imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageCI.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		imageCI.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageCI.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		VK_CHECK_RESULT(vkCreateImage(device->logicalDevice, &imageCI, nullptr, &fontImage));
 		VkMemoryRequirements memReqs;
 		vkGetImageMemoryRequirements(device->logicalDevice, fontImage, &memReqs);
 		VkMemoryAllocateInfo memAllocInfo = vks::initializers::memoryAllocateInfo();
@@ -168,20 +166,20 @@ public:
 		VK_CHECK_RESULT(vkAllocateMemory(device->logicalDevice, &memAllocInfo, nullptr, &fontMemory));
 		VK_CHECK_RESULT(vkBindImageMemory(device->logicalDevice, fontImage, fontMemory, 0));
 		// Create an image view for the font atlas
-		VkImageViewCreateInfo viewInfo = vks::initializers::imageViewCreateInfo();
-		viewInfo.image = fontImage;
-		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		viewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-		viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		viewInfo.subresourceRange.levelCount = 1;
-		viewInfo.subresourceRange.layerCount = 1;
-		VK_CHECK_RESULT(vkCreateImageView(device->logicalDevice, &viewInfo, nullptr, &fontView));
+		VkImageViewCreateInfo imageViewCI = vks::initializers::imageViewCreateInfo();
+		imageViewCI.image = fontImage;
+		imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		imageViewCI.format = VK_FORMAT_R8G8B8A8_UNORM;
+		imageViewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		imageViewCI.subresourceRange.levelCount = 1;
+		imageViewCI.subresourceRange.layerCount = 1;
+		VK_CHECK_RESULT(vkCreateImageView(device->logicalDevice, &imageViewCI, nullptr, &fontView));
 
 		// Copy the font atlas data to the device local (VRAM) using a staging buffer
 		vks::Buffer stagingBuffer;
 		VK_CHECK_RESULT(device->createAndMapBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &stagingBuffer, uploadSize));
 		memcpy(stagingBuffer.mapped, fontData, uploadSize);
-		// Issue a copy from the staging buffer to the target imge
+		// Issue a copy from the staging buffer to the target image
 		VkCommandBuffer copyCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 		// Change image layout for the target image to transfer destination, so we can copy into it
 		vks::tools::setImageLayout(copyCmd,
@@ -217,14 +215,14 @@ public:
 		stagingBuffer.destroy();
 
 		// Create a sampler for the font atlas image
-		VkSamplerCreateInfo samplerInfo = vks::initializers::samplerCreateInfo();
-		samplerInfo.magFilter = VK_FILTER_LINEAR;
-		samplerInfo.minFilter = VK_FILTER_LINEAR;
-		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-		VK_CHECK_RESULT(vkCreateSampler(device->logicalDevice, &samplerInfo, nullptr, &sampler));
+		VkSamplerCreateInfo samplerCI = vks::initializers::samplerCreateInfo();
+		samplerCI.magFilter = VK_FILTER_LINEAR;
+		samplerCI.minFilter = VK_FILTER_LINEAR;
+		samplerCI.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerCI.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerCI.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerCI.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		VK_CHECK_RESULT(vkCreateSampler(device->logicalDevice, &samplerCI, nullptr, &sampler));
 
 		// Create a descriptor pool
 		// To keep descriptor setup simple, we duplicate the combined image sampler for the font atlas texture per frame, so we need frameCount descriptors for that type in the pool
@@ -378,7 +376,7 @@ public:
 			idxDst += cmd_list->IdxBuffer.Size;
 		}
 
-		// As we don't require a host coherent memory type, flushes are required to make writes visible to GPU
+		// As we don't require a host coherent memory type, flushes are required to make writes visible to the GPU
 		currentFrame.vertexBuffer.flush();
 		currentFrame.indexBuffer.flush();
 	}
@@ -559,13 +557,13 @@ public:
 		imGuiWrapper->setDevice(vulkanDevice);
 		imGuiWrapper->setVertexShader(loadShader(getShadersPath() + "imgui/ui.vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
 		imGuiWrapper->setFragmentShader(loadShader(getShadersPath() + "imgui/ui.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
-		imGuiWrapper->createResources(renderPass, queue);
+		imGuiWrapper->createOverlayResources(renderPass, queue);
 	}
 
 	void prepare()
 	{
 		VulkanExampleBase::prepare();
-		// Prepare per-frame ressources
+		// Prepare per-frame resources
 		frameObjects.resize(getFrameCount());
 		for (FrameObjects& frame : frameObjects) {
 			createBaseFrameObjects(frame);
