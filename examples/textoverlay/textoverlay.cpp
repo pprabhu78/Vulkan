@@ -70,7 +70,7 @@ public:
 	} pipelineLayouts;
 
 	struct DescriptorSetLayouts {
-		VkDescriptorSetLayout model;
+		VkDescriptorSetLayout uniformbuffers;
 		VkDescriptorSetLayout text;
 	} descriptorSetLayouts;
 
@@ -91,7 +91,7 @@ public:
 		vkDestroyPipeline(device, pipelines.text, nullptr);
 		vkDestroyPipelineLayout(device, pipelineLayouts.model, nullptr);
 		vkDestroyPipelineLayout(device, pipelineLayouts.text, nullptr);
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayouts.model, nullptr);
+		vkDestroyDescriptorSetLayout(device, descriptorSetLayouts.uniformbuffers , nullptr);
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayouts.text, nullptr);
 		vkDestroySampler(device, fontAtlas.sampler, nullptr);
 		vkDestroyImage(device, fontAtlas.image, nullptr);
@@ -346,7 +346,7 @@ public:
 		// One layout for the per-frame uniform buffers for rendering the model 
 		setLayoutBinding = vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
 		descriptorSetLayoutCI = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBinding);
-		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &descriptorSetLayouts.model));
+		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &descriptorSetLayouts.uniformbuffers));
 		// One layout for the text rendering using the font texture
 		setLayoutBinding = vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
 		descriptorSetLayoutCI = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBinding);
@@ -355,7 +355,7 @@ public:
 		// Sets
 		// Per-frame uniform buffers
 		for (FrameObjects& frame : frameObjects) {
-			VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayouts.model, 1);
+			VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayouts.uniformbuffers, 1);
 			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &frame.descriptorSet));
 			VkWriteDescriptorSet writeDescriptorSet = vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.uniformBuffer.descriptor);
 			vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
@@ -373,7 +373,7 @@ public:
 		// Layouts
 		VkPipelineLayoutCreateInfo pipelineLayoutCI{};
 		// Pipeline layout for rendering the solid model in the background
-		pipelineLayoutCI = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayouts.model, 1);
+		pipelineLayoutCI = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayouts.uniformbuffers, 1);
 		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayouts.model));
 		// Pipeline layout for drawing the text
 		pipelineLayoutCI = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayouts.text, 1);
