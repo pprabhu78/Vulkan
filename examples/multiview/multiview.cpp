@@ -1,12 +1,18 @@
 /*
-* Vulkan Example - Multiview (VK_KHR_multiview)
-*
-* Uses VK_KHR_multiview for simultaneously rendering to multiple views and displays these with barrel distortion using a fragment shader
-*
-* Copyright (C) 2018 by Sascha Willems - www.saschawillems.de
-*
-* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
-*/
+ * Vulkan Example - Multiview (VK_KHR_multiview)
+ *
+ * Copyright (C) 2018-2021 by Sascha Willems - www.saschawillems.de
+ *
+ * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+ */
+
+/*
+ * This sample shows how to use the VK_KHR_multiview for simultaneously rendering to multiple views in a single render pass to simulate stereoscopic rendering
+ * For this, a layered image attachment is created (see createMultiviewResources) with two layers 
+ * The VkRenderPassMultiviewCreateInfo for the multi view render pass (see createPipelines) causes the shaders to be invoked multiple times, writing to the layers in the image
+ * The vertex shader then uses gl_ViewIndex to get the index of the current view for selecting different matrices for the left and right eye
+ * A final full screen pass then displays the result of the multi view render pass
+ */
 
 #include "vulkanexamplebase.h"
 #include "VulkanglTFModel.h"
@@ -16,6 +22,8 @@
 class VulkanExample : public VulkanExampleBase
 {
 public:
+	VkPhysicalDeviceMultiviewFeatures enabledMultiviewFeatures{};
+
 	struct MultiviewPass {
 		struct FrameBufferAttachment {
 			VkImage image;
@@ -26,28 +34,34 @@ public:
 		VkRenderPass renderPass;
 		VkDescriptorImageInfo descriptor;
 		VkSampler sampler;
-		VkSemaphore semaphore;
-		std::vector<VkCommandBuffer> commandBuffers;
-		std::vector<VkFence> waitFences;
-	} multiviewPass;
+	} multiviewPass{};
 
 	vkglTF::Model scene;
 
-	struct UBO {
+	struct UniformData {
 		glm::mat4 projection[2];
 		glm::mat4 modelview[2];
 		glm::vec4 lightPos = glm::vec4(-2.5f, -3.5f, 0.0f, 1.0f);
 		float distortionAlpha = 0.2f;
-	} ubo;
+	} uniformData;
+	struct FrameObjects : public VulkanFrameObjects {
+		vks::Buffer uniformBuffer;
+		VkDescriptorSet descriptorSet;
+	};
+	std::vector<FrameObjects> frameObjects;
+	// The descriptor set multiview image is static, and not required to be per-frame
+	VkDescriptorSet multiviewImageDescriptorSet;
 
-	vks::Buffer uniformBuffer;
-
-	VkPipeline pipeline;
+	struct Pipelines {
+		VkPipeline multiviewGeneration;
+		VkPipeline multiviewDisplay;
+	} pipelines;
 	VkPipelineLayout pipelineLayout;
-	VkDescriptorSet descriptorSet;
-	VkDescriptorSetLayout descriptorSetLayout;
 
-	VkPipeline viewDisplayPipelines[2];
+	struct DescriptorSetLayouts {
+		VkDescriptorSetLayout uniformbuffers;
+		VkDescriptorSetLayout multiviewimage;
+	} descriptorSetLayouts;
 
 	// Camera and view properties
 	float eyeSeparation = 0.08f;
@@ -74,50 +88,53 @@ public:
 
 	~VulkanExample()
 	{
-		vkDestroyPipeline(device, pipeline, nullptr);
-
+		vkDestroyPipeline(device, pipelines.multiviewGeneration, nullptr);
+		vkDestroyPipeline(device, pipelines.multiviewDisplay, nullptr);
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-
+		vkDestroyDescriptorSetLayout(device, descriptorSetLayouts.uniformbuffers, nullptr);
+		vkDestroyDescriptorSetLayout(device, descriptorSetLayouts.multiviewimage, nullptr);
+		for (FrameObjects& frame : frameObjects) {
+			frame.uniformBuffer.destroy();
+			destroyBaseFrameObjects(frame);
+		}
 		// Multiview pass
-
 		vkDestroyImageView(device, multiviewPass.color.view, nullptr);
 		vkDestroyImage(device, multiviewPass.color.image, nullptr);
 		vkFreeMemory(device, multiviewPass.color.memory, nullptr);
 		vkDestroyImageView(device, multiviewPass.depth.view, nullptr);
 		vkDestroyImage(device, multiviewPass.depth.image, nullptr);
 		vkFreeMemory(device, multiviewPass.depth.memory, nullptr);
-
 		vkDestroyRenderPass(device, multiviewPass.renderPass, nullptr);
 		vkDestroySampler(device, multiviewPass.sampler, nullptr);
 		vkDestroyFramebuffer(device, multiviewPass.frameBuffer, nullptr);
-
-		vkDestroySemaphore(device, multiviewPass.semaphore, nullptr);
-		for (auto& fence : multiviewPass.waitFences) {
-			vkDestroyFence(device, fence, nullptr);
-		}
-
-		for (auto& pipeline : viewDisplayPipelines) {
-			vkDestroyPipeline(device, pipeline, nullptr);
-		}
-
-		uniformBuffer.destroy();
 	}
 
 	/*
-		Prepares all resources required for the multiview attachment
+		Prepares all resources required for the layered multiview attachment
 		Images, views, attachments, renderpass, framebuffer, etc.
 	*/
-	void prepareMultiview()
+	void createMultiviewResources()
 	{
+		// Release resources if the attachments are to be recreated
+		if (multiviewPass.color.image != VK_NULL_HANDLE) {
+			vkDestroyImageView(device, multiviewPass.color.view, nullptr);
+			vkDestroyImage(device, multiviewPass.color.image, nullptr);
+			vkFreeMemory(device, multiviewPass.color.memory, nullptr);
+			multiviewPass.color = {};
+		}
+		if (multiviewPass.depth.image != VK_NULL_HANDLE) {
+			vkDestroyImageView(device, multiviewPass.depth.view, nullptr);
+			vkDestroyImage(device, multiviewPass.depth.image, nullptr);
+			vkFreeMemory(device, multiviewPass.depth.memory, nullptr);
+			multiviewPass.depth = {};
+		}
+
 		// Example renders to two views (left/right)
 		const uint32_t multiviewLayerCount = 2;
 
-		/*
-			Layered depth/stencil framebuffer
-		*/
+		// Create a layered depth/stencil image and view
 		{
-			VkImageCreateInfo imageCI= vks::initializers::imageCreateInfo();
+			VkImageCreateInfo imageCI = vks::initializers::imageCreateInfo();
 			imageCI.imageType = VK_IMAGE_TYPE_2D;
 			imageCI.format = depthFormat;
 			imageCI.extent = { width, height, 1 };
@@ -128,39 +145,27 @@ public:
 			imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 			imageCI.flags = 0;
 			VK_CHECK_RESULT(vkCreateImage(device, &imageCI, nullptr, &multiviewPass.depth.image));
-
-			VkMemoryRequirements memReqs;
-			vkGetImageMemoryRequirements(device, multiviewPass.depth.image, &memReqs);
-
-			VkMemoryAllocateInfo memAllocInfo{};
-			memAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-			memAllocInfo.allocationSize = 0;
-			memAllocInfo.memoryTypeIndex = 0;
-
-			VkImageViewCreateInfo depthStencilView = {};
-			depthStencilView.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-			depthStencilView.pNext = NULL;
-			depthStencilView.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
-			depthStencilView.format = depthFormat;
-			depthStencilView.flags = 0;
-			depthStencilView.subresourceRange = {};
-			depthStencilView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
-			depthStencilView.subresourceRange.baseMipLevel = 0;
-			depthStencilView.subresourceRange.levelCount = 1;
-			depthStencilView.subresourceRange.baseArrayLayer = 0;
-			depthStencilView.subresourceRange.layerCount = multiviewLayerCount;
-			depthStencilView.image = multiviewPass.depth.image;
-
-			memAllocInfo.allocationSize = memReqs.size;
-			memAllocInfo.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+			VkMemoryRequirements memoryRequirements;
+			vkGetImageMemoryRequirements(device, multiviewPass.depth.image, &memoryRequirements);
+			VkMemoryAllocateInfo memAllocInfo = vks::initializers::memoryAllocateInfo();
+			memAllocInfo.allocationSize = memoryRequirements.size;
+			memAllocInfo.memoryTypeIndex = vulkanDevice->getMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 			VK_CHECK_RESULT(vkAllocateMemory(device, &memAllocInfo, nullptr, &multiviewPass.depth.memory));
 			VK_CHECK_RESULT(vkBindImageMemory(device, multiviewPass.depth.image, multiviewPass.depth.memory, 0));
-			VK_CHECK_RESULT(vkCreateImageView(device, &depthStencilView, nullptr, &multiviewPass.depth.view));
+			
+			VkImageViewCreateInfo imageViewCI = vks::initializers::imageViewCreateInfo();
+			imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+			imageViewCI.format = depthFormat;
+			imageViewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+			imageViewCI.subresourceRange.baseMipLevel = 0;
+			imageViewCI.subresourceRange.levelCount = 1;
+			imageViewCI.subresourceRange.baseArrayLayer = 0;
+			imageViewCI.subresourceRange.layerCount = multiviewLayerCount;
+			imageViewCI.image = multiviewPass.depth.image;
+			VK_CHECK_RESULT(vkCreateImageView(device, &imageViewCI, nullptr, &multiviewPass.depth.view));
 		}
 
-		/*
-			Layered color attachment
-		*/
+		// Create a layered color image and view
 		{
 			VkImageCreateInfo imageCI = vks::initializers::imageCreateInfo();
 			imageCI.imageType = VK_IMAGE_TYPE_2D;
@@ -172,13 +177,11 @@ public:
 			imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
 			imageCI.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 			VK_CHECK_RESULT(vkCreateImage(device, &imageCI, nullptr, &multiviewPass.color.image));
-
-			VkMemoryRequirements memReqs;
-			vkGetImageMemoryRequirements(device, multiviewPass.color.image, &memReqs);
-
+			VkMemoryRequirements memoryRequirements;
+			vkGetImageMemoryRequirements(device, multiviewPass.color.image, &memoryRequirements);
 			VkMemoryAllocateInfo memoryAllocInfo = vks::initializers::memoryAllocateInfo();
-			memoryAllocInfo.allocationSize = memReqs.size;
-			memoryAllocInfo.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+			memoryAllocInfo.allocationSize = memoryRequirements.size;
+			memoryAllocInfo.memoryTypeIndex = vulkanDevice->getMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 			VK_CHECK_RESULT(vkAllocateMemory(device, &memoryAllocInfo, nullptr, &multiviewPass.color.memory));
 			VK_CHECK_RESULT(vkBindImageMemory(device, multiviewPass.color.image, multiviewPass.color.memory, 0));
 
@@ -194,8 +197,10 @@ public:
 			imageViewCI.subresourceRange.layerCount = multiviewLayerCount;
 			imageViewCI.image = multiviewPass.color.image;
 			VK_CHECK_RESULT(vkCreateImageView(device, &imageViewCI, nullptr, &multiviewPass.color.view));
+		}
 
-			// Create sampler to sample from the attachment in the fragment shader
+		// Create sampler to sample from the color image in the fragment shader (if not already created, on resize there is no need to recreate)
+		if (multiviewPass.sampler == VK_NULL_HANDLE) {
 			VkSamplerCreateInfo samplerCI = vks::initializers::samplerCreateInfo();
 			samplerCI.magFilter = VK_FILTER_NEAREST;
 			samplerCI.minFilter = VK_FILTER_NEAREST;
@@ -209,17 +214,15 @@ public:
 			samplerCI.maxLod = 1.0f;
 			samplerCI.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 			VK_CHECK_RESULT(vkCreateSampler(device, &samplerCI, nullptr, &multiviewPass.sampler));
-
-			// Fill a descriptor for later use in a descriptor set
-			multiviewPass.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			multiviewPass.descriptor.imageView = multiviewPass.color.view;
-			multiviewPass.descriptor.sampler = multiviewPass.sampler;
 		}
 
-		/*
-			Renderpass
-		*/
-		{
+		// Fill a descriptor for later use in a descriptor set
+		multiviewPass.descriptor.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		multiviewPass.descriptor.imageView = multiviewPass.color.view;
+		multiviewPass.descriptor.sampler = multiviewPass.sampler;
+
+		// Create a render pass (if not already created, on resize there is no need to recreate)
+		if (multiviewPass.renderPass == VK_NULL_HANDLE) {
 			std::array<VkAttachmentDescription, 2> attachments = {};
 			// Color attachment
 			attachments[0].format = swapChain.colorFormat;
@@ -282,149 +285,46 @@ public:
 			renderPassCI.dependencyCount = static_cast<uint32_t>(dependencies.size());
 			renderPassCI.pDependencies = dependencies.data();
 
-			/*
-				Setup multiview info for the renderpass
-			*/
+			// Set up the multivew properties of the renderpass
 
-			/*
-				Bit mask that specifies which view rendering is broadcast to
-				0011 = Broadcast to first and second view (layer)
-			*/
+			// The view mask is a bit mask that specifies which view rendering is broadcast to
+			// 0011 = Broadcast to first and second view layer
 			const uint32_t viewMask = 0b00000011;
 
-			/*
-				Bit mask that specifies correlation between views
-				An implementation may use this for optimizations (concurrent render)
-			*/
+			// The correlation mask is a bit mask that specifies correlation between the views in the renderpass
+			// An implementation may use this for optimizations (e.g. concurrent render)
+			// As with the view mask 0011 = First and second layer
 			const uint32_t correlationMask = 0b00000011;
 
 			VkRenderPassMultiviewCreateInfo renderPassMultiviewCI{};
 			renderPassMultiviewCI.sType = VK_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_CREATE_INFO;
-			renderPassMultiviewCI.subpassCount = 1;
 			renderPassMultiviewCI.pViewMasks = &viewMask;
 			renderPassMultiviewCI.correlationMaskCount = 1;
 			renderPassMultiviewCI.pCorrelationMasks = &correlationMask;
+			renderPassMultiviewCI.subpassCount = 1;
 
+			// Chain the extened renderpass create info into the renderpass create info
 			renderPassCI.pNext = &renderPassMultiviewCI;
-
 			VK_CHECK_RESULT(vkCreateRenderPass(device, &renderPassCI, nullptr, &multiviewPass.renderPass));
 		}
 
-		/*
-			Framebuffer
-		*/
-		{
-			VkImageView attachments[2];
-			attachments[0] = multiviewPass.color.view;
-			attachments[1] = multiviewPass.depth.view;
-
-			VkFramebufferCreateInfo framebufferCI = vks::initializers::framebufferCreateInfo();
-			framebufferCI.renderPass = multiviewPass.renderPass;
-			framebufferCI.attachmentCount = 2;
-			framebufferCI.pAttachments = attachments;
-			framebufferCI.width = width;
-			framebufferCI.height = height;
-			framebufferCI.layers = 1;
-			VK_CHECK_RESULT(vkCreateFramebuffer(device, &framebufferCI, nullptr, &multiviewPass.frameBuffer));
-		}
-	}
-
-	void buildCommandBuffers()
-	{
-		/*
-			View display
-		*/
-		{
-			VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-
-			VkClearValue clearValues[2];
-			clearValues[0].color = defaultClearColor;
-			clearValues[1].depthStencil = { 1.0f, 0 };
-
-			VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
-			renderPassBeginInfo.renderPass = renderPass;
-			renderPassBeginInfo.renderArea.offset.x = 0;
-			renderPassBeginInfo.renderArea.offset.y = 0;
-			renderPassBeginInfo.renderArea.extent.width = width;
-			renderPassBeginInfo.renderArea.extent.height = height;
-			renderPassBeginInfo.clearValueCount = 2;
-			renderPassBeginInfo.pClearValues = clearValues;
-
-			for (int32_t i = 0; i < drawCmdBuffers.size(); ++i) {
-				renderPassBeginInfo.framebuffer = frameBuffers[i];
-
-				VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
-				vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-				VkViewport viewport = vks::initializers::viewport((float)width / 2.0f, (float)height, 0.0f, 1.0f);
-				VkRect2D scissor = vks::initializers::rect2D(width / 2, height, 0, 0);
-				vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-				vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
-
-				vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-
-				// Left eye
-				vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, viewDisplayPipelines[0]);
-				vkCmdDraw(drawCmdBuffers[i], 3, 1, 0, 0);
-
-				// Right eye
-				viewport.x = (float)width / 2;
-				scissor.offset.x = width / 2;
-				vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-				vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
-
-				vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, viewDisplayPipelines[1]);
-				vkCmdDraw(drawCmdBuffers[i], 3, 1, 0, 0);
-
-				drawUI(drawCmdBuffers[i]);
-
-				vkCmdEndRenderPass(drawCmdBuffers[i]);
-				VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
-			}
+		// Create a framebuffer for the attachments
+		if (multiviewPass.frameBuffer != VK_NULL_HANDLE) {
+			// Release the old framebuffer if it's to be recreated
+			vkDestroyFramebuffer(device, multiviewPass.frameBuffer, nullptr);
 		}
 
-		/*
-			Multiview layered attachment scene rendering
-		*/
-
-		multiviewPass.commandBuffers.resize(drawCmdBuffers.size());
-
-		VkCommandBufferAllocateInfo cmdBufAllocateInfo = vks::initializers::commandBufferAllocateInfo(cmdPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, static_cast<uint32_t>(drawCmdBuffers.size()));
-		VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, multiviewPass.commandBuffers.data()));
-
-		{
-			VkCommandBufferBeginInfo cmdBufInfo = vks::initializers::commandBufferBeginInfo();
-
-			VkClearValue clearValues[2];
-			clearValues[0].color = defaultClearColor;
-			clearValues[1].depthStencil = { 1.0f, 0 };
-
-			VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
-			renderPassBeginInfo.renderPass = multiviewPass.renderPass;
-			renderPassBeginInfo.renderArea.offset.x = 0;
-			renderPassBeginInfo.renderArea.offset.y = 0;
-			renderPassBeginInfo.renderArea.extent.width = width;
-			renderPassBeginInfo.renderArea.extent.height = height;
-			renderPassBeginInfo.clearValueCount = 2;
-			renderPassBeginInfo.pClearValues = clearValues;
-
-			for (int32_t i = 0; i < multiviewPass.commandBuffers.size(); ++i) {
-				renderPassBeginInfo.framebuffer = multiviewPass.frameBuffer;
-
-				VK_CHECK_RESULT(vkBeginCommandBuffer(multiviewPass.commandBuffers[i], &cmdBufInfo));
-				vkCmdBeginRenderPass(multiviewPass.commandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-				VkViewport viewport = vks::initializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-				vkCmdSetViewport(multiviewPass.commandBuffers[i], 0, 1, &viewport);
-				VkRect2D scissor = vks::initializers::rect2D(width, height, 0, 0);
-				vkCmdSetScissor(multiviewPass.commandBuffers[i], 0, 1, &scissor);
-
-				vkCmdBindDescriptorSets(multiviewPass.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-				vkCmdBindPipeline(multiviewPass.commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-				scene.draw(multiviewPass.commandBuffers[i]);
-
-				vkCmdEndRenderPass(multiviewPass.commandBuffers[i]);
-				VK_CHECK_RESULT(vkEndCommandBuffer(multiviewPass.commandBuffers[i]));
-			}
-		}
+		VkImageView attachments[2];
+		attachments[0] = multiviewPass.color.view;
+		attachments[1] = multiviewPass.depth.view;
+		VkFramebufferCreateInfo framebufferCI = vks::initializers::framebufferCreateInfo();
+		framebufferCI.renderPass = multiviewPass.renderPass;
+		framebufferCI.attachmentCount = 2;
+		framebufferCI.pAttachments = attachments;
+		framebufferCI.width = width;
+		framebufferCI.height = height;
+		framebufferCI.layers = 1;
+		VK_CHECK_RESULT(vkCreateFramebuffer(device, &framebufferCI, nullptr, &multiviewPass.frameBuffer));
 	}
 
 	void loadAssets()
@@ -432,80 +332,52 @@ public:
 		scene.loadFromFile(getAssetPath() + "models/sampleroom.gltf", vulkanDevice, queue, vkglTF::FileLoadingFlags::PreTransformVertices | vkglTF::FileLoadingFlags::PreMultiplyVertexColors | vkglTF::FileLoadingFlags::FlipY);
 	}
 
-	void prepareDescriptors()
+	void createDescriptors()
 	{
-		/*
-			Pool
-		*/
+		// Pool
 		std::vector<VkDescriptorPoolSize> poolSizes = {
-			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
+			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, getFrameCount()),
 			vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
 		};
-		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(static_cast<uint32_t>(poolSizes.size()), poolSizes.data(), 1);
+		VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(static_cast<uint32_t>(poolSizes.size()), poolSizes.data(), 1 + getFrameCount());
 		VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolInfo, nullptr, &descriptorPool));
 
-		/*
-			Layouts
-		*/
-		std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
-			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0),
-			vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
-		};
-		VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
-		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorLayout, nullptr, &descriptorSetLayout));
-		VkPipelineLayoutCreateInfo pPipelineLayoutCreateInfo =vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
-		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pPipelineLayoutCreateInfo, nullptr, &pipelineLayout));
+		// Layouts
+		VkDescriptorSetLayoutBinding setLayoutBinding{};
+		VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCI{};
+		// One layout for the per-frame uniform buffers
+		setLayoutBinding = vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+		descriptorSetLayoutCI = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBinding);
+		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &descriptorSetLayouts.uniformbuffers));
+		// One layout for multiview image
+		setLayoutBinding = vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+		descriptorSetLayoutCI = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBinding);
+		VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCI, nullptr, &descriptorSetLayouts.multiviewimage));
 
-		/*
-			Descriptors
-		*/
-		VkDescriptorSetAllocateInfo allocateInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
-		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocateInfo, &descriptorSet));
-		std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-			vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &uniformBuffer.descriptor),
-			vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1, &multiviewPass.descriptor),
-		};
-		vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+		// Descriptors
+		// Per-frame uniform buffers
+		for (FrameObjects& frame : frameObjects) {
+			VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayouts.uniformbuffers, 1);
+			VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &frame.descriptorSet));
+			VkWriteDescriptorSet writeDescriptorSet = vks::initializers::writeDescriptorSet(frame.descriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 0, &frame.uniformBuffer.descriptor);
+			vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+		}
+		// Global set for the multiview image
+		VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayouts.multiviewimage, 1);
+		VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &allocInfo, &multiviewImageDescriptorSet));
+		VkWriteDescriptorSet writeDescriptorSet = vks::initializers::writeDescriptorSet(multiviewImageDescriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &multiviewPass.descriptor);
+		vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
+
 	}
 
-	void preparePipelines()
+	void createPipelines()
 	{
+		// Layouts
+		const std::vector<VkDescriptorSetLayout> setLayouts = { descriptorSetLayouts.uniformbuffers, descriptorSetLayouts.multiviewimage };
+		VkPipelineLayoutCreateInfo pipelineLayoutCI = vks::initializers::pipelineLayoutCreateInfo(setLayouts.data(), 2);
+		VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCI, nullptr, &pipelineLayout));
 
-		VkSemaphoreCreateInfo semaphoreCI = vks::initializers::semaphoreCreateInfo();
-		VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCI, nullptr, &multiviewPass.semaphore));
-
-		/*
-			Display multi view features and properties
-		*/
-
-		VkPhysicalDeviceFeatures2KHR deviceFeatures2{};
-		VkPhysicalDeviceMultiviewFeaturesKHR extFeatures{};
-		extFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES_KHR;
-		deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR;
-		deviceFeatures2.pNext = &extFeatures;
-		PFN_vkGetPhysicalDeviceFeatures2KHR vkGetPhysicalDeviceFeatures2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures2KHR>(vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFeatures2KHR"));
-		vkGetPhysicalDeviceFeatures2KHR(physicalDevice, &deviceFeatures2);
-		std::cout << "Multiview features:" << std::endl;
-		std::cout << "\tmultiview = " << extFeatures.multiview << std::endl;
-		std::cout << "\tmultiviewGeometryShader = " << extFeatures.multiviewGeometryShader << std::endl;
-		std::cout << "\tmultiviewTessellationShader = " << extFeatures.multiviewTessellationShader << std::endl;
-		std::cout << std::endl;
-
-		VkPhysicalDeviceProperties2KHR deviceProps2{};
-		VkPhysicalDeviceMultiviewPropertiesKHR extProps{};
-		extProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_PROPERTIES_KHR;
-		deviceProps2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
-		deviceProps2.pNext = &extProps;
-		PFN_vkGetPhysicalDeviceProperties2KHR vkGetPhysicalDeviceProperties2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>(vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR"));
-		vkGetPhysicalDeviceProperties2KHR(physicalDevice, &deviceProps2);
-		std::cout << "Multiview properties:" << std::endl;
-		std::cout << "\tmaxMultiviewViewCount = " << extProps.maxMultiviewViewCount << std::endl;
-		std::cout << "\tmaxMultiviewInstanceIndex = " << extProps.maxMultiviewInstanceIndex << std::endl;
-
-		/*
-			Create graphics pipeline
-		*/
-
+		// Pipelines
 		VkPipelineInputAssemblyStateCreateInfo inputAssemblyStateCI = vks::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 		VkPipelineRasterizationStateCreateInfo rasterizationStateCI = vks::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 		VkPipelineColorBlendAttachmentState blendAttachmentState = vks::initializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
@@ -516,7 +388,8 @@ public:
 		std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
 		VkPipelineDynamicStateCreateInfo dynamicStateCI = vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 
-		VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::pipelineCreateInfo(pipelineLayout, multiviewPass.renderPass);
+		VkGraphicsPipelineCreateInfo pipelineCI = vks::initializers::pipelineCreateInfo();
+		pipelineCI.layout = pipelineLayout;
 		pipelineCI.pInputAssemblyState = &inputAssemblyStateCI;
 		pipelineCI.pRasterizationState = &rasterizationStateCI;
 		pipelineCI.pColorBlendState = &colorBlendStateCI;
@@ -526,68 +399,34 @@ public:
 		pipelineCI.pDynamicState = &dynamicStateCI;
 		pipelineCI.pVertexInputState  = vkglTF::Vertex::getPipelineVertexInputState({vkglTF::VertexComponent::Position, vkglTF::VertexComponent::Normal, vkglTF::VertexComponent::Color});
 
-		/*
-			Load shaders
-			Contrary to the viewport array example we don't need a geometry shader for broadcasting
-		*/
+		// Pipeline for rendering to the layered multiview image
+		pipelineCI.renderPass = multiviewPass.renderPass;
 		std::array<VkPipelineShaderStageCreateInfo, 2> shaderStages;
 		shaderStages[0] = loadShader(getShadersPath() + "multiview/multiview.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
 		shaderStages[1] = loadShader(getShadersPath() + "multiview/multiview.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
 		pipelineCI.stageCount = 2;
 		pipelineCI.pStages = shaderStages.data();
-		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipeline));
+		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.multiviewGeneration));
 
-		/*
-			Full screen pass
-		*/
-
-		float multiviewArrayLayer = 0.0f;
-
-		VkSpecializationMapEntry specializationMapEntry{ 0, 0, sizeof(float) };
-
-		VkSpecializationInfo specializationInfo{};
-		specializationInfo.dataSize = sizeof(float);
-		specializationInfo.mapEntryCount = 1;
-		specializationInfo.pMapEntries = &specializationMapEntry;
-		specializationInfo.pData = &multiviewArrayLayer;
-
+		// Pipeline for displaying the layered multiview image
+		// Layer selection is done at draw time via the instance index (see render());
 		rasterizationStateCI.cullMode = VK_CULL_MODE_FRONT_BIT;
-
-		/*
-			Separate pipelines per eye (view) using specialization constants to set view array layer to sample from
-		*/
-		for (uint32_t i = 0; i < 2; i++) {
-			shaderStages[0] = loadShader(getShadersPath() + "multiview/viewdisplay.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
-			shaderStages[1] = loadShader(getShadersPath() + "multiview/viewdisplay.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
-			shaderStages[1].pSpecializationInfo = &specializationInfo;
-			multiviewArrayLayer = (float)i;
-			VkPipelineVertexInputStateCreateInfo emptyInputState = vks::initializers::pipelineVertexInputStateCreateInfo();
-			pipelineCI.pVertexInputState = &emptyInputState;
-			pipelineCI.layout = pipelineLayout;
-			pipelineCI.renderPass = renderPass;
-			VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &viewDisplayPipelines[i]));
-		}
+		VkPipelineVertexInputStateCreateInfo emptyInputState = vks::initializers::pipelineVertexInputStateCreateInfo();
+		pipelineCI.pVertexInputState = &emptyInputState;
+		pipelineCI.layout = pipelineLayout;
+		pipelineCI.renderPass = renderPass;
+		shaderStages[0] = loadShader(getShadersPath() + "multiview/viewdisplay.vert.spv", VK_SHADER_STAGE_VERTEX_BIT);
+		shaderStages[1] = loadShader(getShadersPath() + "multiview/viewdisplay.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT);
+		VK_CHECK_RESULT(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineCI, nullptr, &pipelines.multiviewDisplay));
 
 	}
 
-	// Prepare and initialize uniform buffer containing shader uniforms
-	void prepareUniformBuffers()
-	{
-		VK_CHECK_RESULT(vulkanDevice->createBuffer(
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			&uniformBuffer,
-			sizeof(ubo)));
-		VK_CHECK_RESULT(uniformBuffer.map());
-		updateUniformBuffers();
-	}
-
-	void updateUniformBuffers()
+	// Updates the two matrices used for the eyes' viewports
+	void updateMultiviewMatrices()
 	{
 		// Matrices for the two viewports
 		// See http://paulbourke.net/stereographics/stereorender/
 
-		// Calculate some variables
 		float aspectRatio = (float)(width * 0.5f) / (float)height;
 		float wd2 = zNear * tan(glm::radians(fov / 2.0f));
 		float ndfl = zNear / focalLength;
@@ -603,7 +442,7 @@ public:
 		glm::vec3 camRight = glm::normalize(glm::cross(camFront, glm::vec3(0.0f, 1.0f, 0.0f)));
 
 		glm::mat4 rotM = glm::mat4(1.0f);
-		glm::mat4 transM;
+		glm::mat4 translation;
 
 		rotM = glm::rotate(rotM, glm::radians(camera.rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
 		rotM = glm::rotate(rotM, glm::radians(camera.rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
@@ -612,87 +451,164 @@ public:
 		// Left eye
 		left = -aspectRatio * wd2 + 0.5f * eyeSeparation * ndfl;
 		right = aspectRatio * wd2 + 0.5f * eyeSeparation * ndfl;
-
-		transM = glm::translate(glm::mat4(1.0f), camera.position - camRight * (eyeSeparation / 2.0f));
-
-		ubo.projection[0] = glm::frustum(left, right, bottom, top, zNear, zFar);
-		ubo.modelview[0] = rotM * transM;
+		translation = glm::translate(glm::mat4(1.0f), camera.position - camRight * (eyeSeparation / 2.0f));
+		uniformData.projection[0] = glm::frustum(left, right, bottom, top, zNear, zFar);
+		uniformData.modelview[0] = rotM * translation;
 
 		// Right eye
 		left = -aspectRatio * wd2 - 0.5f * eyeSeparation * ndfl;
 		right = aspectRatio * wd2 - 0.5f * eyeSeparation * ndfl;
-
-		transM = glm::translate(glm::mat4(1.0f), camera.position + camRight * (eyeSeparation / 2.0f));
-
-		ubo.projection[1] = glm::frustum(left, right, bottom, top, zNear, zFar);
-		ubo.modelview[1] = rotM * transM;
-
-		memcpy(uniformBuffer.mapped, &ubo, sizeof(ubo));
+		translation = glm::translate(glm::mat4(1.0f), camera.position + camRight * (eyeSeparation / 2.0f));
+		uniformData.projection[1] = glm::frustum(left, right, bottom, top, zNear, zFar);
+		uniformData.modelview[1] = rotM * translation;
 	}
 
-	void draw()
+	void getEnabledFeatures()
 	{
-		VulkanExampleBase::prepareFrame();
-
-		// Multiview offscreen render
-		VK_CHECK_RESULT(vkWaitForFences(device, 1, &multiviewPass.waitFences[currentBuffer], VK_TRUE, UINT64_MAX));
-		VK_CHECK_RESULT(vkResetFences(device, 1, &multiviewPass.waitFences[currentBuffer]));
-		submitInfo.pWaitSemaphores = &semaphores.presentComplete;
-		submitInfo.pSignalSemaphores = &multiviewPass.semaphore;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &multiviewPass.commandBuffers[currentBuffer];
-		VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, multiviewPass.waitFences[currentBuffer]));
-
-		// View display
-		VK_CHECK_RESULT(vkWaitForFences(device, 1, &waitFences[currentBuffer], VK_TRUE, UINT64_MAX));
-		VK_CHECK_RESULT(vkResetFences(device, 1, &waitFences[currentBuffer]));
-		submitInfo.pWaitSemaphores = &multiviewPass.semaphore;
-		submitInfo.pSignalSemaphores = &semaphores.renderComplete;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-		VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, waitFences[currentBuffer]));
-
-		VulkanExampleBase::submitFrame();
+		// Enable the multiview feature using the dedicated physical device structure
+		enabledMultiviewFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES_KHR;
+		enabledMultiviewFeatures.multiview = VK_TRUE;
+		deviceCreatepNextChain = &enabledMultiviewFeatures;
 	}
 
 	void prepare()
 	{
+		// Display multi view features and properties in the console
+		VkPhysicalDeviceFeatures2KHR deviceFeatures2{};
+		VkPhysicalDeviceMultiviewFeaturesKHR extFeatures{};
+		extFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES_KHR;
+		deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2_KHR;
+		deviceFeatures2.pNext = &extFeatures;
+		PFN_vkGetPhysicalDeviceFeatures2KHR vkGetPhysicalDeviceFeatures2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceFeatures2KHR>(vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceFeatures2KHR"));
+		vkGetPhysicalDeviceFeatures2KHR(physicalDevice, &deviceFeatures2);
+		std::cout << "Multiview features:" << std::endl;
+		std::cout << "\tmultiview = " << extFeatures.multiview << std::endl;
+		std::cout << "\tmultiviewGeometryShader = " << extFeatures.multiviewGeometryShader << std::endl;
+		std::cout << "\tmultiviewTessellationShader = " << extFeatures.multiviewTessellationShader << std::endl;
+		std::cout << std::endl;
+		VkPhysicalDeviceProperties2KHR deviceProps2{};
+		VkPhysicalDeviceMultiviewPropertiesKHR extProps{};
+		extProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_PROPERTIES_KHR;
+		deviceProps2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2_KHR;
+		deviceProps2.pNext = &extProps;
+		PFN_vkGetPhysicalDeviceProperties2KHR vkGetPhysicalDeviceProperties2KHR = reinterpret_cast<PFN_vkGetPhysicalDeviceProperties2KHR>(vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceProperties2KHR"));
+		vkGetPhysicalDeviceProperties2KHR(physicalDevice, &deviceProps2);
+		std::cout << "Multiview properties:" << std::endl;
+		std::cout << "\tmaxMultiviewViewCount = " << extProps.maxMultiviewViewCount << std::endl;
+		std::cout << "\tmaxMultiviewInstanceIndex = " << extProps.maxMultiviewInstanceIndex << std::endl;
+
 		VulkanExampleBase::prepare();
-		loadAssets();
-		prepareMultiview();
-		prepareUniformBuffers();
-		prepareDescriptors();
-		preparePipelines();
-		buildCommandBuffers();
-
-		VkFenceCreateInfo fenceCreateInfo = vks::initializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-		multiviewPass.waitFences.resize(multiviewPass.commandBuffers.size());
-		for (auto& fence : multiviewPass.waitFences) {
-			VK_CHECK_RESULT(vkCreateFence(device, &fenceCreateInfo, nullptr, &fence));
+		// Prepare per-frame resources
+		frameObjects.resize(getFrameCount());
+		for (FrameObjects& frame : frameObjects) {
+			createBaseFrameObjects(frame);
+			// Uniform buffers
+			VK_CHECK_RESULT(vulkanDevice->createAndMapBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, &frame.uniformBuffer, sizeof(UniformData)));
 		}
-
+		loadAssets();
+		createMultiviewResources();
+		createDescriptors();
+		createPipelines();
 		prepared = true;
 	}
 
 	virtual void render()
 	{
-		if (!prepared)
-			return;
-		draw();
-		if (camera.updated) {
-			updateUniformBuffers();
+		// If the window has been resized, we need to recreate the multiview objects
+		if (resized)
+		{
+			vkDeviceWaitIdle(device);
+			createMultiviewResources();
+			// As the image has been recreated, we also need to update the descriptor pointing to that image
+			VkWriteDescriptorSet writeDescriptorSet = vks::initializers::writeDescriptorSet(multiviewImageDescriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &multiviewPass.descriptor);
+			vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
 		}
+
+		FrameObjects currentFrame = frameObjects[getCurrentFrameIndex()];
+
+		VulkanExampleBase::prepareFrame(currentFrame);
+
+		// Update uniform-buffers for the next frame
+		updateMultiviewMatrices();
+		memcpy(currentFrame.uniformBuffer.mapped, &uniformData, sizeof(UniformData));
+
+		// Build the command buffer
+		const VkCommandBuffer commandBuffer = currentFrame.commandBuffer;
+		const VkCommandBufferBeginInfo commandBufferBeginInfo = getCommandBufferBeginInfo();
+		VkRect2D renderArea = getRenderArea();
+		VkViewport viewport = getViewport();
+		VkClearValue clearValues[2];
+		clearValues[0].color = defaultClearColor;
+		clearValues[1].depthStencil = { 1.0f, 0 };
+		VK_CHECK_RESULT(vkBeginCommandBuffer(commandBuffer, &commandBufferBeginInfo));
+
+		// Bind the uniform buffers to set 0
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &currentFrame.descriptorSet, 0, nullptr);
+		// Bind the multiview image to set 1
+		vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &multiviewImageDescriptorSet, 0, nullptr);
+
+		// Update the layered multiview image attachment with the scene from two different viewpors
+		{
+			VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
+			renderPassBeginInfo.renderPass = multiviewPass.renderPass;
+			renderPassBeginInfo.renderArea.extent.width = width;
+			renderPassBeginInfo.renderArea.extent.height = height;
+			renderPassBeginInfo.clearValueCount = 2;
+			renderPassBeginInfo.pClearValues = clearValues;
+			renderPassBeginInfo.framebuffer = multiviewPass.frameBuffer;
+
+			vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+			vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+			vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
+			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.multiviewGeneration);
+			scene.draw(commandBuffer);
+			vkCmdEndRenderPass(commandBuffer);
+		}
+
+		// Display the multiview images
+		{
+			VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
+			renderPassBeginInfo.renderPass = renderPass;
+			renderPassBeginInfo.renderArea.extent.width = width;
+			renderPassBeginInfo.renderArea.extent.height = height;
+			renderPassBeginInfo.clearValueCount = 2;
+			renderPassBeginInfo.pClearValues = clearValues;
+			renderPassBeginInfo.framebuffer = frameBuffers[currentBuffer];
+
+			vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+			vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines.multiviewDisplay);		
+
+			// Left eye
+			viewport.width = width * 0.5f;
+			renderArea.extent.width = width / 2;
+			vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+			vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
+			// The shaders use the gl_InstanceIndex to select the first image layer (last parameter of vkCmdDraw = 0)
+			vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+			// Right eye
+			viewport.x = (float)width / 2;
+			renderArea.offset.x = width / 2;
+			vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+			vkCmdSetScissor(commandBuffer, 0, 1, &renderArea);
+			// The shaders use the gl_InstanceIndex to select the second image layer (last parameter of vkCmdDraw = 1)
+			vkCmdDraw(commandBuffer, 3, 1, 0, 1);
+
+			drawUI(commandBuffer);
+
+			vkCmdEndRenderPass(commandBuffer);
+		}
+
+		VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
+
+		VulkanExampleBase::submitFrame(currentFrame);
 	}
 
 	virtual void OnUpdateUIOverlay(vks::UIOverlay *overlay)
 	{
 		if (overlay->header("Settings")) {
-			if (overlay->sliderFloat("Eye separation", &eyeSeparation, -1.0f, 1.0f)) {
-				updateUniformBuffers();
-			}
-			if (overlay->sliderFloat("Barrel distortion", &ubo.distortionAlpha, -0.6f, 0.6f)) {
-				updateUniformBuffers();
-			}
+			overlay->sliderFloat("Eye separation", &eyeSeparation, -1.0f, 1.0f);
+			overlay->sliderFloat("Barrel distortion", &uniformData.distortionAlpha, -0.6f, 0.6f);
 		}
 	}
 
