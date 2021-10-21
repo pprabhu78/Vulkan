@@ -134,6 +134,7 @@ set(EXAMPLES
 	texturemipmapgen
 	texturesparseresidency
 	triangle
+	tutorial
 	variablerateshading
 	viewportarray
 	vulkanscene
