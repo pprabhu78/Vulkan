@@ -297,7 +297,7 @@ namespace genesis
       }
    }
 
-   const std::vector<Image*>& VulkanGltfModel::textures(void) const
+   const std::vector<Image*>& VulkanGltfModel::images(void) const
    {
       return _images;
    }

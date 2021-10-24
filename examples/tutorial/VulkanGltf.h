@@ -63,7 +63,7 @@ namespace genesis
    public:
       virtual void loadFromFile(const std::string& fileName);
 
-      virtual const std::vector<Image*>& textures(void) const;
+      virtual const std::vector<Image*>& images(void) const;
       virtual const Buffer* vertexBuffer(void) const;
       virtual const Buffer* indexBuffer(void) const;
 

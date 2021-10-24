@@ -139,9 +139,7 @@ void Tutorial::buildCommandBuffers()
    clearValues[0].color = { { 0.0f, 0.0f, 0.2f, 1.0f } };
    clearValues[1].depthStencil = { 1.0f, 0 };
 
-   VkRenderPassBeginInfo renderPassBeginInfo = {};
-   renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-   renderPassBeginInfo.pNext = nullptr;
+   VkRenderPassBeginInfo renderPassBeginInfo = genesis::vulkanInitalizers::renderPassBeginInfo();
    renderPassBeginInfo.renderPass = renderPass;
    renderPassBeginInfo.renderArea.offset.x = 0;
    renderPassBeginInfo.renderArea.offset.y = 0;
@@ -149,6 +147,9 @@ void Tutorial::buildCommandBuffers()
    renderPassBeginInfo.renderArea.extent.height = height;
    renderPassBeginInfo.clearValueCount = 2;
    renderPassBeginInfo.pClearValues = clearValues;
+
+   const VkViewport viewport = genesis::vulkanInitalizers::viewport((float)width, (float)height, 0.0f, 1.0f);
+   const VkRect2D scissor = genesis::vulkanInitalizers::rect2D(width, height, 0, 0);
 
    for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
    {
@@ -162,19 +163,9 @@ void Tutorial::buildCommandBuffers()
       vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
       // Update dynamic viewport state
-      VkViewport viewport = {};
-      viewport.height = (float)height;
-      viewport.width = (float)width;
-      viewport.minDepth = (float)0.0f;
-      viewport.maxDepth = (float)1.0f;
       vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
 
       // Update dynamic scissor state
-      VkRect2D scissor = {};
-      scissor.extent.width = width;
-      scissor.extent.height = height;
-      scissor.offset.x = 0;
-      scissor.offset.y = 0;
       vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
 
       // Bind descriptor sets describing shader binding points
@@ -271,8 +262,8 @@ void Tutorial::setupDescriptorPool()
 
    std::vector<VkDescriptorPoolSize> poolSizes =
    {
-      vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
-      vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+      genesis::vulkanInitalizers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
+      genesis::vulkanInitalizers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
    };
 
    descriptorPoolCreateInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
@@ -286,12 +277,12 @@ void Tutorial::setupDescriptorSetLayout(void)
 
    std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
    {
-      vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0)
-    , vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
+      genesis::vulkanInitalizers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0)
+    , genesis::vulkanInitalizers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
    };
 
    VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo =
-      vks::initializers::descriptorSetLayoutCreateInfo(
+      genesis::vulkanInitalizers::descriptorSetLayoutCreateInfo(
          setLayoutBindings.data(),
          static_cast<uint32_t>(setLayoutBindings.size()));
 
@@ -317,13 +308,13 @@ void Tutorial::setupDescriptorSet(void)
    vkAllocateDescriptorSets(device->vulkanDevice(), &descriptorSetAllocateInfo, &descriptorSet);
 
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-   vks::initializers::writeDescriptorSet(
+   genesis::vulkanInitalizers::writeDescriptorSet(
       descriptorSet,
       VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
       0,
       &uniformBuffer->descriptor())
    ,
-   vks::initializers::writeDescriptorSet(
+   genesis::vulkanInitalizers::writeDescriptorSet(
       descriptorSet,
       VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
       1,
@@ -345,7 +336,7 @@ void Tutorial::prepareTexture(void)
    //texture = new Texture(device);
    //texture->loadFromFile(getAssetPath() + "textures/metalplate01_rgba.ktx");
 
-   texture = new genesis::Texture(gltfModel->textures()[1]);
+   texture = new genesis::Texture(gltfModel->images()[1]);
 
 }
 
