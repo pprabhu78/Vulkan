@@ -5,6 +5,8 @@
 
 #include "GenMath.h"
 
+#include <vulkan/vulkan.h>
+
 namespace tinygltf
 {
    class Model;
@@ -19,10 +21,20 @@ namespace genesis
    class Texture;
    class Buffer;
 
-   struct Material
+   enum FileLoadingFlags {
+      None = 0x00000000,
+      PreTransformVertices = 0x00000001,
+      PreMultiplyVertexColors = 0x00000002,
+      FlipY = 0x00000004,
+      DontLoadImages = 0x00000008
+   };
+
+   class Material
    {
+   public:
       Vector4_32 baseColorFactor = Vector4_32(1.0f);
-      uint32_t baseColorTextureIndex;
+
+      int baseColorTextureIndex = 0;
    };
 
    struct Vertex
@@ -61,12 +73,11 @@ namespace genesis
       VulkanGltfModel(Device* device);
       virtual ~VulkanGltfModel();
    public:
-      virtual void loadFromFile(const std::string& fileName);
+      virtual void loadFromFile(const std::string& fileName, uint32_t fileLoadingFlags);
 
-      virtual const std::vector<Image*>& images(void) const;
-      virtual const Buffer* vertexBuffer(void) const;
-      virtual const Buffer* indexBuffer(void) const;
+      virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
 
+      VkDescriptorSetLayout vulkanDescriptorSetLayout(void) const;
    protected:
       virtual void loadImages(tinygltf::Model& gltfModel);
       virtual void loadTextures(tinygltf::Model& gltfModel);
@@ -74,6 +85,17 @@ namespace genesis
       virtual void loadScenes(tinygltf::Model& gltfModel);
       virtual void loadNode(const tinygltf::Node& inputNode, tinygltf::Model& gltfModel, Node* parent);
       virtual void loadMesh(Node& node, const tinygltf::Mesh& srcMesh, tinygltf::Model& gltfModel);
+
+      virtual void setupDescriptorPool(void);
+      virtual void setupDescriptorSetLayout(void);
+      virtual void updateDescriptorSets(void);
+
+      virtual const std::vector<Image*>& images(void) const;
+      virtual const Buffer* vertexBuffer(void) const;
+      virtual const Buffer* indexBuffer(void) const;
+
+      virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const Node& node) const;
+
    protected:
       Device* _device;
 
@@ -93,5 +115,8 @@ namespace genesis
       Buffer* _vertexBufferGpu;
       Buffer* _indexBufferGpu;
 
+      VkDescriptorPool _descriptorPool;
+      VkDescriptorSetLayout _setLayout;
+      std::vector<VkDescriptorSet> _vecDescriptorSets;
    };
 }

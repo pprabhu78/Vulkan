@@ -26,31 +26,26 @@ public:
 
 public:
    virtual void draw();
-   virtual void prepareUbo();
+   virtual void prepareSceneUbo();
    virtual void updateUbo(void);
-   virtual void prepareTexture(void);
+   
    virtual void setupDescriptorPool();
    virtual void setupDescriptorSetLayout(void);
-   virtual void setupDescriptorSet(void);
+   virtual void updateDescriptorSet(void);
    virtual void preparePipelines();
 
    virtual void loadAssets(void);
 
 protected:
-   VkPipelineLayout pipelineLayout;
-
-   VkPipeline pipeline;
-
    genesis::Device* device;
-   genesis::Buffer* uniformBuffer;
 
-   VkDescriptorSetLayout descriptorSetLayout;
+   VkPipelineLayout _pipelineLayout;
+   VkPipeline _pipeline;
 
-   VkDescriptorSet descriptorSet;
+   genesis::Buffer* _uboScene;
 
-   genesis::Image* image;
-   genesis::Texture* texture;
+   VkDescriptorSetLayout _setLayout0;
+   VkDescriptorSet _descriptorSet0;
 
-   genesis::VulkanGltfModel* gltfModel;
-   
+   genesis::VulkanGltfModel* _gltfModel;   
 };

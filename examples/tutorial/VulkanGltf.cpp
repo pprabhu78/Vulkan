@@ -5,6 +5,9 @@
 #include "GenAssert.h"
 #include "GenMath.h"
 #include "Buffer.h"
+#include "Device.h"
+#include "VulkanInitializers.h"
+#include "VulkanTools.h"
 
 #include <iostream>
 
@@ -34,6 +37,9 @@ namespace genesis
       {
          delete image;
       }
+
+      delete _vertexBufferGpu;
+      delete _indexBufferGpu;
    }
 
    void VulkanGltfModel::loadImages(tinygltf::Model& glTfModel)
@@ -75,11 +81,11 @@ namespace genesis
 
    void VulkanGltfModel::loadTextures(tinygltf::Model& gltfModel)
    {
-      for (const auto& texture : gltfModel.textures)
+      int imageIndex = 0;
+      for (const auto& image : _images)
       {
-         const int imageIndex = texture.source;
-         GEN_ASSERT(imageIndex < _images.size());
          _textures.push_back(new Texture(_images[imageIndex]));
+         ++imageIndex;
       }
 
    }
@@ -88,21 +94,20 @@ namespace genesis
       _materials.resize(glTfModel.materials.size());
 
       int index = 0;
-      for (const auto& material : glTfModel.materials)
+      for (const auto& glTfMaterial : glTfModel.materials)
       {
          // We only read the most basic properties required for our sample
-         tinygltf::Material glTFMaterial = material;
          // Get the base color factor
-         auto baseColorFactorIter = material.values.find("baseColorFactor");
-         if (baseColorFactorIter != material.values.end())
+         auto baseColorFactorIter = glTfMaterial.values.find("baseColorFactor");
+         if (baseColorFactorIter != glTfMaterial.values.end())
          {
             _materials[index].baseColorFactor = glm::make_vec4(baseColorFactorIter->second.ColorFactor().data());
          }
          // Get base color texture index
-         auto baseColorTextureIter = material.values.find("baseColorTexture");
-         if (baseColorTextureIter != material.values.end())
+         auto baseColorTextureIter = glTfMaterial.values.find("baseColorTexture");
+         if (baseColorTextureIter != glTfMaterial.values.end())
          {
-            _materials[index].baseColorTextureIndex = baseColorTextureIter->second.TextureIndex();
+            _materials[index].baseColorTextureIndex = glTfModel.textures[baseColorTextureIter->second.TextureIndex()].source;
          }
 
          ++index;
@@ -226,21 +231,21 @@ namespace genesis
 
 
       // Load node's children
-      if (inputNode.children.size() > 0) 
+      if (inputNode.children.size() > 0)
       {
-         for (size_t i = 0; i < inputNode.children.size(); i++) 
+         for (size_t i = 0; i < inputNode.children.size(); i++)
          {
             loadNode(gltfModel.nodes[inputNode.children[i]], gltfModel, &node);
          }
-      }  
+      }
 
       if (inputNode.mesh > -1)
       {
          const tinygltf::Mesh& mesh = gltfModel.meshes[inputNode.mesh];
          loadMesh(node, mesh, gltfModel);
-      }  
+      }
 
-      if (parent) 
+      if (parent)
       {
          parent->children.push_back(node);
       }
@@ -259,11 +264,69 @@ namespace genesis
       }
    }
 
-   void VulkanGltfModel::loadFromFile(const std::string& fileName)
+   void VulkanGltfModel::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const Node& node) const
+   {
+      for (const Primitive& primitive : node.mesh.primitives)
+      {
+         if (primitive.indexCount > 0)
+         {
+            const Material& material = _materials[primitive.materialIndex];
+            const int textureIndex = material.baseColorTextureIndex;
+
+            // Bind descriptor sets describing shader binding points
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &_vecDescriptorSets[textureIndex], 0, nullptr);
+
+            vkCmdDrawIndexed(commandBuffer, primitive.indexCount, 1, primitive.firstIndex, 0, 0);
+         }
+      }
+   }
+
+   void VulkanGltfModel::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const
+   {
+      // Bind triangle vertex buffer (contains position and colors)
+      VkDeviceSize offsets[1] = { 0 };
+      VkBuffer buffer = vertexBuffer()->vulkanBuffer();
+      vkCmdBindVertexBuffers(commandBuffer, 0, 1, &buffer, offsets);
+
+      // Bind triangle index buffer
+      vkCmdBindIndexBuffer(commandBuffer, indexBuffer()->vulkanBuffer(), 0, VK_INDEX_TYPE_UINT32);
+
+      for (const Node& node : _nodes)
+      {
+         draw(commandBuffer, pipelineLayout, node);
+      }
+   }
+
+   bool loadImageDataFunc(tinygltf::Image* image, const int imageIndex, std::string* error, std::string* warning, int req_width, int req_height, const unsigned char* bytes, int size, void* userData)
+   {
+      // KTX files will be handled by our own code
+      if (image->uri.find_last_of(".") != std::string::npos) {
+         if (image->uri.substr(image->uri.find_last_of(".") + 1) == "ktx") {
+            return true;
+         }
+      }
+
+      return tinygltf::LoadImageData(image, imageIndex, error, warning, req_width, req_height, bytes, size, userData);
+   }
+
+   bool loadImageDataFuncEmpty(tinygltf::Image* image, const int imageIndex, std::string* error, std::string* warning, int req_width, int req_height, const unsigned char* bytes, int size, void* userData)
+   {
+      // This function will be used for samples that don't require images to be loaded
+      return true;
+   }
+
+   void VulkanGltfModel::loadFromFile(const std::string& fileName, uint32_t fileLoadingFlags)
    {
       tinygltf::Model glTfModel;
       tinygltf::TinyGLTF gltfContext;
       std::string error, warning;
+
+      if (fileLoadingFlags & FileLoadingFlags::DontLoadImages) {
+         gltfContext.SetImageLoader(loadImageDataFuncEmpty, nullptr);
+      }
+      else {
+         gltfContext.SetImageLoader(loadImageDataFunc, nullptr);
+      }
 
       bool fileLoaded = gltfContext.LoadASCIIFromFile(&glTfModel, &error, &warning, fileName);
       if (fileLoaded == false)
@@ -273,8 +336,12 @@ namespace genesis
 
       _basePath = fileName.substr(0, fileName.find_last_of('/'));
 
-      loadImages(glTfModel);
-      loadTextures (glTfModel);
+      if (!(fileLoadingFlags & FileLoadingFlags::DontLoadImages))
+      {
+         loadImages(glTfModel);
+      }
+
+      loadTextures(glTfModel);
       loadMaterials(glTfModel);
       loadScenes(glTfModel);
 
@@ -295,6 +362,10 @@ namespace genesis
          memcpy(pDstData, _indexBuffer.data(), sizeOfIndexBuffer);
          _indexBufferGpu->syncToGpu(true);
       }
+
+      setupDescriptorPool();
+      setupDescriptorSetLayout();
+      updateDescriptorSets();
    }
 
    const std::vector<Image*>& VulkanGltfModel::images(void) const
@@ -309,5 +380,52 @@ namespace genesis
    const Buffer* VulkanGltfModel::indexBuffer(void) const
    {
       return _indexBufferGpu;
+   }
+
+   void VulkanGltfModel::setupDescriptorPool()
+   {
+      std::vector<VkDescriptorPoolSize> poolSizes =
+      {
+         genesis::vulkanInitalizers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+      };
+
+      VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vulkanInitalizers::descriptorPoolCreateInfo(poolSizes, (uint32_t)_textures.size());
+
+      VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &_descriptorPool));
+   }
+
+   void VulkanGltfModel::setupDescriptorSetLayout(void)
+   {
+      std::vector<VkDescriptorSetLayoutBinding> set1Bindings =
+      {
+         genesis::vulkanInitalizers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0)
+      };
+      VkDescriptorSetLayoutCreateInfo set1LayoutInfo = genesis::vulkanInitalizers::descriptorSetLayoutCreateInfo(set1Bindings.data(), static_cast<uint32_t>(set1Bindings.size()));
+      VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set1LayoutInfo, nullptr, &_setLayout));
+   }
+
+   void VulkanGltfModel::updateDescriptorSets()
+   {
+      for (int i = 0; i < _textures.size(); ++i)
+      {
+         const VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vulkanInitalizers::descriptorSetAllocateInfo(_descriptorPool, &_setLayout, 1);
+
+         VkDescriptorSet descriptorSet;
+         vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &descriptorSet);
+
+         std::vector<VkWriteDescriptorSet> writeDescriptorSets =
+         {
+            genesis::vulkanInitalizers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &_textures[i]->descriptor())
+         };
+
+         vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+
+         _vecDescriptorSets.push_back(descriptorSet);
+      }
+   }
+
+   VkDescriptorSetLayout VulkanGltfModel::vulkanDescriptorSetLayout(void) const
+   {
+      return _setLayout;
    }
 }

@@ -25,106 +25,27 @@ Tutorial::Tutorial()
    camera.setPosition(glm::vec3(0.0f, 0.0f, -8.5f));
    camera.setRotation(glm::vec3(0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
-
 }
 
 Tutorial::~Tutorial()
 {
-   vkDestroyPipeline(device->vulkanDevice(), pipeline, nullptr);
+   vkDestroyPipeline(device->vulkanDevice(), _pipeline, nullptr);
 
-   vkDestroyPipelineLayout(device->vulkanDevice(), pipelineLayout, nullptr);
+   vkDestroyPipelineLayout(device->vulkanDevice(), _pipelineLayout, nullptr);
 
-   delete gltfModel;
-   delete uniformBuffer;
+   delete _gltfModel;
+   delete _uboScene;
 
-   delete texture;
-   delete image;
-
-   vkDestroyDescriptorSetLayout(device->vulkanDevice(), descriptorSetLayout, nullptr);
+   vkDestroyDescriptorSetLayout(device->vulkanDevice(), _setLayout0, nullptr);
 }
 
 void Tutorial::setupRenderPass()
 {
+   VulkanExampleBase::setupRenderPass();
    if (!device)
    {
       device = new genesis::Device(VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool, VulkanExampleBase::deviceMemoryProperties);
    }
-   VkRenderPassCreateInfo renderPassCreateInfo = {};
-
-   // color attachment
-   std::array< VkAttachmentDescription, 2> attachments = {};
-   attachments[0].flags = 0;
-   attachments[0].format = swapChain.colorFormat;
-   attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
-   attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-   attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-   attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-   attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-   attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-   attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-   // depth/stencil
-   attachments[1].flags = 0;
-   attachments[1].format = depthFormat;
-   attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-   attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-   attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-   attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-   attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-   attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-   attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-   // color attachment reference into the attachments array
-   VkAttachmentReference colorReference = {};
-   colorReference.attachment = 0;
-   colorReference.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-   // depth/stencil attachment reference into the attachments array
-   VkAttachmentReference depthStencilReference = {};
-   depthStencilReference.attachment = 1;
-   depthStencilReference.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-   VkSubpassDescription subpassDescription = {};
-   subpassDescription.flags = 0;
-   subpassDescription.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-   subpassDescription.colorAttachmentCount = 1;
-   subpassDescription.pColorAttachments = &colorReference;
-   subpassDescription.pDepthStencilAttachment = &depthStencilReference;
-   subpassDescription.inputAttachmentCount = 0;
-   subpassDescription.pInputAttachments = nullptr;
-   subpassDescription.pResolveAttachments = nullptr;
-   subpassDescription.preserveAttachmentCount = 0;
-   subpassDescription.pPreserveAttachments = nullptr;
-
-   // dependencies
-   std::array<VkSubpassDependency, 2> dependencies;
-   dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;                             // Producer of the dependency
-   dependencies[0].dstSubpass = 0;                                               // Consumer is our single subpass that will wait for the execution dependency
-   dependencies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-   dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-   dependencies[0].srcAccessMask = 0;
-   dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-   dependencies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-   dependencies[1].srcSubpass = 0;                             // Producer of the dependency
-   dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;           // Consumer is our single subpass that will wait for the execution dependency
-   dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-   dependencies[1].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-   dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-   dependencies[1].dstAccessMask = 0;
-   dependencies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-   renderPassCreateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-   renderPassCreateInfo.pNext = nullptr;
-   renderPassCreateInfo.flags = 0;
-   renderPassCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-   renderPassCreateInfo.pAttachments = attachments.data();
-   renderPassCreateInfo.subpassCount = 1;
-   renderPassCreateInfo.pSubpasses = &subpassDescription;
-   renderPassCreateInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
-   renderPassCreateInfo.pDependencies = dependencies.data();
-
-   VK_CHECK_RESULT(vkCreateRenderPass(device->vulkanDevice(), &renderPassCreateInfo, nullptr, &renderPass));
 }
 
 void Tutorial::buildCommandBuffers()
@@ -168,23 +89,13 @@ void Tutorial::buildCommandBuffers()
       // Update dynamic scissor state
       vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
 
-      // Bind descriptor sets describing shader binding points
-      vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, nullptr);
-
       // Bind the rendering pipeline
       // The pipeline (state object) contains all states of the rendering pipeline, binding it will set all the states specified at pipeline creation time
-      vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+      vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
 
-      // Bind triangle vertex buffer (contains position and colors)
-      VkDeviceSize offsets[1] = { 0 };
-      VkBuffer buffer = gltfModel->vertexBuffer()->vulkanBuffer();
-      vkCmdBindVertexBuffers(drawCmdBuffers[i], 0, 1, &buffer, offsets);
+      vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSet0, 0, nullptr);
 
-      // Bind triangle index buffer
-      vkCmdBindIndexBuffer(drawCmdBuffers[i], gltfModel->indexBuffer()->vulkanBuffer(), 0, VK_INDEX_TYPE_UINT32);
-
-      // Draw indexed triangle
-      vkCmdDrawIndexed(drawCmdBuffers[i], gltfModel->indexBuffer()->sizeInBytes()/sizeof(uint32_t), 1, 0, 0, 1);
+      _gltfModel->draw(drawCmdBuffers[i], _pipelineLayout);
 
       vkCmdEndRenderPass(drawCmdBuffers[i]);
 
@@ -233,92 +144,62 @@ void Tutorial::draw()
 struct ShaderUbo
 {
 public:
-   glm::mat4 modelViewMatrix;
+   glm::mat4 viewMatrix;
    glm::mat4 projectionMatrix;
 };
 
-void Tutorial::prepareUbo()
+void Tutorial::prepareSceneUbo()
 {
-   uniformBuffer = new genesis::Buffer(device, genesis::BT_UBO, sizeof(ShaderUbo), true);
+   _uboScene = new genesis::Buffer(device, genesis::BT_UBO, sizeof(ShaderUbo), true);
    updateUbo();
 }
 
 void Tutorial::updateUbo(void)
 {
    ShaderUbo ubo;
-   ubo.modelViewMatrix = camera.matrices.view;
+   ubo.viewMatrix = camera.matrices.view;
    ubo.projectionMatrix = camera.matrices.perspective;
 
-   uint8_t* data = (uint8_t*)uniformBuffer->stagingBuffer();
+   uint8_t* data = (uint8_t*)_uboScene->stagingBuffer();
    memcpy(data, &ubo, sizeof(ShaderUbo));
-   uniformBuffer->syncToGpu(false);
+   _uboScene->syncToGpu(false);
 }
 
 void Tutorial::setupDescriptorPool()
 {
-   VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {};
-   descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-   descriptorPoolCreateInfo.maxSets = 1;
-
    std::vector<VkDescriptorPoolSize> poolSizes =
    {
       genesis::vulkanInitalizers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
-      genesis::vulkanInitalizers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
    };
 
-   descriptorPoolCreateInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-   descriptorPoolCreateInfo.pPoolSizes = poolSizes.data();
-
+   VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vulkanInitalizers::descriptorPoolCreateInfo(poolSizes, 1);
    VK_CHECK_RESULT(vkCreateDescriptorPool(device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &descriptorPool));
 }
 
 void Tutorial::setupDescriptorSetLayout(void)
 {
-
-   std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings =
+   std::vector<VkDescriptorSetLayoutBinding> set0Bindings =
    {
       genesis::vulkanInitalizers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0)
-    , genesis::vulkanInitalizers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
    };
+   VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::vulkanInitalizers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
+   VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device->vulkanDevice(), &set0LayoutInfo, nullptr, &_setLayout0));
 
-   VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo =
-      genesis::vulkanInitalizers::descriptorSetLayoutCreateInfo(
-         setLayoutBindings.data(),
-         static_cast<uint32_t>(setLayoutBindings.size()));
+   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _setLayout0, _gltfModel->vulkanDescriptorSetLayout() };
 
-   VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device->vulkanDevice(), &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout));
+   VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::vulkanInitalizers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
 
-   VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
-   pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-   pipelineLayoutCreateInfo.pNext = nullptr;
-   pipelineLayoutCreateInfo.setLayoutCount = 1;
-   pipelineLayoutCreateInfo.pSetLayouts = &descriptorSetLayout;
-
-   VK_CHECK_RESULT(vkCreatePipelineLayout(device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
+   VK_CHECK_RESULT(vkCreatePipelineLayout(device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout));
 }
 
-void Tutorial::setupDescriptorSet(void)
-{
-   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
-   descriptorSetAllocateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-   descriptorSetAllocateInfo.descriptorPool = descriptorPool;
-   descriptorSetAllocateInfo.descriptorSetCount = 1;
-   descriptorSetAllocateInfo.pSetLayouts = &descriptorSetLayout;
 
-   vkAllocateDescriptorSets(device->vulkanDevice(), &descriptorSetAllocateInfo, &descriptorSet);
+void Tutorial::updateDescriptorSet(void)
+{
+   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vulkanInitalizers::descriptorSetAllocateInfo(descriptorPool, &_setLayout0, 1);
+   vkAllocateDescriptorSets(device->vulkanDevice(), &descriptorSetAllocateInfo, &_descriptorSet0);
 
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-   genesis::vulkanInitalizers::writeDescriptorSet(
-      descriptorSet,
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      0,
-      &uniformBuffer->descriptor())
-   ,
-   genesis::vulkanInitalizers::writeDescriptorSet(
-      descriptorSet,
-      VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-      1,
-      &texture->descriptor())
+   genesis::vulkanInitalizers::writeDescriptorSet(_descriptorSet0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,0,&_uboScene->descriptor())
    };
 
    vkUpdateDescriptorSets(device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
@@ -329,16 +210,6 @@ struct Vertex {
    float uv[2];
    float color[3];
 };
-
-
-void Tutorial::prepareTexture(void)
-{
-   //texture = new Texture(device);
-   //texture->loadFromFile(getAssetPath() + "textures/metalplate01_rgba.ktx");
-
-   texture = new genesis::Texture(gltfModel->images()[1]);
-
-}
 
 void Tutorial::preparePipelines()
 {
@@ -444,10 +315,10 @@ void Tutorial::preparePipelines()
    graphicsPipelineCreateInfo.pColorBlendState = &colorBlendState;
    graphicsPipelineCreateInfo.pDynamicState = &dynamicState;
 
-   graphicsPipelineCreateInfo.layout = pipelineLayout;
+   graphicsPipelineCreateInfo.layout = _pipelineLayout;
    graphicsPipelineCreateInfo.renderPass = renderPass;
 
-   VK_CHECK_RESULT(vkCreateGraphicsPipelines(device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &pipeline));
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_pipeline));
 
    for (auto shader : shaders)
    {
@@ -470,8 +341,8 @@ void Tutorial::viewChanged()
 
 void Tutorial::loadAssets(void)
 {
-   gltfModel = new genesis::VulkanGltfModel(device);
-   gltfModel->loadFromFile(getAssetPath() + "models/voyager.gltf");
+   _gltfModel = new genesis::VulkanGltfModel(device);
+   _gltfModel->loadFromFile(getAssetPath() + "models/voyager.gltf", 0);
 }
 
 void Tutorial::prepare()
@@ -479,13 +350,11 @@ void Tutorial::prepare()
    VulkanExampleBase::prepare();
    loadAssets();
 
-   prepareUbo();
-   prepareTexture();
-
+   prepareSceneUbo();
    setupDescriptorSetLayout();
-   preparePipelines();
    setupDescriptorPool();
-   setupDescriptorSet();
+   updateDescriptorSet();
+   preparePipelines();
    buildCommandBuffers();
    
    prepared = true;
