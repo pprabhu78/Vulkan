@@ -62,10 +62,9 @@ void Tutorial::buildCommandBuffers()
 
    VkRenderPassBeginInfo renderPassBeginInfo = genesis::vulkanInitalizers::renderPassBeginInfo();
    renderPassBeginInfo.renderPass = renderPass;
-   renderPassBeginInfo.renderArea.offset.x = 0;
-   renderPassBeginInfo.renderArea.offset.y = 0;
-   renderPassBeginInfo.renderArea.extent.width = width;
-   renderPassBeginInfo.renderArea.extent.height = height;
+   renderPassBeginInfo.renderArea.offset = { 0, 0 };
+   renderPassBeginInfo.renderArea.extent = { width, height };
+
    renderPassBeginInfo.clearValueCount = 2;
    renderPassBeginInfo.pClearValues = clearValues;
 
@@ -299,10 +298,8 @@ void Tutorial::preparePipelines()
          shaderStageInfos.push_back(shader->shaderStageInfo());
       }
    }
-   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = {};
-   graphicsPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-   graphicsPipelineCreateInfo.pNext = nullptr;
-   graphicsPipelineCreateInfo.flags = 0;
+   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::vulkanInitalizers::graphicsPipelineCreateInfo(_pipelineLayout, renderPass);
+
    graphicsPipelineCreateInfo.stageCount = static_cast<uint32_t>(shaderStageInfos.size());
    graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();
 
@@ -314,9 +311,6 @@ void Tutorial::preparePipelines()
    graphicsPipelineCreateInfo.pDepthStencilState = &depthStencilState;
    graphicsPipelineCreateInfo.pColorBlendState = &colorBlendState;
    graphicsPipelineCreateInfo.pDynamicState = &dynamicState;
-
-   graphicsPipelineCreateInfo.layout = _pipelineLayout;
-   graphicsPipelineCreateInfo.renderPass = renderPass;
 
    VK_CHECK_RESULT(vkCreateGraphicsPipelines(device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_pipeline));
 

@@ -40,6 +40,9 @@ namespace genesis
 
       delete _vertexBufferGpu;
       delete _indexBufferGpu;
+
+      vkDestroyDescriptorPool(_device->vulkanDevice(), _descriptorPool, nullptr);
+      vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _setLayout, nullptr);
    }
 
    void VulkanGltfModel::loadImages(tinygltf::Model& glTfModel)
@@ -386,7 +389,7 @@ namespace genesis
    {
       std::vector<VkDescriptorPoolSize> poolSizes =
       {
-         genesis::vulkanInitalizers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+         genesis::vulkanInitalizers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (uint32_t)_textures.size())
       };
 
       VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vulkanInitalizers::descriptorPoolCreateInfo(poolSizes, (uint32_t)_textures.size());

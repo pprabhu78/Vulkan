@@ -516,28 +516,28 @@ namespace genesis
          return pipelineTessellationStateCreateInfo;
       }
 
-      inline VkGraphicsPipelineCreateInfo pipelineCreateInfo(
+      inline VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo(
          VkPipelineLayout layout,
          VkRenderPass renderPass,
          VkPipelineCreateFlags flags = 0)
       {
-         VkGraphicsPipelineCreateInfo pipelineCreateInfo{};
-         pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-         pipelineCreateInfo.layout = layout;
-         pipelineCreateInfo.renderPass = renderPass;
-         pipelineCreateInfo.flags = flags;
-         pipelineCreateInfo.basePipelineIndex = -1;
-         pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
-         return pipelineCreateInfo;
+         VkGraphicsPipelineCreateInfo info{};
+         info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+         info.layout = layout;
+         info.renderPass = renderPass;
+         info.flags = flags;
+         info.basePipelineIndex = -1;
+         info.basePipelineHandle = VK_NULL_HANDLE;
+         return info;
       }
 
-      inline VkGraphicsPipelineCreateInfo pipelineCreateInfo()
+      inline VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo()
       {
-         VkGraphicsPipelineCreateInfo pipelineCreateInfo{};
-         pipelineCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-         pipelineCreateInfo.basePipelineIndex = -1;
-         pipelineCreateInfo.basePipelineHandle = VK_NULL_HANDLE;
-         return pipelineCreateInfo;
+         VkGraphicsPipelineCreateInfo info{};
+         info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+         info.basePipelineIndex = -1;
+         info.basePipelineHandle = VK_NULL_HANDLE;
+         return info;
       }
 
       inline VkComputePipelineCreateInfo computePipelineCreateInfo(
