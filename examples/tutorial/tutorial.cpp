@@ -21,10 +21,17 @@ Tutorial::Tutorial()
    : device(nullptr)
 {
    title = "Vulkan Example - Basic indexed triangle";
+#if 0
    camera.type = Camera::CameraType::lookat;
    camera.setPosition(glm::vec3(0.0f, 0.0f, -8.5f));
    camera.setRotation(glm::vec3(0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+#endif
+   camera.type = Camera::CameraType::firstperson;
+   camera.rotationSpeed = 0.2;
+   camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
+   camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
+   camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
 }
 
 Tutorial::~Tutorial()
@@ -336,7 +343,8 @@ void Tutorial::viewChanged()
 void Tutorial::loadAssets(void)
 {
    _gltfModel = new genesis::VulkanGltfModel(device);
-   _gltfModel->loadFromFile(getAssetPath() + "models/voyager.gltf", 0);
+   _gltfModel->loadFromFile(getAssetPath() + "models/sponza/sponza.gltf"
+      , genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors);
 }
 
 void Tutorial::prepare()

@@ -21,13 +21,6 @@ namespace genesis
    class Texture;
    class Buffer;
 
-   enum FileLoadingFlags {
-      None = 0x00000000,
-      PreTransformVertices = 0x00000001,
-      PreMultiplyVertexColors = 0x00000002,
-      FlipY = 0x00000004,
-      DontLoadImages = 0x00000008
-   };
 
    class Material
    {
@@ -39,7 +32,7 @@ namespace genesis
 
    struct Vertex
    {
-      Vector3_32 pos;
+      Vector3_32 position;
       Vector3_32 normal;
       Vector2_32 uv;
       Vector3_32 color;
@@ -49,26 +42,45 @@ namespace genesis
    {
       uint32_t firstIndex;
       uint32_t indexCount;
+
+      uint32_t firstVertex;
+      uint32_t vertexCount;
+
       int32_t materialIndex;
    };
 
 
-   struct Mesh 
+   class Mesh 
    {
+   public:
       std::vector<Primitive> primitives;
    };
 
-
    struct Node
    {
-      Node* parent;
-      std::vector<Node> children;
-      Mesh mesh;
-      glm::mat4 matrix;
+   public:
+      virtual Matrix4_32 fullTransform() const;
+   public:
+      Node* _parent;
+      std::vector<Node*> _children;
+      Mesh* _mesh;
+
+      Matrix4_32 _matrix;
+      glm::vec3 _translation{};
+      glm::quat _rotation{};
+      glm::vec3 _scale{ 1.0f };
    };
 
    class VulkanGltfModel
    {
+   public:
+      enum FileLoadingFlags {
+         None = 0x00000000,
+         PreTransformVertices = 0x00000001,
+         PreMultiplyVertexColors = 0x00000002,
+         FlipY = 0x00000004,
+         DontLoadImages = 0x00000008
+      };
    public:
       VulkanGltfModel(Device* device);
       virtual ~VulkanGltfModel();
@@ -84,7 +96,7 @@ namespace genesis
       virtual void loadMaterials(tinygltf::Model& gltfModel);
       virtual void loadScenes(tinygltf::Model& gltfModel);
       virtual void loadNode(const tinygltf::Node& inputNode, tinygltf::Model& gltfModel, Node* parent);
-      virtual void loadMesh(Node& node, const tinygltf::Mesh& srcMesh, tinygltf::Model& gltfModel);
+      virtual void loadMesh(Node* node, const tinygltf::Mesh& srcMesh, tinygltf::Model& gltfModel);
 
       virtual void setupDescriptorPool(void);
       virtual void setupDescriptorSetLayout(void);
@@ -94,7 +106,9 @@ namespace genesis
       virtual const Buffer* vertexBuffer(void) const;
       virtual const Buffer* indexBuffer(void) const;
 
-      virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const Node& node) const;
+      virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const Node* node) const;
+
+      virtual void bakeAttributes(tinygltf::Model& gltfModel, uint32_t fileLoadingFlags);
 
    protected:
       Device* _device;
@@ -105,7 +119,7 @@ namespace genesis
       
       std::vector<Material> _materials;
 
-      std::vector<Node> _nodes;
+      std::vector<Node*> _linearNodes;
 
       std::string _basePath;
 
