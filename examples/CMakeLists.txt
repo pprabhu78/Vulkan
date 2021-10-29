@@ -14,7 +14,7 @@ function(add_shader TARGET SHADER)
 	get_filename_component(current-output-dir ${current-output-path} DIRECTORY)
 	file(MAKE_DIRECTORY ${current-output-dir})
 
-	if (${SHADER} MATCHES "(.*)(\\.r)(.*)")
+	if ( (${SHADER} MATCHES "(.*)(\\.rchit)") OR (${SHADER} MATCHES "(.*)(\\.rmiss)") OR (${SHADER} MATCHES "(.*)(\\.rgen)"))
 
 	add_custom_command(
 		OUTPUT ${current-output-path}
@@ -70,7 +70,7 @@ function(buildExample EXAMPLE_NAME)
 		file(GLOB vertex-shaders ${SHADER_DIR_GLSL}/*.vert)
 		file(GLOB fragment-shaders ${SHADER_DIR_GLSL}/*.frag)
 		file(GLOB compute-shaders ${SHADER_DIR_GLSL}/*.comp)
-		file(GLOB raytracing-shaders ${SHADER_DIR_GLSL}/*.r*)
+		file(GLOB raytracing-shaders ${SHADER_DIR_GLSL}/*.rchit ${SHADER_DIR_GLSL}/*.rgen ${SHADER_DIR_GLSL}/*.rmiss)
 		file(GLOB SHADERS ${SHADER_DIR_GLSL}/*.*)
 
 		source_group("Shaders" FILES ${vertex-shaders} ${fragment-shaders} ${compute-shaders} ${raytracing-shaders})
