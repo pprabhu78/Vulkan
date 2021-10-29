@@ -12,6 +12,12 @@ namespace genesis
    {
         ST_VERTEX_SHADER = 0
       , ST_FRAGMENT_SHADER
+
+      // ray tracing
+      , ST_RAYGEN
+      , ST_ANY_HIT
+      , ST_CLOSEST_HIT
+      , ST_MISS
    };
 
    class Shader

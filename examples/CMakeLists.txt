@@ -1,3 +1,42 @@
+set(GLSLC_EXECUTABLE "$ENV{VULKAN_SDK}/bin/glslc.exe")
+set(GLSLANGVALIDATOR_EXECUTABLE "$ENV{VULKAN_SDK}/bin/glslangValidator.exe")
+
+function(add_shader TARGET SHADER)
+	find_program(GLSLC glslc)
+	find_program(GLSLANGVALIDATOR glslangValidator)
+	
+	# All shaders for a sample are found here.
+	set(current-shader-path "../../data/shaders/glsl/${TARGET}/${SHADER}")
+
+	set(current-output-path  "../../data/shaders/glsl/${TARGET}/${SHADER}.spv")
+
+	# Add a custom command to compile GLSL to SPIR-V.
+	get_filename_component(current-output-dir ${current-output-path} DIRECTORY)
+	file(MAKE_DIRECTORY ${current-output-dir})
+
+	if (${SHADER} MATCHES "(.*)(\\.r)(.*)")
+
+	add_custom_command(
+		OUTPUT ${current-output-path}
+		COMMAND ${GLSLANGVALIDATOR_EXECUTABLE} --target-env vulkan1.2 -V -o ${current-output-path} ${current-shader-path}
+		DEPENDS ${current-shader-path}
+		IMPLICIT_DEPENDS CXX ${current-shader-path}
+		VERBATIM)
+  else()
+  	add_custom_command(
+		OUTPUT ${current-output-path}
+		COMMAND ${GLSLC_EXECUTABLE} -o ${current-output-path} ${current-shader-path}
+		DEPENDS ${current-shader-path}
+		IMPLICIT_DEPENDS CXX ${current-shader-path}
+		VERBATIM)
+
+  endif()
+
+	# Make sure our native build depends on this output.
+	set_source_files_properties(${current-output-path} PROPERTIES GENERATED TRUE)
+	target_sources(${TARGET} PRIVATE ${current-output-path})
+endfunction(add_shader)
+
 # Function for building single example
 function(buildExample EXAMPLE_NAME)
 	SET(EXAMPLE_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/${EXAMPLE_NAME})
@@ -21,18 +60,45 @@ function(buildExample EXAMPLE_NAME)
 	IF(USE_WAYLAND_WSI)
 		SET(SOURCE ${SOURCE} ${CMAKE_BINARY_DIR}/xdg-shell-client-protocol.h ${CMAKE_BINARY_DIR}/xdg-shell-protocol.c)
 	ENDIF()
-	# Add shaders
-	set(SHADER_DIR_GLSL "../data/shaders/glsl/${EXAMPLE_NAME}")
-	file(GLOB SHADERS_GLSL "${SHADER_DIR_GLSL}/*.vert" "${SHADER_DIR_GLSL}/*.frag" "${SHADER_DIR_GLSL}/*.comp" "${SHADER_DIR_GLSL}/*.geom" "${SHADER_DIR_GLSL}/*.tesc" "${SHADER_DIR_GLSL}/*.tese" "${SHADER_DIR_GLSL}/*.mesh" "${SHADER_DIR_GLSL}/*.task" "${SHADER_DIR_GLSL}/*.rgen" "${SHADER_DIR_GLSL}/*.rchit" "${SHADER_DIR_GLSL}/*.rmiss" "${SHADER_DIR_GLSL}/*.rcall")
-	set(SHADER_DIR_HLSL "../data/shaders/hlsl/${EXAMPLE_NAME}")
-	file(GLOB SHADERS_HLSL "${SHADER_DIR_HLSL}/*.vert" "${SHADER_DIR_HLSL}/*.frag" "${SHADER_DIR_HLSL}/*.comp" "${SHADER_DIR_HLSL}/*.geom" "${SHADER_DIR_HLSL}/*.tesc" "${SHADER_DIR_HLSL}/*.tese" "${SHADER_DIR_HLSL}/*.mesh" "${SHADER_DIR_HLSL}/*.task" "${SHADER_DIR_HLSL}/*.rgen" "${SHADER_DIR_HLSL}/*.rchit" "${SHADER_DIR_HLSL}/*.rmiss" "${SHADER_DIR_HLSL}/*.rcall")
-	source_group("Shaders\\GLSL" FILES ${SHADERS_GLSL})
-	source_group("Shaders\\HLSL" FILES ${SHADERS_HLSL})
 	# Add optional readme / tutorial
 	file(GLOB README_FILES "${EXAMPLE_FOLDER}/*.md")
-	if(WIN32)
-		add_executable(${EXAMPLE_NAME} WIN32 ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS_GLSL} ${SHADERS_HLSL} ${README_FILES})
-		target_link_libraries(${EXAMPLE_NAME} base ${Vulkan_LIBRARY} ${WINLIBS})
+	if(WIN32)	
+		# Add shaders
+		set(SHADER_DIR_GLSL "../data/shaders/glsl/${EXAMPLE_NAME}")
+		# Find all shaders.
+
+		file(GLOB vertex-shaders ${SHADER_DIR_GLSL}/*.vert)
+		file(GLOB fragment-shaders ${SHADER_DIR_GLSL}/*.frag)
+		file(GLOB compute-shaders ${SHADER_DIR_GLSL}/*.comp)
+		file(GLOB raytracing-shaders ${SHADER_DIR_GLSL}/*.r*)
+		file(GLOB SHADERS ${SHADER_DIR_GLSL}/*.*)
+
+		source_group("Shaders" FILES ${vertex-shaders} ${fragment-shaders} ${compute-shaders} ${raytracing-shaders})
+		add_executable(${EXAMPLE_NAME} WIN32 ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})
+		target_link_libraries(${EXAMPLE_NAME} base genesis ${Vulkan_LIBRARY} ${WINLIBS})
+		
+		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
+			# Add them to the build.
+			foreach(vertex-shader ${vertex-shaders})
+				get_filename_component(p ${vertex-shader} NAME)
+				add_shader(${EXAMPLE_NAME} ${p})
+			endforeach(vertex-shader)
+
+			foreach(fragment-shader ${fragment-shaders})
+				get_filename_component(p ${fragment-shader} NAME)
+				add_shader(${EXAMPLE_NAME} ${p})
+			endforeach(fragment-shader)
+
+			foreach(compute-shader ${compute-shaders})
+				get_filename_component(p ${compute-shader} NAME)
+				add_shader(${EXAMPLE_NAME} ${p})
+			endforeach(compute-shader)
+			
+			foreach(raytracing-shader ${raytracing-shaders})
+				get_filename_component(p ${raytracing-shader} NAME)
+				add_shader(${EXAMPLE_NAME} ${p})
+			endforeach(compute-shader)
+		endif()
 	else(WIN32)
 		add_executable(${EXAMPLE_NAME} ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS_GLSL} ${SHADERS_HLSL} ${README_FILES})
 		target_link_libraries(${EXAMPLE_NAME} base )
@@ -135,6 +201,7 @@ set(EXAMPLES
 	texturesparseresidency
 	triangle
 	tutorial
+	tutorial_raytracing
 	variablerateshading
 	viewportarray
 	vulkanscene

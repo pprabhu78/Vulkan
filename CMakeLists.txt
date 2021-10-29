@@ -2,6 +2,10 @@ cmake_minimum_required(VERSION 3.4 FATAL_ERROR)
 cmake_policy(VERSION 2.8)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake")
 
+IF(WIN32)
+  add_definitions(/MP)
+ENDIF()
+
 set(NAME vulkanExamples)
 
 project(${NAME})
@@ -14,6 +18,7 @@ include_directories(external/tinygltf)
 include_directories(external/ktx/include)
 include_directories(external/ktx/other_include)
 include_directories(base)
+include_directories(genesis)
 
 OPTION(USE_D2D_WSI "Build the project using Direct to Display swapchain" OFF)
 OPTION(USE_DIRECTFB_WSI "Build the project using DirectFB swapchain" OFF)
@@ -110,6 +115,8 @@ add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
+
 file(GLOB SOURCE *.cpp )
 
 # Build all examples
@@ -148,4 +155,5 @@ ENDIF(WIN32)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/")
 
 add_subdirectory(base)
+add_subdirectory(genesis)
 add_subdirectory(examples)

@@ -177,8 +177,8 @@ protected:
 public:
 	bool prepared = false;
 	bool resized = false;
-	uint32_t width = 1280;
-	uint32_t height = 720;
+	uint32_t width = 1280*2;
+	uint32_t height = 720*2;
 
 	vks::UIOverlay UIOverlay;
 	CommandLineParser commandLineParser;

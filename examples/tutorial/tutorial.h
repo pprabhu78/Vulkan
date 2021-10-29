@@ -37,7 +37,7 @@ public:
    virtual void loadAssets(void);
 
 protected:
-   genesis::Device* device;
+   genesis::Device* _device;
 
    VkPipelineLayout _pipelineLayout;
    VkPipeline _pipeline;
