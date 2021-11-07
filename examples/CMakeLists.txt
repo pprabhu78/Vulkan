@@ -75,7 +75,11 @@ function(buildExample EXAMPLE_NAME)
 
 		source_group("Shaders" FILES ${vertex-shaders} ${fragment-shaders} ${compute-shaders} ${raytracing-shaders})
 		add_executable(${EXAMPLE_NAME} WIN32 ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})
-		target_link_libraries(${EXAMPLE_NAME} base genesis ${Vulkan_LIBRARY} ${WINLIBS})
+		target_link_libraries(${EXAMPLE_NAME} base ${Vulkan_LIBRARY} ${WINLIBS})
+
+		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
+			target_link_libraries(${EXAMPLE_NAME} genesis)
+		endif()
 		
 		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
 			# Add them to the build.

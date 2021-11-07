@@ -17,25 +17,48 @@
 #include "GenAssert.h"
 
 
+#define VENUS 0
+#define SPONZA 1
+
 Tutorial::Tutorial()
    : _device(nullptr)
 {
    title = "Vulkan Example - Basic indexed triangle";
-#if 0
+#if VENUS
    camera.type = Camera::CameraType::lookat;
    camera.setPosition(glm::vec3(0.0f, 0.0f, -8.5f));
    camera.setRotation(glm::vec3(0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
 #endif
+
+#if SPONZA
    camera.type = Camera::CameraType::firstperson;
    camera.rotationSpeed = 0.2f;
    camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
    camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+#endif
+
+   enabledInstanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
+   enabledDeviceExtensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
+   enabledDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+   enabledDeviceExtensions.push_back(VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME);
+
+   
+   _physicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
+   _physicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+   _physicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
+   _physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
+
+   deviceCreatepNextChain = &_physicalDeviceDescriptorIndexingFeatures;
 }
 
 Tutorial::~Tutorial()
 {
+   for (genesis::Shader* shader : _shaders)
+   {
+      delete shader;
+   }
    vkDestroyPipeline(_device->vulkanDevice(), _pipeline, nullptr);
 
    vkDestroyPipelineLayout(_device->vulkanDevice(), _pipelineLayout, nullptr);
@@ -304,6 +327,7 @@ void Tutorial::preparePipelines()
       {
          shaderStageInfos.push_back(shader->shaderStageInfo());
       }
+      _shaders.push_back(shader);
    }
    VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::vulkanInitalizers::graphicsPipelineCreateInfo(_pipelineLayout, renderPass);
 
@@ -342,9 +366,16 @@ void Tutorial::viewChanged()
 
 void Tutorial::loadAssets(void)
 {
-   _gltfModel = new genesis::VulkanGltfModel(_device);
+   _gltfModel = new genesis::VulkanGltfModel(_device, false);
+#if SPONZA
    _gltfModel->loadFromFile(getAssetPath() + "models/sponza/sponza.gltf"
       , genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors);
+#endif
+
+#if VENUS
+   _gltfModel->loadFromFile(getAssetPath() + "models/venus.gltf"
+      , genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors);
+#endif
 }
 
 void Tutorial::prepare()
@@ -362,5 +393,14 @@ void Tutorial::prepare()
    prepared = true;
 }
 
-
-
+void Tutorial::getEnabledFeatures()
+{
+   // Example uses multi draw indirect if available
+   if (deviceFeatures.multiDrawIndirect) {
+      enabledFeatures.multiDrawIndirect = VK_TRUE;
+   }
+   // Enable anisotropic filtering if supported
+   if (deviceFeatures.samplerAnisotropy) {
+      enabledFeatures.samplerAnisotropy = VK_TRUE;
+   }
+};

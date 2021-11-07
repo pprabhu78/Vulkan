@@ -43,6 +43,7 @@ namespace genesis
       if (vkResult != VK_SUCCESS)
       {
          std::cout << "failed vkCreateShaderModule" << std::endl;
+         return;
       }
 
       GEN_ASSERT(shaderModule != VK_NULL_HANDLE);
@@ -53,11 +54,27 @@ namespace genesis
 
       switch (shaderType)
       {
-      case genesis::ST_VERTEX_SHADER:
+      case ST_VERTEX_SHADER:
          _shaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
          break;
-      case genesis::ST_FRAGMENT_SHADER:
+      case ST_FRAGMENT_SHADER:
          _shaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+         break;
+
+      case ST_RT_RAYGEN:
+         _shaderStageInfo.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+         break;
+
+      case ST_RT_ANY_HIT:
+         _shaderStageInfo.stage = VK_SHADER_STAGE_ANY_HIT_BIT_KHR;
+         break;
+
+      case ST_RT_CLOSEST_HIT:
+         _shaderStageInfo.stage = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+         break;
+
+      case ST_RT_MISS:
+         _shaderStageInfo.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
          break;
       default:
          break;

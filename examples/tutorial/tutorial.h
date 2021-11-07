@@ -9,6 +9,7 @@ namespace genesis
    class Image;
    class VulkanGltfModel;
    class Texture;
+   class Shader;
 }
 
 class Tutorial : public  VulkanExampleBase
@@ -23,6 +24,7 @@ public:
    virtual void render() override;
    virtual void viewChanged() override;
    virtual void prepare() override;
+   virtual void getEnabledFeatures() override;
 
 public:
    virtual void draw();
@@ -48,4 +50,10 @@ protected:
    VkDescriptorSet _descriptorSet0;
 
    genesis::VulkanGltfModel* _gltfModel;   
+
+   VkPhysicalDeviceDescriptorIndexingFeaturesEXT _physicalDeviceDescriptorIndexingFeatures{};
+
+   VkPhysicalDeviceVulkan11Features _physicalDeviceVulkan11Features{};
+
+   std::vector<genesis::Shader*> _shaders;
 };

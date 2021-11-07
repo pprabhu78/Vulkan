@@ -33,6 +33,9 @@ namespace genesis
       case BT_SBO:
          bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
          break;
+      case BT_INDIRECT_BUFFER:
+         bufferCreateInfo.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+         break;
       }
 
       VK_CHECK_RESULT(vkCreateBuffer(_device->vulkanDevice(), &bufferCreateInfo, nullptr, &_buffer));

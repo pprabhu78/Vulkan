@@ -14,10 +14,10 @@ namespace genesis
       , ST_FRAGMENT_SHADER
 
       // ray tracing
-      , ST_RAYGEN
-      , ST_ANY_HIT
-      , ST_CLOSEST_HIT
-      , ST_MISS
+      , ST_RT_RAYGEN
+      , ST_RT_ANY_HIT
+      , ST_RT_CLOSEST_HIT
+      , ST_RT_MISS
    };
 
    class Shader

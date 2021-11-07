@@ -11,6 +11,7 @@ namespace genesis
       BT_INDEX_BUFFER,
       BT_UBO,
       BT_SBO,
+      BT_INDIRECT_BUFFER
    };
 
    class Device;

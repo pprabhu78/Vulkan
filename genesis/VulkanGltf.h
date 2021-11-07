@@ -26,8 +26,8 @@ namespace genesis
    {
    public:
       Vector4_32 baseColorFactor = Vector4_32(1.0f);
-
-      int baseColorTextureIndex = 0;
+      Vector3_32 padding = { 0,0,0 };
+      std::uint32_t baseColorTextureIndex = 0;
    };
 
    struct Vertex
@@ -82,7 +82,7 @@ namespace genesis
          DontLoadImages = 0x00000008
       };
    public:
-      VulkanGltfModel(Device* device);
+      VulkanGltfModel(Device* device, bool indirect);
       virtual ~VulkanGltfModel();
    public:
       virtual void loadFromFile(const std::string& fileName, uint32_t fileLoadingFlags);
@@ -110,6 +110,8 @@ namespace genesis
 
       virtual void bakeAttributes(tinygltf::Model& gltfModel, uint32_t fileLoadingFlags);
 
+      virtual void buildIndirectBuffer(void);
+
    protected:
       Device* _device;
 
@@ -130,7 +132,28 @@ namespace genesis
       Buffer* _indexBufferGpu;
 
       VkDescriptorPool _descriptorPool;
-      VkDescriptorSetLayout _setLayout;
+      VkDescriptorSetLayout _descriptorSetLayout;
       std::vector<VkDescriptorSet> _vecDescriptorSets;
+
+      //! indirect command buffer
+      std::vector<VkDrawIndexedIndirectCommand> _indirectCommands;
+
+      //! same buffer as above, but on the Gpu
+      Buffer* _indirectBufferGpu;
+
+      //! Nodes to be rendered, correspond to meshes.
+      //! The meshes have primitives
+      //! The primitive refers to an index of the materials
+      //! in the model. This index is that index for each rendered
+      //! geometry (sub-mesh if you will)
+      std::vector<std::uint32_t> _materialIndices;
+
+      //! Same as above, but on the Gpu instead
+      Buffer* _materialIndicesGpu;
+
+      //! Gpu side material buffer (materials found in the gltf)
+      Buffer* _materialsGpu;
+
+      const bool _indirect;
    };
 }
