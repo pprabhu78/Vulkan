@@ -126,6 +126,8 @@ void Tutorial::buildCommandBuffers()
 
       _gltfModel->draw(drawCmdBuffers[i], _pipelineLayout);
 
+      drawUI(drawCmdBuffers[i]);
+
       vkCmdEndRenderPass(drawCmdBuffers[i]);
 
       // Ending the render pass will add an implicit barrier transitioning the frame buffer color attachment to
@@ -138,36 +140,12 @@ void Tutorial::buildCommandBuffers()
 
 void Tutorial::draw()
 {
-   // Get next image in the swap chain (back/front buffer)
-   VK_CHECK_RESULT(swapChain.acquireNextImage(semaphores.presentComplete, &currentBuffer));
+   VulkanExampleBase::prepareFrame();
 
-   // Use a fence to wait until the command buffer has finished execution before using it again
-   VK_CHECK_RESULT(vkWaitForFences(_device->vulkanDevice(), 1, &waitFences[currentBuffer], VK_TRUE, UINT64_MAX));
-   VK_CHECK_RESULT(vkResetFences(_device->vulkanDevice(), 1, &waitFences[currentBuffer]));
-
-   // Pipeline stage at which the queue submission will wait (via pWaitSemaphores)
-   VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-   // The submit info structure specifies a command buffer queue submission batch
-   VkSubmitInfo submitInfo = {};
-   submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-   submitInfo.pWaitDstStageMask = &waitStageMask;               // Pointer to the list of pipeline stages that the semaphore waits will occur at
-   submitInfo.pWaitSemaphores = &semaphores.presentComplete;      // Semaphore(s) to wait upon before the submitted command buffer starts executing
-   submitInfo.waitSemaphoreCount = 1;                           // One wait semaphore
-   submitInfo.pSignalSemaphores = &semaphores.renderComplete;     // Semaphore(s) to be signaled when command buffers have completed
-   submitInfo.signalSemaphoreCount = 1;                         // One signal semaphore
-   submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer]; // Command buffers(s) to execute in this batch (submission)
-   submitInfo.commandBufferCount = 1;                           // One command buffer
-
-   // Submit to the graphics queue passing a wait fence
-   VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, waitFences[currentBuffer]));
-
-   // Present the current buffer to the swap chain
-   // Pass the semaphore signaled by the command buffer submission from the submit info as the wait semaphore for swap chain presentation
-   // This ensures that the image is not presented to the windowing system until all commands have been submitted
-   VkResult present = swapChain.queuePresent(queue, currentBuffer, semaphores.renderComplete);
-   if (!((present == VK_SUCCESS) || (present == VK_SUBOPTIMAL_KHR))) {
-      VK_CHECK_RESULT(present);
-   }
+   submitInfo.commandBufferCount = 1;
+   submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
+   VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
+   VulkanExampleBase::submitFrame();
 }
 
 struct ShaderUbo
