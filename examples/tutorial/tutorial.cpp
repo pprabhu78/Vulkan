@@ -339,7 +339,7 @@ void Tutorial::viewChanged()
 
 void Tutorial::loadAssets(void)
 {
-   _gltfModel = new genesis::VulkanGltfModel(_device, false, false);
+   _gltfModel = new genesis::VulkanGltfModel(_device, true, false);
 #if SPONZA
    _gltfModel->loadFromFile(getAssetPath() + "models/sponza/sponza.gltf"
       , genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors);

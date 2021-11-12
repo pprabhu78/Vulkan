@@ -29,6 +29,7 @@ namespace genesis
       , _indirectBufferGpu(nullptr)
       , _indirect(indirect)
       , _materialIndicesGpu(nullptr)
+      , _indexIndicesGpu(nullptr)
       , _materialsGpu(nullptr)
       , _rayTracing(rayTracing)
       , _blas(nullptr)
@@ -641,7 +642,7 @@ namespace genesis
          VkDescriptorSetLayoutBindingFlagsCreateInfo setLayoutBindingFlags{};
          setLayoutBindingFlags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
          setLayoutBindingFlags.bindingCount = (uint32_t)setBindings.size();
-         std::vector<VkDescriptorBindingFlags> descriptorBindingFlags = { 0, 0, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT };
+         std::vector<VkDescriptorBindingFlags> descriptorBindingFlags = { 0, 0, 0, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT };
          setLayoutBindingFlags.pBindingFlags = descriptorBindingFlags.data();
 
          descriptorSetLayoutCreateInfo.pNext = &setLayoutBindingFlags;
