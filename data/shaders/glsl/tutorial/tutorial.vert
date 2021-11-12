@@ -14,8 +14,6 @@ layout (set = 0, binding = 0) uniform UBO
 	mat4 projectionMatrix;
 } sceneUbo;
 
-
-
 layout (location = 0) out vec2 outUV;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec3 outNormalViewSpace;

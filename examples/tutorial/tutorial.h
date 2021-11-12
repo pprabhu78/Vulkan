@@ -29,7 +29,7 @@ public:
 public:
    virtual void draw();
    virtual void prepareSceneUbo();
-   virtual void updateUbo(void);
+   virtual void updateSceneUbo(void);
    
    virtual void setupDescriptorPool();
    virtual void setupDescriptorSetLayout(void);
@@ -44,7 +44,7 @@ protected:
    VkPipelineLayout _pipelineLayout;
    VkPipeline _pipeline;
 
-   genesis::Buffer* _uboScene;
+   genesis::Buffer* _sceneUbo;
 
    VkDescriptorSetLayout _setLayout0;
    VkDescriptorSet _descriptorSet0;

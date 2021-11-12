@@ -1,13 +1,14 @@
 #include "Buffer.h"
 #include "Device.h"
 #include "VulkanTools.h"
+#include "VulkanFunctions.h"
+#include "VulkanDebug.h"
 #include "GenAssert.h"
 
 namespace genesis
 {
 
-
-   VulkanBuffer::VulkanBuffer(Device* _device, BufferType bufferType, int sizeInBytes)
+   VulkanBuffer::VulkanBuffer(Device* _device, BufferType bufferType, int sizeInBytes, const BufferProperties& bufferProperties)
       : _buffer(0)
       , _deviceMemory(0)
       , _device(_device)
@@ -38,6 +39,21 @@ namespace genesis
          break;
       }
 
+      if (bufferProperties._deviceAddressing)
+      {
+         bufferCreateInfo.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+      }
+
+      if (bufferProperties._inputToAccelerationStructure)
+      {
+         bufferCreateInfo.usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
+      }
+
+      if ((bufferType == BT_VERTEX_BUFFER || bufferType == BT_INDEX_BUFFER) && bufferProperties._vertexOrIndexBoundAsSsbo)
+      {
+         bufferCreateInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+      }
+
       VK_CHECK_RESULT(vkCreateBuffer(_device->vulkanDevice(), &bufferCreateInfo, nullptr, &_buffer));
 
       VkMemoryRequirements memoryRequirements;
@@ -46,6 +62,15 @@ namespace genesis
       VkMemoryAllocateInfo memoryAllocateInfo = {};
       memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
       memoryAllocateInfo.allocationSize = memoryRequirements.size;
+
+      VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{};
+      if (bufferProperties._deviceAddressing)
+      {
+         memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+         memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
+
+         memoryAllocateInfo.pNext = &memoryAllocateFlagsInfo;
+      }
 
       VkMemoryPropertyFlags memoryProperties;
       switch (bufferType)
@@ -82,7 +107,7 @@ namespace genesis
       return _buffer;
    }
 
-   Buffer::Buffer(Device* device, BufferType bufferType, int sizeInBytes, bool staging)
+   Buffer::Buffer(Device* device, BufferType bufferType, int sizeInBytes, bool staging, const BufferProperties& bufferProperties, const std::string& name)
       : _device(device)
       , _sizeInBytes(sizeInBytes)
       , _stagingBuffer(nullptr)
@@ -93,7 +118,14 @@ namespace genesis
          _stagingBuffer = new VulkanBuffer(_device, BT_STAGING, _sizeInBytes);
       }
 
-      _buffer = new VulkanBuffer(_device, bufferType, _sizeInBytes);
+      _buffer = new VulkanBuffer(_device, bufferType, _sizeInBytes, bufferProperties);
+
+      if (!name.empty())
+      {
+         vks::debugmarker::setBufferName(_device->vulkanDevice(), _buffer->vulkanBuffer(), name.c_str());
+      }
+
+      _descriptor = VkDescriptorBufferInfo{ _buffer->vulkanBuffer(), 0, (VkDeviceSize)_sizeInBytes };
    }
 
    void* Buffer::stagingBuffer(void)
@@ -156,8 +188,21 @@ namespace genesis
       return _sizeInBytes;
    }
 
-   VkDescriptorBufferInfo Buffer::descriptor(void) const
+   const VkDescriptorBufferInfo& Buffer::descriptor(void) const
    {
-      return VkDescriptorBufferInfo{ _buffer->vulkanBuffer(), 0, (VkDeviceSize)_sizeInBytes };
+      return _descriptor;
+   }
+
+   const VkDescriptorBufferInfo* Buffer::descriptorPtr(void) const
+   {
+      return &_descriptor;
+   }
+
+   uint64_t Buffer::bufferAddress() const
+   {
+      VkBufferDeviceAddressInfoKHR bufferDeviceAI{};
+      bufferDeviceAI.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+      bufferDeviceAI.buffer = _buffer->vulkanBuffer();
+      return vkGetBufferDeviceAddressKHR(_device->vulkanDevice(), &bufferDeviceAI);
    }
 }

@@ -37,7 +37,7 @@ namespace genesis
       // If requested, also start the new command buffer
       if (begin)
       {
-         VkCommandBufferBeginInfo cmdBufInfo = genesis::vulkanInitalizers::commandBufferBeginInfo();
+         VkCommandBufferBeginInfo cmdBufInfo = genesis::vulkanInitializers::commandBufferBeginInfo();
          VK_CHECK_RESULT(vkBeginCommandBuffer(cmdBuffer, &cmdBufInfo));
       }
 

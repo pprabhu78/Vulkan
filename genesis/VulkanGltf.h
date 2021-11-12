@@ -20,7 +20,7 @@ namespace genesis
    class Image;
    class Texture;
    class Buffer;
-
+   class AccelerationStructure;
 
    class Material
    {
@@ -35,7 +35,7 @@ namespace genesis
       Vector3_32 position;
       Vector3_32 normal;
       Vector2_32 uv;
-      Vector3_32 color;
+      Vector4_32 color;
    };
 
    struct Primitive
@@ -48,7 +48,6 @@ namespace genesis
 
       int32_t materialIndex;
    };
-
 
    class Mesh 
    {
@@ -82,14 +81,26 @@ namespace genesis
          DontLoadImages = 0x00000008
       };
    public:
-      VulkanGltfModel(Device* device, bool indirect);
+      VulkanGltfModel(Device* device, bool indirect, bool rayTracing);
       virtual ~VulkanGltfModel();
    public:
       virtual void loadFromFile(const std::string& fileName, uint32_t fileLoadingFlags);
 
       virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
 
-      VkDescriptorSetLayout vulkanDescriptorSetLayout(void) const;
+      virtual VkDescriptorSetLayout vulkanDescriptorSetLayout(void) const;
+
+      virtual void buildBlas(void);
+      const AccelerationStructure* blas(void) const;
+
+      virtual void buildTlas(void);
+      const AccelerationStructure* tlas(void) const;
+
+      virtual const Buffer* vertexBuffer(void) const;
+      virtual const Buffer* indexBuffer(void) const;
+
+      virtual const std::vector<VkDescriptorSet>& descriptorSets(void) const;
+
    protected:
       virtual void loadImages(tinygltf::Model& gltfModel);
       virtual void loadTextures(tinygltf::Model& gltfModel);
@@ -103,8 +114,7 @@ namespace genesis
       virtual void updateDescriptorSets(void);
 
       virtual const std::vector<Image*>& images(void) const;
-      virtual const Buffer* vertexBuffer(void) const;
-      virtual const Buffer* indexBuffer(void) const;
+
 
       virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const Node* node) const;
 
@@ -151,9 +161,17 @@ namespace genesis
       //! Same as above, but on the Gpu instead
       Buffer* _materialIndicesGpu;
 
+      std::vector<std::uint32_t> _indexIndices;
+      Buffer* _indexIndicesGpu;
+
       //! Gpu side material buffer (materials found in the gltf)
       Buffer* _materialsGpu;
 
       const bool _indirect;
+
+      AccelerationStructure* _blas;
+      AccelerationStructure* _tlas;
+
+      const bool _rayTracing;
    };
 }

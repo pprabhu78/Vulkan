@@ -24,7 +24,7 @@ namespace genesis
 
    void Texture::createSampler()
    {
-      VkSamplerCreateInfo samplerInfo = vulkanInitalizers::samplerCreateInfo();
+      VkSamplerCreateInfo samplerInfo = vulkanInitializers::samplerCreateInfo();
       samplerInfo.magFilter = VK_FILTER_LINEAR;
       samplerInfo.minFilter = VK_FILTER_LINEAR;
       samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
@@ -46,7 +46,7 @@ namespace genesis
 
    void Texture::createImageView()
    {
-      VkImageViewCreateInfo imageViewInfo = vulkanInitalizers::imageViewCreateInfo();
+      VkImageViewCreateInfo imageViewInfo = vulkanInitializers::imageViewCreateInfo();
       imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
       imageViewInfo.format = _image->vulkanFormat();
       imageViewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };

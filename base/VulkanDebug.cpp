@@ -58,7 +58,7 @@ namespace vks
          }
 #else
          if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-            std::cerr << debugMessage.str() << "\n";
+            std::cout << debugMessage.str() << "\n";
          }
          else {
             std::cout << debugMessage.str() << "\n";
@@ -75,7 +75,6 @@ namespace vks
 
       void setupDebugging(VkInstance instance, VkDebugReportFlagsEXT flags, VkDebugReportCallbackEXT callBack)
       {
-
          vkCreateDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
          vkDestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
 

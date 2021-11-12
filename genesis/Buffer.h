@@ -2,8 +2,13 @@
 
 #include <vulkan/vulkan.h>
 
+#include <string>
+
 namespace genesis
 {
+
+   class Device;
+
    enum BufferType
    {
       BT_STAGING = 0,
@@ -14,7 +19,14 @@ namespace genesis
       BT_INDIRECT_BUFFER
    };
 
-   class Device;
+   class BufferProperties
+   {
+   public:
+      bool _deviceAddressing = false;
+      bool _inputToAccelerationStructure = false;
+      bool _vertexOrIndexBoundAsSsbo = false;
+   };
+
 
    //! internal structure for buffer and memory
    //! associated with it.
@@ -22,9 +34,8 @@ namespace genesis
    class VulkanBuffer
    {
    public:
-      VulkanBuffer(Device* device, BufferType bufferType, int sizeInBytes);
+      VulkanBuffer(Device* device, BufferType bufferType, int sizeInBytes, const BufferProperties& bufferProperties = {});
       virtual ~VulkanBuffer();
-
    public:
       virtual VkBuffer vulkanBuffer(void) const;
    public:
@@ -40,7 +51,7 @@ namespace genesis
       //! constructor
       //! staging means create a staging buffer
       //! stagingOnly means create only the staging buffer
-      Buffer(Device* device, BufferType bufferType, int sizeInBytes, bool staging);
+      Buffer(Device* device, BufferType bufferType, int sizeInBytes, bool staging, const BufferProperties& bufferProperties = {}, const std::string& name = "");
 
       //! destructor
       virtual ~Buffer(void);
@@ -58,12 +69,18 @@ namespace genesis
 
       virtual int sizeInBytes(void) const;
 
-      virtual VkDescriptorBufferInfo descriptor(void) const;
+      virtual const VkDescriptorBufferInfo& descriptor(void) const;
+
+      virtual const VkDescriptorBufferInfo* descriptorPtr(void) const;
+
+      virtual uint64_t bufferAddress() const;
 
    protected:
 
       VulkanBuffer* _stagingBuffer;
       VulkanBuffer* _buffer;
+
+      VkDescriptorBufferInfo _descriptor;
 
       Device* _device;
 

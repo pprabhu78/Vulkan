@@ -19,6 +19,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLin
    myTutorial->setupWindow(hInstance, WndProc);
    myTutorial->prepare();
    myTutorial->renderLoop();
-   delete(myTutorial);
+   delete myTutorial;
    return 0;
 }

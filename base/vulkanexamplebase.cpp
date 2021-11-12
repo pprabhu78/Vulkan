@@ -161,6 +161,10 @@ void VulkanExampleBase::createCommandBuffers()
 
 void VulkanExampleBase::destroyCommandBuffers()
 {
+	if (drawCmdBuffers.empty())
+	{
+		return;
+	}
 	vkFreeCommandBuffers(device, cmdPool, static_cast<uint32_t>(drawCmdBuffers.size()), drawCmdBuffers.data());
 }
 
@@ -737,7 +741,7 @@ VulkanExampleBase::VulkanExampleBase(bool enableValidation)
 #endif
 
 	settings.validation = enableValidation;
-	
+
 	// Command line arguments
 	commandLineParser.parse(args);
 	if (commandLineParser.isSet("help")) {
