@@ -13,3 +13,4 @@
 #include <cassert>
 
 #define GEN_ASSERT(p)     assert(p);
+

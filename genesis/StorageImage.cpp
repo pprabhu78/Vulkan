@@ -1,14 +1,15 @@
 #include "StorageImage.h"
-#include "VulkanTools.h"
 #include "VulkanInitializers.h"
 #include "Device.h"
+#include "ImageTransitions.h"
+#include "VulkanDebug.h"
 
 namespace genesis
 {
    StorageImage::StorageImage(Device* device, VkFormat format, int width, int height)
       : _device(device)
    {
-      VkImageCreateInfo imageCreateInfo = vulkanInitializers::imageCreateInfo();
+      VkImageCreateInfo imageCreateInfo = VulkanInitializers::imageCreateInfo();
       imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
       imageCreateInfo.format = format;
       imageCreateInfo.extent.width = width;
@@ -24,13 +25,13 @@ namespace genesis
 
       VkMemoryRequirements memReqs;
       vkGetImageMemoryRequirements(_device->vulkanDevice(), _image, &memReqs);
-      VkMemoryAllocateInfo memoryAllocateInfo = genesis::vulkanInitializers::memoryAllocateInfo();
+      VkMemoryAllocateInfo memoryAllocateInfo = genesis::VulkanInitializers::memoryAllocateInfo();
       memoryAllocateInfo.allocationSize = memReqs.size;
       memoryAllocateInfo.memoryTypeIndex = _device->getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
       VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &_memory));
       VK_CHECK_RESULT(vkBindImageMemory(_device->vulkanDevice(), _image, _memory, 0));
 
-      VkImageViewCreateInfo colorImageView = genesis::vulkanInitializers::imageViewCreateInfo();
+      VkImageViewCreateInfo colorImageView = genesis::VulkanInitializers::imageViewCreateInfo();
       colorImageView.viewType = VK_IMAGE_VIEW_TYPE_2D;
       colorImageView.format = format;
       colorImageView.subresourceRange = {};
@@ -43,7 +44,8 @@ namespace genesis
       VK_CHECK_RESULT(vkCreateImageView(_device->vulkanDevice(), &colorImageView, nullptr, &_view));
 
       VkCommandBuffer cmdBuffer = _device->getCommandBuffer(true);
-      vks::tools::setImageLayout(cmdBuffer, _image,
+      ImageTransitions transition;
+      transition.setImageLayout(cmdBuffer, _image,
          VK_IMAGE_LAYOUT_UNDEFINED,
          VK_IMAGE_LAYOUT_GENERAL,
          { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });

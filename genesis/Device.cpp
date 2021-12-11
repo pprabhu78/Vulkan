@@ -1,6 +1,6 @@
 #include "Device.h"
-#include "VulkanTools.h"
 #include "VulkanInitializers.h"
+#include "VulkanDebug.h"
 
 namespace genesis
 {
@@ -37,7 +37,7 @@ namespace genesis
       // If requested, also start the new command buffer
       if (begin)
       {
-         VkCommandBufferBeginInfo cmdBufInfo = genesis::vulkanInitializers::commandBufferBeginInfo();
+         VkCommandBufferBeginInfo cmdBufInfo = genesis::VulkanInitializers::commandBufferBeginInfo();
          VK_CHECK_RESULT(vkBeginCommandBuffer(cmdBuffer, &cmdBufInfo));
       }
 

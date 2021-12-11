@@ -1,6 +1,6 @@
 #include "AccelerationStructure.h"
 #include "Device.h"
-#include "VulkanTools.h"
+#include "VulkanDebug.h"
 #include "VulkanFunctions.h"
 #include <iostream>
 

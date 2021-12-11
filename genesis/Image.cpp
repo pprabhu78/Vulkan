@@ -2,7 +2,8 @@
 #include "Device.h"
 #include "Buffer.h"
 #include "VulkanInitializers.h"
-#include "VulkanTools.h"
+#include "VulkanDebug.h"
+#include "ImageTransitions.h"
 
 #include "GenAssert.h"
 
@@ -86,29 +87,9 @@ namespace genesis
 
       VkCommandBuffer commandBuffer = _device->getCommandBuffer(true);
 
-      VkImageMemoryBarrier imageMemoryBarrier = {};
-      imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-
-      imageMemoryBarrier.image = _image;
-
-      imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-      imageMemoryBarrier.srcAccessMask = 0;
-      imageMemoryBarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-      imageMemoryBarrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      imageMemoryBarrier.subresourceRange.baseMipLevel = 0;
-      imageMemoryBarrier.subresourceRange.levelCount = _numMipMapLevels;
-      imageMemoryBarrier.subresourceRange.baseArrayLayer = 0;
-      imageMemoryBarrier.subresourceRange.layerCount = 1;
-
-      vkCmdPipelineBarrier(commandBuffer
-         , VK_PIPELINE_STAGE_HOST_BIT
-         , VK_PIPELINE_STAGE_TRANSFER_BIT
-         , 0
-         , 0, nullptr
-         , 0, nullptr
-         , 1, &imageMemoryBarrier);
+      VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT , 0, (uint32_t)_numMipMapLevels, 0, 1 };
+      ImageTransitions transition;
+      transition.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
       vkCmdCopyBufferToImage(commandBuffer
          , stagingBuffer->vulkanBuffer()
@@ -118,19 +99,7 @@ namespace genesis
          , bufferCopyRegions.data()
       );
 
-      imageMemoryBarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-      imageMemoryBarrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-      imageMemoryBarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-      imageMemoryBarrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-      vkCmdPipelineBarrier(commandBuffer
-         , VK_PIPELINE_STAGE_TRANSFER_BIT
-         , VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
-         , 0
-         , 0, nullptr
-         , 0, nullptr
-         , 1, &imageMemoryBarrier);
+      transition.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange);
 
       _device->flushCommandBuffer(commandBuffer);
 

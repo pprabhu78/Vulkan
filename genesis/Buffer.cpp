@@ -1,6 +1,5 @@
 #include "Buffer.h"
 #include "Device.h"
-#include "VulkanTools.h"
 #include "VulkanFunctions.h"
 #include "VulkanDebug.h"
 #include "GenAssert.h"
@@ -122,7 +121,7 @@ namespace genesis
 
       if (!name.empty())
       {
-         vks::debugmarker::setBufferName(_device->vulkanDevice(), _buffer->vulkanBuffer(), name.c_str());
+//         vks::debugmarker::setBufferName(_device->vulkanDevice(), _buffer->vulkanBuffer(), name.c_str());
       }
 
       _descriptor = VkDescriptorBufferInfo{ _buffer->vulkanBuffer(), 0, (VkDeviceSize)_sizeInBytes };

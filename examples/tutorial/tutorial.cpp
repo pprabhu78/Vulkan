@@ -90,7 +90,7 @@ void Tutorial::buildCommandBuffers()
    clearValues[0].color = { { 0.0f, 0.0f, 0.2f, 1.0f } };
    clearValues[1].depthStencil = { 1.0f, 0 };
 
-   VkRenderPassBeginInfo renderPassBeginInfo = genesis::vulkanInitializers::renderPassBeginInfo();
+   VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
    renderPassBeginInfo.renderPass = renderPass;
    renderPassBeginInfo.renderArea.offset = { 0, 0 };
    renderPassBeginInfo.renderArea.extent = { width, height };
@@ -98,8 +98,8 @@ void Tutorial::buildCommandBuffers()
    renderPassBeginInfo.clearValueCount = 2;
    renderPassBeginInfo.pClearValues = clearValues;
 
-   const VkViewport viewport = genesis::vulkanInitializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-   const VkRect2D scissor = genesis::vulkanInitializers::rect2D(width, height, 0, 0);
+   const VkViewport viewport = genesis::VulkanInitializers::viewport((float)width, (float)height, 0.0f, 1.0f);
+   const VkRect2D scissor = genesis::VulkanInitializers::rect2D(width, height, 0, 0);
 
    for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
    {
@@ -176,10 +176,10 @@ void Tutorial::setupDescriptorPool()
 {
    std::vector<VkDescriptorPoolSize> poolSizes =
    {
-      genesis::vulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
+      genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
    };
 
-   VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vulkanInitializers::descriptorPoolCreateInfo(poolSizes, 1);
+   VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::VulkanInitializers::descriptorPoolCreateInfo(poolSizes, 1);
    VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &descriptorPool));
 }
 
@@ -187,14 +187,14 @@ void Tutorial::setupDescriptorSetLayout(void)
 {
    std::vector<VkDescriptorSetLayoutBinding> set0Bindings =
    {
-      genesis::vulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0)
+      genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0)
    };
-   VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::vulkanInitializers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
+   VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set0LayoutInfo, nullptr, &_setLayout0));
 
    std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _setLayout0, _gltfModel->vulkanDescriptorSetLayout() };
 
-   VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::vulkanInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
+   VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::VulkanInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
 
    VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout));
 }
@@ -202,11 +202,11 @@ void Tutorial::setupDescriptorSetLayout(void)
 
 void Tutorial::updateDescriptorSet(void)
 {
-   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vulkanInitializers::descriptorSetAllocateInfo(descriptorPool, &_setLayout0, 1);
+   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::VulkanInitializers::descriptorSetAllocateInfo(descriptorPool, &_setLayout0, 1);
    vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &_descriptorSet0);
 
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-   genesis::vulkanInitializers::writeDescriptorSet(_descriptorSet0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,0,&_sceneUbo->descriptor())
+   genesis::VulkanInitializers::writeDescriptorSet(_descriptorSet0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,0,&_sceneUbo->descriptor())
    };
 
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
@@ -217,33 +217,33 @@ void Tutorial::preparePipelines()
 {
    // bindings
    std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions 
-      = { genesis::vulkanInitializers::vertexInputBindingDescription(0, sizeof(genesis::Vertex), VK_VERTEX_INPUT_RATE_VERTEX) };
+      = { genesis::VulkanInitializers::vertexInputBindingDescription(0, sizeof(genesis::Vertex), VK_VERTEX_INPUT_RATE_VERTEX) };
    
    // input descriptions
    std::vector<VkVertexInputAttributeDescription> vertexInputAttributeDescriptions = {
-        genesis::vulkanInitializers::vertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, position))
-      , genesis::vulkanInitializers::vertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, normal))
-      , genesis::vulkanInitializers::vertexInputAttributeDescription(0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(genesis::Vertex, uv))
-      , genesis::vulkanInitializers::vertexInputAttributeDescription(0, 3, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, color))
+        genesis::VulkanInitializers::vertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, position))
+      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, normal))
+      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(genesis::Vertex, uv))
+      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, 3, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, color))
    };
 
    // input state
    VkPipelineVertexInputStateCreateInfo vertexInputState 
-      = genesis::vulkanInitializers::pipelineVertexInputStateCreateInfo(vertexInputBindingDescriptions, vertexInputAttributeDescriptions);
+      = genesis::VulkanInitializers::pipelineVertexInputStateCreateInfo(vertexInputBindingDescriptions, vertexInputAttributeDescriptions);
 
    // input assembly
    VkPipelineInputAssemblyStateCreateInfo inputAssemblyState 
-      = genesis::vulkanInitializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+      = genesis::VulkanInitializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
          , 0
          , VK_FALSE);
 
    // viewport state
    VkPipelineViewportStateCreateInfo viewportState =
-      genesis::vulkanInitializers::pipelineViewportStateCreateInfo(1, 1, 0);
+      genesis::VulkanInitializers::pipelineViewportStateCreateInfo(1, 1, 0);
 
    // rasterization state
    VkPipelineRasterizationStateCreateInfo rasterizationState =
-      genesis::vulkanInitializers::pipelineRasterizationStateCreateInfo(
+      genesis::VulkanInitializers::pipelineRasterizationStateCreateInfo(
          VK_POLYGON_MODE_FILL,
          VK_CULL_MODE_NONE,
          VK_FRONT_FACE_COUNTER_CLOCKWISE,
@@ -251,25 +251,25 @@ void Tutorial::preparePipelines()
 
    // multisample state
    VkPipelineMultisampleStateCreateInfo multisampleState =
-      genesis::vulkanInitializers::pipelineMultisampleStateCreateInfo(
+      genesis::VulkanInitializers::pipelineMultisampleStateCreateInfo(
          VK_SAMPLE_COUNT_1_BIT,
          0);
 
    // depth stencil
    VkPipelineDepthStencilStateCreateInfo depthStencilState =
-      genesis::vulkanInitializers::pipelineDepthStencilStateCreateInfo(
+      genesis::VulkanInitializers::pipelineDepthStencilStateCreateInfo(
          VK_TRUE,
          VK_TRUE,
          VK_COMPARE_OP_LESS_OR_EQUAL);
 
    // blend attachment
    VkPipelineColorBlendAttachmentState blendAttachmentState =
-      genesis::vulkanInitializers::pipelineColorBlendAttachmentState(
+      genesis::VulkanInitializers::pipelineColorBlendAttachmentState(
          0xf,
          VK_FALSE);
 
    VkPipelineColorBlendStateCreateInfo colorBlendState =
-      genesis::vulkanInitializers::pipelineColorBlendStateCreateInfo(
+      genesis::VulkanInitializers::pipelineColorBlendStateCreateInfo(
          1,
          &blendAttachmentState);
 
@@ -279,7 +279,7 @@ void Tutorial::preparePipelines()
    VK_DYNAMIC_STATE_SCISSOR
    };
    VkPipelineDynamicStateCreateInfo dynamicState =
-      genesis::vulkanInitializers::pipelineDynamicStateCreateInfo(
+      genesis::VulkanInitializers::pipelineDynamicStateCreateInfo(
          dynamicStateEnables.data(),
          static_cast<uint32_t>(dynamicStateEnables.size()),
          0);
@@ -302,7 +302,7 @@ void Tutorial::preparePipelines()
       }
       _shaders.push_back(shader);
    }
-   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::vulkanInitializers::graphicsPipelineCreateInfo(_pipelineLayout, renderPass);
+   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::VulkanInitializers::graphicsPipelineCreateInfo(_pipelineLayout, renderPass);
 
    graphicsPipelineCreateInfo.stageCount = static_cast<uint32_t>(shaderStageInfos.size());
    graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();

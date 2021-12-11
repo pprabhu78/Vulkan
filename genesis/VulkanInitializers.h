@@ -6,7 +6,7 @@
 
 namespace genesis
 {
-   namespace vulkanInitializers
+   namespace VulkanInitializers
    {
       inline VkMemoryAllocateInfo memoryAllocateInfo()
       {

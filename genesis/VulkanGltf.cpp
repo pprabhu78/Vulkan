@@ -7,8 +7,9 @@
 #include "Buffer.h"
 #include "Device.h"
 #include "VulkanInitializers.h"
-#include "VulkanTools.h"
+#include "VulkanDebug.h"
 #include "VulkanFunctions.h"
+#include "VulkanInitializers.h"
 #include "AccelerationStructure.h"
 
 #include <iostream>
@@ -678,19 +679,19 @@ namespace genesis
       uint32_t maxSets = 0;
       if (_indirect)
       {
-         poolSizes.push_back(genesis::vulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3));
-         poolSizes.push_back(genesis::vulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (uint32_t)_textures.size()));
+         poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3));
+         poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (uint32_t)_textures.size()));
 
          maxSets = 1;
       }
       else
       {
-         poolSizes.push_back(genesis::vulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (uint32_t)_textures.size()));
+         poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (uint32_t)_textures.size()));
 
          maxSets = (uint32_t)_textures.size();
       }
 
-      VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vulkanInitializers::descriptorPoolCreateInfo(poolSizes, maxSets);
+      VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::VulkanInitializers::descriptorPoolCreateInfo(poolSizes, maxSets);
       VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &_descriptorPool));
    }
 
@@ -703,12 +704,12 @@ namespace genesis
 
       if (_indirect)
       {
-         setBindings.push_back(genesis::vulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
-         setBindings.push_back(genesis::vulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
-         setBindings.push_back(genesis::vulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
-         setBindings.push_back(genesis::vulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, static_cast<uint32_t>(_textures.size())));
+         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
+         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
+         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
+         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, static_cast<uint32_t>(_textures.size())));
 
-         descriptorSetLayoutCreateInfo = genesis::vulkanInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
+         descriptorSetLayoutCreateInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
 
          // additional flags to specify the last variable binding point
          VkDescriptorSetLayoutBindingFlagsCreateInfo setLayoutBindingFlags{};
@@ -719,13 +720,13 @@ namespace genesis
 
          descriptorSetLayoutCreateInfo.pNext = &setLayoutBindingFlags;
 
-         descriptorSetLayoutCreateInfo = genesis::vulkanInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
+         descriptorSetLayoutCreateInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
 
       }
       else
       {
-         setBindings.push_back(genesis::vulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++));
-         descriptorSetLayoutCreateInfo = genesis::vulkanInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
+         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++));
+         descriptorSetLayoutCreateInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
       }
 
       VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &descriptorSetLayoutCreateInfo, nullptr, &_descriptorSetLayout));
@@ -741,7 +742,7 @@ namespace genesis
          variableDescriptorCountAllocInfo.descriptorSetCount = 1;
          variableDescriptorCountAllocInfo.pDescriptorCounts = variableDescCounts;
 
-         VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vulkanInitializers::descriptorSetAllocateInfo(_descriptorPool, &_descriptorSetLayout, 1);
+         VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::VulkanInitializers::descriptorSetAllocateInfo(_descriptorPool, &_descriptorSetLayout, 1);
          descriptorSetAllocateInfo.pNext = &variableDescriptorCountAllocInfo;
 
          VkDescriptorSet descriptorSet;
@@ -759,9 +760,9 @@ namespace genesis
          std::array<VkWriteDescriptorSet, numBindings> writeDescriptorSet = {};
 
          int bindingIndex = -1;
-         writeDescriptorSet[0] = vulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ++bindingIndex, &_materialsGpu->descriptor());
-         writeDescriptorSet[1] = vulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ++bindingIndex, &_materialIndicesGpu->descriptor());
-         writeDescriptorSet[2] = vulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ++bindingIndex, &_indexIndicesGpu->descriptor());
+         writeDescriptorSet[0] = VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ++bindingIndex, &_materialsGpu->descriptor());
+         writeDescriptorSet[1] = VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ++bindingIndex, &_materialIndicesGpu->descriptor());
+         writeDescriptorSet[2] = VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ++bindingIndex, &_indexIndicesGpu->descriptor());
 
          writeDescriptorSet[3] = {};
          writeDescriptorSet[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -781,7 +782,7 @@ namespace genesis
       {
          for (int i = 0; i < _textures.size(); ++i)
          {
-            const VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vulkanInitializers::descriptorSetAllocateInfo(_descriptorPool, &_descriptorSetLayout, 1);
+            const VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::VulkanInitializers::descriptorSetAllocateInfo(_descriptorPool, &_descriptorSetLayout, 1);
 
             // allocate a set
             VkDescriptorSet descriptorSet;
@@ -789,7 +790,7 @@ namespace genesis
 
             std::vector<VkWriteDescriptorSet> writeDescriptorSets =
             {
-            genesis::vulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &_textures[i]->descriptor())
+            genesis::VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &_textures[i]->descriptor())
             };
 
             vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
@@ -821,7 +822,7 @@ namespace genesis
       triangles.indexType = VK_INDEX_TYPE_UINT32;
       triangles.indexData = indexBufferDeviceAddress;
 
-      VkAccelerationStructureGeometryKHR accelerationStructureGeometry = vks::initializers::accelerationStructureGeometryKHR();
+      VkAccelerationStructureGeometryKHR accelerationStructureGeometry = VulkanInitializers::accelerationStructureGeometryKHR();
       accelerationStructureGeometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
       accelerationStructureGeometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
       accelerationStructureGeometry.geometry.triangles = triangles;
@@ -867,13 +868,13 @@ namespace genesis
       }
 
       // Get size info
-      VkAccelerationStructureBuildGeometryInfoKHR accelerationStructureBuildGeometryInfo = vks::initializers::accelerationStructureBuildGeometryInfoKHR();
+      VkAccelerationStructureBuildGeometryInfoKHR accelerationStructureBuildGeometryInfo = VulkanInitializers::accelerationStructureBuildGeometryInfoKHR();
       accelerationStructureBuildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
       accelerationStructureBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
       accelerationStructureBuildGeometryInfo.geometryCount = (uint32_t)vecAccelerationStructureGeometries.size();
       accelerationStructureBuildGeometryInfo.pGeometries = vecAccelerationStructureGeometries.data();
 
-      VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo = vks::initializers::accelerationStructureBuildSizesInfoKHR();
+      VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo = VulkanInitializers::accelerationStructureBuildSizesInfoKHR();
       vkGetAccelerationStructureBuildSizesKHR(
          _device->vulkanDevice(),
          VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
@@ -888,7 +889,7 @@ namespace genesis
 
       Buffer* scratchBuffer = new Buffer(_device, BT_SBO, (int)accelerationStructureBuildSizesInfo.buildScratchSize, false, props);
 
-      VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo = vks::initializers::accelerationStructureBuildGeometryInfoKHR();
+      VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo = VulkanInitializers::accelerationStructureBuildGeometryInfoKHR();
       accelerationBuildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
       accelerationBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
       accelerationBuildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
