@@ -7,7 +7,6 @@
 
 #include "GenAssert.h"
 
-
 #include <fstream>
 #include <ktx.h>
 #include <ktxvulkan.h>
@@ -28,6 +27,33 @@ namespace genesis
       vkFreeMemory(vulkanDevice, _deviceMemory, nullptr);
    }
 
+   void Image::allocateImageAndMemory(VkImageUsageFlags usage)
+   {
+      VkImageCreateInfo imageCreateInfo = VulkanInitializers::imageCreateInfo();
+      imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+      imageCreateInfo.format = _format;
+      imageCreateInfo.extent = { static_cast<uint32_t>(_width), static_cast<uint32_t>(_height), 1 };
+      imageCreateInfo.mipLevels = _numMipMapLevels;
+      imageCreateInfo.arrayLayers = 1;
+      imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+      imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+      imageCreateInfo.usage = usage;
+      imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+      VK_CHECK_RESULT(vkCreateImage(_device->vulkanDevice(), &imageCreateInfo, nullptr, &_image));
+
+      VkMemoryRequirements memoryRequirements;
+      vkGetImageMemoryRequirements(_device->vulkanDevice(), _image, &memoryRequirements);
+
+      VkMemoryAllocateInfo memoryAllocateInfo = genesis::VulkanInitializers::memoryAllocateInfo();
+      memoryAllocateInfo.allocationSize = memoryRequirements.size;
+      memoryAllocateInfo.memoryTypeIndex = _device->getMemoryTypeIndex(memoryRequirements.memoryTypeBits
+         , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+      VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &_deviceMemory));
+      VK_CHECK_RESULT(vkBindImageMemory(_device->vulkanDevice(), _image, _deviceMemory, 0));
+   }
+
    bool Image::copyFromRawDataIntoImage(void* pSrcData, VkDeviceSize pSrcDataSize, const std::vector<int>& mipMapDataOffsets)
    {
       VulkanBuffer* stagingBuffer = new VulkanBuffer(_device, BT_STAGING, (int)pSrcDataSize);
@@ -36,31 +62,7 @@ namespace genesis
       memcpy(pDstData, pSrcData, pSrcDataSize);
       vkUnmapMemory(_device->vulkanDevice(), stagingBuffer->_deviceMemory);
 
-      VkImageCreateInfo imageCreateInfo = {};
-      imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-
-      imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-      imageCreateInfo.format = _format;
-      imageCreateInfo.extent = { static_cast<uint32_t>(_width), static_cast<uint32_t>(_height), 1 };
-      imageCreateInfo.mipLevels = _numMipMapLevels;
-      imageCreateInfo.arrayLayers = 1;
-      imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-      imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-      imageCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-      imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-      VK_CHECK_RESULT(vkCreateImage(_device->vulkanDevice(), &imageCreateInfo, nullptr, &_image));
-
-      VkMemoryRequirements memoryRequirements;
-      vkGetImageMemoryRequirements(_device->vulkanDevice(), _image, &memoryRequirements);
-
-      VkMemoryAllocateInfo memoryAllocateInfo = {};
-      memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-      memoryAllocateInfo.allocationSize = memoryRequirements.size;
-      memoryAllocateInfo.memoryTypeIndex = _device->getMemoryTypeIndex(memoryRequirements.memoryTypeBits
-         , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-      vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &_deviceMemory);
-      vkBindImageMemory(_device->vulkanDevice(), _image, _deviceMemory, 0);
+      allocateImageAndMemory(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
       std::vector<VkBufferImageCopy> bufferCopyRegions;
 

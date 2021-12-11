@@ -32,6 +32,9 @@ namespace genesis
 
       virtual bool copyFromRawDataIntoImage(void* buffer, VkDeviceSize bufferSize, const std::vector<int>& mipMapDataOffsets);
 
+      //! internal
+      virtual void allocateImageAndMemory(VkImageUsageFlags flags);
+
    protected:
       Device* _device;
 
