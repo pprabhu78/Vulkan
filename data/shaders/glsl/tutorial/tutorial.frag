@@ -3,14 +3,9 @@
 #define INDIRECT 1
 
 #extension GL_EXT_nonuniform_qualifier : require
+#extension GL_GOOGLE_include_directive : enable
 
-
-struct Material
-{
-	vec4 baseColorFactor;
-	vec3 padding;
-    uint baseColorTextureIndex;
-};
+#include "../common/gltfMaterial.h"
 
 #if INDIRECT
 

@@ -71,9 +71,10 @@ function(buildExample EXAMPLE_NAME)
 		file(GLOB fragment-shaders ${SHADER_DIR_GLSL}/*.frag)
 		file(GLOB compute-shaders ${SHADER_DIR_GLSL}/*.comp)
 		file(GLOB raytracing-shaders ${SHADER_DIR_GLSL}/*.rchit ${SHADER_DIR_GLSL}/*.rgen ${SHADER_DIR_GLSL}/*.rmiss)
+		file(GLOB other-shaders ${SHADER_DIR_GLSL}/*.glsl ${SHADER_DIR_GLSL}/*.h)
 		file(GLOB SHADERS ${SHADER_DIR_GLSL}/*.*)
 
-		source_group("Shaders" FILES ${vertex-shaders} ${fragment-shaders} ${compute-shaders} ${raytracing-shaders})
+		source_group("Shaders" FILES ${vertex-shaders} ${fragment-shaders} ${compute-shaders} ${raytracing-shaders} ${other-shaders})
 		add_executable(${EXAMPLE_NAME} WIN32 ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})
 		target_link_libraries(${EXAMPLE_NAME} base ${Vulkan_LIBRARY} ${WINLIBS})
 

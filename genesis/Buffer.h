@@ -6,7 +6,6 @@
 
 namespace genesis
 {
-
    class Device;
 
    enum BufferType

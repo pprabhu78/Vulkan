@@ -34,6 +34,7 @@ namespace genesis
       , _rayTracing(rayTracing)
       , _blas(nullptr)
       , _tlas(nullptr)
+      , _lightInstancesGpu(nullptr)
    {
 
    }
@@ -48,6 +49,12 @@ namespace genesis
       {
          delete image;
       }
+
+      for (Light* light : _lights)
+      {
+         delete light;
+      }
+      delete _lightInstancesGpu;
 
       delete _vertexBufferGpu;
       delete _indexBufferGpu;
@@ -149,6 +156,9 @@ namespace genesis
          {
             _materials[index].baseColorFactor = glm::make_vec4(baseColorFactorIter->second.ColorFactor().data());
          }
+
+         _materials[index].emissiveFactor = Vector4_32(glTfMaterial.emissiveFactor[0], glTfMaterial.emissiveFactor[1], glTfMaterial.emissiveFactor[2], 1);
+
          // Get base color texture index
          auto baseColorTextureIter = glTfMaterial.values.find("baseColorTexture");
          if (baseColorTextureIter != glTfMaterial.values.end())
@@ -162,6 +172,45 @@ namespace genesis
          }
          ++index;
       }
+   }
+
+   void VulkanGltfModel::loadLights(tinygltf::Model& gltfModel)
+   {
+      for (const auto& gltfLight : gltfModel.lights)
+      {
+         Light* light = new Light();
+         if (gltfLight.color.size() == 3)
+         {
+            light->_color = Vector3_32(gltfLight.color[0], gltfLight.color[1], gltfLight.color[2]);
+            if (gltfLight.type == "spot")
+            {
+               light->_lightType = SPOT;
+            }
+            else if (gltfLight.type == "directional")
+            {
+               light->_lightType = DIRECTIONAL;
+            }
+            else
+            {
+               light->_lightType = POINT;
+            }
+            light->_intensity = (float)gltfLight.intensity;
+            _lights.push_back(light);
+         }
+      }
+   }
+
+   void VulkanGltfModel::buildLightInstancesBuffer(void)
+   {
+      if (_lightInstances.size() == 0)
+      {
+         return;
+      }
+      const int sizeInBytesLightInstances = (int)(_materials.size() * sizeof(LightInstance));
+      _lightInstancesGpu = new Buffer(_device, BT_SBO, sizeInBytesLightInstances, true, BufferProperties(), "LightInstancesGpu");
+      void* pDstMaterials = _lightInstancesGpu->stagingBuffer();
+      memcpy(pDstMaterials, _lightInstances.data(), sizeInBytesLightInstances);
+      _lightInstancesGpu->syncToGpu(true);
    }
 
    void VulkanGltfModel::loadMesh(Node* node, const tinygltf::Mesh& srcMesh, tinygltf::Model& gltfModel)
@@ -291,6 +340,26 @@ namespace genesis
          for (size_t i = 0; i < inputNode.children.size(); i++)
          {
             loadNode(gltfModel.nodes[inputNode.children[i]], gltfModel, node);
+         }
+      }
+
+      auto lightIter = inputNode.extensions.find("KHR_lights_punctual");
+      if (lightIter != inputNode.extensions.end())
+      {
+         auto lightlightIter = lightIter->second;
+         int lightIndex = (int)lightlightIter.Get("light").GetNumberAsInt();
+
+         if (lightIndex < _lights.size())
+         {
+            const Light* light = _lights[lightIndex];
+
+            LightInstance lightInstance;
+            lightInstance._light = *light;
+
+            if (inputNode.translation.size() == 3) {
+               lightInstance._position = Vector3_32(inputNode.translation[0], inputNode.translation[1], inputNode.translation[2]);
+            }
+            _lightInstances.push_back(lightInstance);
          }
       }
 
@@ -543,8 +612,11 @@ namespace genesis
 
       loadTextures(glTfModel);
       loadMaterials(glTfModel);
+      loadLights(glTfModel);
       loadScenes(glTfModel);
 
+      buildLightInstancesBuffer();
+      
       bakeAttributes(glTfModel, fileLoadingFlags);
 
       BufferProperties props;

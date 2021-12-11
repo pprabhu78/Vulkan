@@ -26,6 +26,7 @@ namespace genesis
    {
    public:
       Vector4_32 baseColorFactor = Vector4_32(1.0f);
+      Vector4_32 emissiveFactor = Vector4_32(0.0f);
       Vector3_32 padding = { 0,0,0 };
       std::uint32_t baseColorTextureIndex = 0;
    };
@@ -70,6 +71,27 @@ namespace genesis
       glm::vec3 _scale{ 1.0f };
    };
 
+   enum LightType
+   {
+        POINT = 0
+      , SPOT
+      , DIRECTIONAL
+   };
+
+   struct Light
+   {
+   public:
+      LightType _lightType;
+      Vector3_32 _color;
+      float _intensity;
+   };
+
+   struct LightInstance
+   {
+      Light _light;
+      Vector3_32 _position;
+   };
+
    class VulkanGltfModel
    {
    public:
@@ -108,6 +130,7 @@ namespace genesis
       virtual void loadScenes(tinygltf::Model& gltfModel);
       virtual void loadNode(const tinygltf::Node& inputNode, tinygltf::Model& gltfModel, Node* parent);
       virtual void loadMesh(Node* node, const tinygltf::Mesh& srcMesh, tinygltf::Model& gltfModel);
+      virtual void loadLights(tinygltf::Model& gltfModel);
 
       virtual void setupDescriptorPool(void);
       virtual void setupDescriptorSetLayout(void);
@@ -122,6 +145,7 @@ namespace genesis
 
       virtual void buildIndirectBuffer(void);
 
+      virtual void buildLightInstancesBuffer(void);
    protected:
       Device* _device;
 
@@ -166,6 +190,15 @@ namespace genesis
 
       //! Gpu side material buffer (materials found in the gltf)
       Buffer* _materialsGpu;
+      
+      // original lights
+      std::vector<Light*> _lights;
+
+      // instance light (has transformation)
+      std::vector<LightInstance> _lightInstances;
+
+      // same as above, but on the gpu
+      Buffer* _lightInstancesGpu;
 
       const bool _indirect;
 

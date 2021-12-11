@@ -1,18 +1,12 @@
 #version 460
 #extension GL_EXT_ray_tracing : enable
+#extension GL_GOOGLE_include_directive : enable
+#extension GL_ARB_shader_clock : enable
 
-layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
-layout(set = 0, binding = 1, rgba8) uniform image2D image;
-layout(set = 0, binding = 2) uniform UBO 
-{
-	mat4 viewMatrix;
-	mat4 viewInverse;
-	mat4 projInverse;
-	int vertexSizeInBytes;
-} sceneUbo;
+#include "sampling.glsl"
+#include "rayTracingInputOutput.h"
 
-
-layout(location = 0) rayPayloadEXT vec3 hitValue;
+layout(location = 0) rayPayloadEXT HitPayload payLoad;
 
 void main() 
 {
@@ -20,16 +14,66 @@ void main()
 	const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeEXT.xy);
 	vec2 d = inUV * 2.0 - 1.0;
 
-	vec4 origin = sceneUbo.viewInverse * vec4(0,0,0,1);
+	vec4 rayOrigin = sceneUbo.viewInverse * vec4(0,0,0,1);
 	vec4 target = sceneUbo.projInverse * vec4(d.x, d.y, 1, 1) ;
-	vec4 direction = sceneUbo.viewInverse*vec4(normalize(target.xyz), 0) ;
+	vec4 rayDirection = sceneUbo.viewInverse*vec4(normalize(target.xyz), 0) ;
 
 	float tmin = 0.001;
 	float tmax = 10000.0;
 
-    hitValue = vec3(0.0);
+	
 
-    traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, origin.xyz, tmin, direction.xyz, tmax, 0);
+#if PATH_TRACER
+	uint seed = tea(gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.x, int(clockARB()));
 
-	imageStore(image, ivec2(gl_LaunchIDEXT.xy), vec4(hitValue, 0.0));
+	payLoad.hitValue = vec3(0.0);
+	payLoad.seed = seed;
+	payLoad.rayOrigin = rayOrigin.xyz;
+	payLoad.rayDirection = rayDirection.xyz;
+	payLoad.depth = 0;
+	payLoad.weight = vec3(0.0);
+
+	vec3 curWeight = vec3(1);
+	vec3 hitValue  = vec3(0);
+
+	for(; payLoad.depth < 10; payLoad.depth++)
+	{
+		traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, payLoad.rayOrigin, tmin, payLoad.rayDirection, tmax, 0);
+
+		hitValue += payLoad.hitValue * curWeight;
+		curWeight *= payLoad.weight;
+	}
+
+	vec4 valueToWrite = vec4(0,0,0,0);
+	// do all computations at 32 bit resolution
+	if (pushConstants.frameIndex > 0)
+	{
+	    float a         = 1.0f / float(pushConstants.frameIndex + 1);
+		vec3  oldColor = imageLoad(intermediateImage, ivec2(gl_LaunchIDEXT.xy)).xyz;
+
+		valueToWrite = vec4(mix(oldColor, hitValue, a), 1.f);
+		imageStore(intermediateImage, ivec2(gl_LaunchIDEXT.xy),valueToWrite );
+	}
+	else
+	{
+		valueToWrite = vec4(hitValue, 0.0);
+		imageStore(intermediateImage, ivec2(gl_LaunchIDEXT.xy), valueToWrite);
+	}
+
+	// write the final value to the 8 bit resolution after tonemapping, etc
+	float one_by_gamma = 1.0/2.2f;
+	valueToWrite = pow(valueToWrite, vec4(one_by_gamma));
+	imageStore(finalImage, ivec2(gl_LaunchIDEXT.xy), valueToWrite);
+#else
+
+	payLoad.hitValue = vec3(0.0);
+	payLoad.seed = 0;
+	payLoad.rayOrigin = rayOrigin.xyz;
+	payLoad.rayDirection = rayDirection.xyz;
+	payLoad.depth = 0;
+	payLoad.weight = vec3(0.0);
+
+	traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, payLoad.rayOrigin, tmin, payLoad.rayDirection, tmax, 0);
+	imageStore(finalImage, ivec2(gl_LaunchIDEXT.xy), vec4(payLoad.hitValue, 0.0));
+#endif
 }

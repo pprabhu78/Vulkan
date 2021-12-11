@@ -2,52 +2,13 @@
 #extension GL_EXT_ray_tracing : enable
 #extension GL_EXT_nonuniform_qualifier : enable
 
-layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
-layout(set = 0, binding = 2) uniform UBO 
-{
-	mat4 viewMatrix;
-	mat4 viewInverse;
-	mat4 projInverse;
-	int vertexSizeInBytes;
-} sceneUbo;
+#extension GL_GOOGLE_include_directive : enable
 
-layout(set = 0, binding = 3) buffer Vertices { vec4 v[]; } vertices;
-layout(set = 0, binding = 4) buffer Indices { uint i[]; } indices;
+#include "sampling.glsl"
+#include "rayTracingInputOutput.h"
 
-struct Material
-{
-	vec4 baseColorFactor;
-	vec3 padding;
-    uint baseColorTextureIndex;
-};
-
-
-layout (set = 1, binding = 0, std430) readonly buffer materialBuffer
-{
-	Material _materialBuffer[];
-};
-
-layout (set = 1, binding = 1, std430) readonly buffer materialIndices
-{
-	uint _materialIndices[];
-};
-layout (set = 1, binding = 2, std430) readonly buffer indexIndices
-{
-	uint _indexIndices[];
-};
-
-layout (set = 1, binding = 3) uniform sampler2D samplers[];
-
-layout(location = 0) rayPayloadInEXT vec3 hitValue;
+layout(location = 0) rayPayloadInEXT HitPayload payLoad;
 hitAttributeEXT vec2 attribs;
-
-struct Vertex
-{
-  vec3 pos;
-  vec3 normal;
-  vec2 uv;
-  vec4 color;
-};
 
 Vertex unpack(uint index, int vertexSizeInBytes)
 {
@@ -83,16 +44,43 @@ void main()
 	const vec3 normal = normalize(v0.normal * barycentricCoords.x + v1.normal * barycentricCoords.y + v2.normal * barycentricCoords.z);
 	const vec3 position = v0.pos * barycentricCoords.x + v1.pos * barycentricCoords.y + v2.pos * barycentricCoords.z;
 	const vec2 uv = v0.uv * barycentricCoords.x + v1.uv * barycentricCoords.y + v2.uv * barycentricCoords.z;
-	const vec4 color = v0.color.x * barycentricCoords.x + v1.color * barycentricCoords.y + v2.color * barycentricCoords.z;
+	const vec4 vertexColor = v0.color * barycentricCoords.x + v1.color * barycentricCoords.y + v2.color * barycentricCoords.z;
 
+	const Material material = _materialBuffer[_materialIndices[gl_GeometryIndexEXT]];
+
+#if PATH_TRACER
+	// pick a random position around this tbn
+	const vec3 worldPosition = vec3(gl_ObjectToWorldEXT * vec4(position, 1.0));
+	const vec3 worldNormal = normalize(vec3(normal * gl_WorldToObjectEXT));
+
+	vec3 worldTangent, worldBiNormal;
+	createCoordinateSystem(worldNormal, worldTangent, worldBiNormal);
+	
+	vec3 rayOrigin = worldPosition;
+	vec3 rayDirection = samplingHemisphere(payLoad.seed, worldTangent, worldBiNormal, worldNormal);
+
+	uint samplerIndex = material.baseColorTextureIndex;
+	vec3 decal = texture(samplers[samplerIndex], uv).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
+
+	payLoad.rayOrigin = rayOrigin;
+	payLoad.rayDirection = rayDirection;
+	payLoad.hitValue = material.emissiveFactor.xyz;
+
+	const float p = 1;
+	float cosTheta = dot(rayDirection, worldNormal);
+	payLoad.weight = decal * cosTheta;
+#else
 	vec3 normalViewSpace = (transpose(inverse(sceneUbo.viewMatrix))*vec4(normal.x,normal.y, normal.z, 1)).xyz;
 	vec3 vertexViewSpace = (sceneUbo.viewMatrix * vec4(position, 1.0)).xyz;
 
 	uint samplerIndex = _materialBuffer[_materialIndices[gl_GeometryIndexEXT]].baseColorTextureIndex;
 
-	vec3 decal = texture(samplers[samplerIndex], uv).rgb*color.rgb;
+	// the base color is decreasing the lighting to a very low value.
+	// therefore, exclude it for now
+	vec3 decal = texture(samplers[samplerIndex], uv).rgb /** material.baseColorFactor.xyz*/ * vertexColor.rgb;
 
 	vec3 lit = vec3(dot(normalize(normalViewSpace), normalize(-vertexViewSpace)));
 
-	hitValue = decal*lit;
+	payLoad.hitValue = decal*lit;
+#endif
 }
