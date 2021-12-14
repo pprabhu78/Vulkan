@@ -9,10 +9,12 @@ namespace genesis
    class Device
    {
    public:
-      Device(VkDevice _logicalDevice, VkQueue _graphicsQueue, VkCommandPool _commandPool, VkPhysicalDeviceMemoryProperties _physicalDeviceMemoryProperties);
+      Device(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkQueue graphicsQueue, VkCommandPool commandPool);
       virtual ~Device();
 
       VkDevice vulkanDevice() const;
+
+      VkPhysicalDevice physicalDevice() const;
 
       virtual VkCommandBuffer getCommandBuffer(bool begin);
       virtual void flushCommandBuffer(VkCommandBuffer commandBuffer);
@@ -20,9 +22,20 @@ namespace genesis
       virtual uint32_t getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
 
    public:
-      VkDevice logicalDevice;
-      VkCommandPool commandPool;
-      VkQueue queue;
-      VkPhysicalDeviceMemoryProperties physicalDeviceMemoryProperties;
+      const VkPhysicalDevice _physicalDevice;
+
+      VkDevice _logicalDevice;
+
+      VkCommandPool _commandPool;
+      VkQueue _queue;
+
+      // Stores physical device properties (for e.g. checking device limits)
+      VkPhysicalDeviceProperties _physicalDeviceProperties;
+
+      // Stores the features available on the selected physical device (for e.g. checking if a feature is available)
+      VkPhysicalDeviceFeatures _physicalDeviceFeatures;
+
+      // Stores all available memory (type) properties for the physical device
+      VkPhysicalDeviceMemoryProperties _physicalDeviceMemoryProperties;
    };
 }

@@ -74,7 +74,7 @@ void Tutorial::setupRenderPass()
    VulkanExampleBase::setupRenderPass();
    if (!_device)
    {
-      _device = new genesis::Device(VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool, VulkanExampleBase::deviceMemoryProperties);
+      _device = new genesis::Device(VulkanExampleBase::physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
    }
 }
 

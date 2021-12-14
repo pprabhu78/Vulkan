@@ -27,7 +27,9 @@ namespace genesis
       vkFreeMemory(vulkanDevice, _deviceMemory, nullptr);
    }
 
-   void Image::allocateImageAndMemory(VkImageUsageFlags usage)
+   void Image::allocateImageAndMemory(VkImageUsageFlags usageFlags
+      , VkMemoryPropertyFlags memoryPropertyFlags
+      , VkImageTiling imageTiling)
    {
       VkImageCreateInfo imageCreateInfo = VulkanInitializers::imageCreateInfo();
       imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -36,8 +38,8 @@ namespace genesis
       imageCreateInfo.mipLevels = _numMipMapLevels;
       imageCreateInfo.arrayLayers = 1;
       imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-      imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-      imageCreateInfo.usage = usage;
+      imageCreateInfo.tiling = imageTiling;
+      imageCreateInfo.usage = usageFlags;
       imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
       VK_CHECK_RESULT(vkCreateImage(_device->vulkanDevice(), &imageCreateInfo, nullptr, &_image));
@@ -48,7 +50,7 @@ namespace genesis
       VkMemoryAllocateInfo memoryAllocateInfo = genesis::VulkanInitializers::memoryAllocateInfo();
       memoryAllocateInfo.allocationSize = memoryRequirements.size;
       memoryAllocateInfo.memoryTypeIndex = _device->getMemoryTypeIndex(memoryRequirements.memoryTypeBits
-         , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+         , memoryPropertyFlags);
 
       VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &_deviceMemory));
       VK_CHECK_RESULT(vkBindImageMemory(_device->vulkanDevice(), _image, _deviceMemory, 0));
@@ -62,7 +64,9 @@ namespace genesis
       memcpy(pDstData, pSrcData, pSrcDataSize);
       vkUnmapMemory(_device->vulkanDevice(), stagingBuffer->_deviceMemory);
 
-      allocateImageAndMemory(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+      allocateImageAndMemory(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+         , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT // on the gpu
+         , VK_IMAGE_TILING_OPTIMAL);
 
       std::vector<VkBufferImageCopy> bufferCopyRegions;
 
@@ -220,6 +224,11 @@ namespace genesis
    const Device* Image::device(void) const
    {
       return _device;
+   }
+
+   VkDeviceMemory Image::vulkanDeviceMemory(void) const
+   {
+      return _deviceMemory;
    }
 }
 

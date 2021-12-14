@@ -17,6 +17,7 @@
 #include "Buffer.h"
 #include "StorageImage.h"
 #include "ImageTransitions.h"
+#include "ScreenShotUtility.h"
 #include "VulkanInitializers.h"
 
 #define VENUS 0
@@ -189,9 +190,20 @@ Set up a storage image that the ray generation shader will be writing to
 void TutorialRayTracing::createStorageImages()
 {
    // intermediate image does computations in full floating point
-   _intermediateImage   = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, width, height);
+   _intermediateImage   = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, width, height
+      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
+
    // final image is used for presentation. So, its the same format as the swap chain
-   _finalImageToPresent = new genesis::StorageImage(_device, swapChain.colorFormat, width, height);
+   _finalImageToPresent = new genesis::StorageImage(_device, swapChain.colorFormat, width, height
+      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
+
+   genesis::ImageTransitions transitions;
+   VkCommandBuffer commandBuffer = _device->getCommandBuffer(true);
+
+   transitions.setImageLayout(commandBuffer, _intermediateImage->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+   transitions.setImageLayout(commandBuffer, _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
+   _device->flushCommandBuffer(commandBuffer);
 }
 
 /*
@@ -201,7 +213,7 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
 {
    if (!_device)
    {
-      _device = new genesis::Device(VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool, VulkanExampleBase::deviceMemoryProperties);
+      _device = new genesis::Device(VulkanExampleBase::physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
       genesis::VulkanFunctionsInitializer::initialize(_device);
    }
    _gltfModel = new genesis::VulkanGltfModel(_device, true, true);
@@ -577,9 +589,20 @@ void TutorialRayTracing::windowResized()
    _pushConstants.frameIndex = -1;
 }
 
+void TutorialRayTracing::saveScreenShot(void)
+{
+   genesis::ScreenShotUtility screenShotUtility(_device);
+   screenShotUtility.takeScreenShot("test.ppm"
+      , swapChain.images[currentBuffer], swapChain.colorFormat
+      , width, height);
+}
+
 void TutorialRayTracing::keyPressed(uint32_t key)
 {
-
+   if (key == KEY_F5)
+   {
+      saveScreenShot();
+   }
 }
 
 /*

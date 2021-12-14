@@ -60,6 +60,7 @@ public:
    virtual void prepare();
    virtual void draw();
    virtual void render();
+   virtual void saveScreenShot(void);
 public:
    VkPhysicalDeviceRayTracingPipelinePropertiesKHR  _rayTracingPipelineProperties{};
    VkPhysicalDeviceAccelerationStructureFeaturesKHR _accelerationStructureFeatures{};

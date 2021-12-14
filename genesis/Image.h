@@ -14,6 +14,7 @@ namespace genesis
    public:
       Image(Device* device);
       virtual ~Image();
+
    public:
       virtual bool loadFromFile(const std::string& fileName);
 
@@ -27,24 +28,28 @@ namespace genesis
 
       virtual VkFormat vulkanFormat(void) const;
       virtual VkImage vulkanImage(void) const;
+      virtual VkDeviceMemory vulkanDeviceMemory(void) const;
    protected:
       virtual bool copyFromFileIntoImage(const std::string& fileName);
 
       virtual bool copyFromRawDataIntoImage(void* buffer, VkDeviceSize bufferSize, const std::vector<int>& mipMapDataOffsets);
 
       //! internal
-      virtual void allocateImageAndMemory(VkImageUsageFlags flags);
+      virtual void allocateImageAndMemory(VkImageUsageFlags usageFlags
+         , VkMemoryPropertyFlags memoryPropertyFlags
+         , VkImageTiling imageTiling);
 
    protected:
       Device* _device;
 
-      VkDeviceMemory _deviceMemory;
+      VkFormat _format;
+
       VkImage _image;
+      VkDeviceMemory _deviceMemory;
 
       int _width;
       int _height;
       int _numMipMapLevels;
 
-      VkFormat _format;
    };
 }
