@@ -61,6 +61,7 @@ public:
    virtual void draw();
    virtual void render();
    virtual void saveScreenShot(void);
+   virtual void resetCamera(void);
 public:
    VkPhysicalDeviceRayTracingPipelinePropertiesKHR  _rayTracingPipelineProperties{};
    VkPhysicalDeviceAccelerationStructureFeaturesKHR _accelerationStructureFeatures{};

@@ -20,23 +20,14 @@
 #include "ScreenShotUtility.h"
 #include "VulkanInitializers.h"
 
+#include <chrono>
+
 #define VENUS 0
 #define SPONZA 0
 #define CORNELL 1
 
-TutorialRayTracing::TutorialRayTracing()
-   : _gltfModel(nullptr)
-   , _device(nullptr)
-   , _pushConstants{}
+void TutorialRayTracing::resetCamera()
 {
-   _pushConstants.frameIndex = -1;
-   title = "genesis: path tracer";
-   settings.overlay = false;
-   camera.type = Camera::CameraType::lookat;
-   camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
-   camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
-   camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.5f));
-
 #if VENUS
    camera.type = Camera::CameraType::lookat;
    camera.setPosition(glm::vec3(0.0f, 0.0f, -8.5f));
@@ -58,6 +49,22 @@ TutorialRayTracing::TutorialRayTracing()
    camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
 #endif
+}
+
+TutorialRayTracing::TutorialRayTracing()
+   : _gltfModel(nullptr)
+   , _device(nullptr)
+   , _pushConstants{}
+{
+   _pushConstants.frameIndex = -1;
+   title = "genesis: path tracer";
+   settings.overlay = false;
+   camera.type = Camera::CameraType::lookat;
+   camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
+   camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
+   camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.5f));
+
+   resetCamera();
 
    // Require Vulkan 1.2
    apiVersion = VK_API_VERSION_1_2;
@@ -591,8 +598,29 @@ void TutorialRayTracing::windowResized()
 
 void TutorialRayTracing::saveScreenShot(void)
 {
+   using namespace std;
+   using namespace std::chrono;
+
+   time_t tt = system_clock::to_time_t(system_clock::now());
+   tm utc_tm = *gmtime(&tt);
+   tm local_tm = *localtime(&tt);
+
+   std::stringstream ss;
+   ss<< local_tm.tm_year + 1900 << '-';
+   ss<< local_tm.tm_mon + 1 << '-';
+   ss<< local_tm.tm_mday << '_';
+   ss << local_tm.tm_hour;
+   ss << local_tm.tm_min;
+   if (local_tm.tm_sec < 10)
+   {
+      ss << "0";
+   }
+   ss << local_tm.tm_sec;
+
+   std::string fileName = ss.str();
+   
    genesis::ScreenShotUtility screenShotUtility(_device);
-   screenShotUtility.takeScreenShot("test.ppm"
+   screenShotUtility.takeScreenShot("..\\screenshots\\" + fileName + ".png"
       , swapChain.images[currentBuffer], swapChain.colorFormat
       , width, height);
 }
@@ -602,6 +630,10 @@ void TutorialRayTracing::keyPressed(uint32_t key)
    if (key == KEY_F5)
    {
       saveScreenShot();
+   }
+   if (key == KEY_SPACE)
+   {
+      resetCamera();
    }
 }
 

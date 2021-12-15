@@ -3,6 +3,9 @@
 #include "StorageImage.h"
 #include "Device.h"
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
+
 #include <iostream>
 #include <fstream>
 
@@ -117,11 +120,6 @@ namespace genesis
       vkMapMemory(_device->vulkanDevice(), destinationStorageImage->vulkanDeviceMemory(), 0, VK_WHOLE_SIZE, 0, (void**)&data);
       data += subResourceLayout.offset;
 
-      std::ofstream file(fileName.c_str(), std::ios::out | std::ios::binary);
-
-      // ppm header
-      file << "P6\n" << swapChainWidth << "\n" << swapChainHeight << "\n" << 255 << "\n";
-
       // If source is BGR (destination is always RGB) and we can't use blit (which does automatic conversion), we'll have to manually swizzle color components
       bool colorSwizzle = false;
       // Check if source is BGR
@@ -132,6 +130,8 @@ namespace genesis
          colorSwizzle = (std::find(formatsBGR.begin(), formatsBGR.end(), swapChainColorFormat) != formatsBGR.end());
       }
 
+      unsigned char* swizzledData = new unsigned char[swapChainWidth * swapChainHeight * 3];
+      unsigned char* dstPtr = swizzledData;
       // ppm binary pixel data
       for (uint32_t y = 0; y < (uint32_t)swapChainHeight; y++)
       {
@@ -140,19 +140,40 @@ namespace genesis
          {
             if (colorSwizzle)
             {
-               file.write((char*)row + 2, 1);
-               file.write((char*)row + 1, 1);
-               file.write((char*)row, 1);
+               dstPtr[0] = *((char*)row + 2);
+               dstPtr[1] = *((char*)row + 1);
+               dstPtr[2] = *((char*)row + 0);
             }
             else
             {
-               file.write((char*)row, 3);
+               dstPtr[0] = *((char*)row + 0);
+               dstPtr[1] = *((char*)row + 1);
+               dstPtr[2] = *((char*)row + 2);
             }
+            dstPtr += 3;
             row++;
          }
          data += subResourceLayout.rowPitch;
       }
-      file.close();
+
+      if (fileName.find(".png") != std::string::npos )
+      {
+         const int numChannels = 3;
+         stbi_write_png(fileName.c_str(), swapChainWidth, swapChainHeight, numChannels, swizzledData, swapChainWidth*numChannels);
+      }
+      else if (fileName.find(".ppm") != std::string::npos)
+      {
+         std::ofstream file(fileName.c_str(), std::ios::out | std::ios::binary);
+
+         // ppm header
+         file << "P6\n" << swapChainWidth << "\n" << swapChainHeight << "\n" << 255 << "\n";
+
+         file.write((char*)swizzledData, swapChainWidth * swapChainHeight * 3);
+
+         file.close();
+      }
+
+      delete[] swizzledData;
 
       delete destinationStorageImage;
    }
