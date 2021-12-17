@@ -41,7 +41,7 @@ void TutorialRayTracing::resetCamera()
    camera.setPosition(glm::vec3(0.0f, 0.0f, -14.5f));
    camera.setRotation(glm::vec3(0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
-   _pushConstants.contributionFromEnvironment = 0.01;
+   _pushConstants.contributionFromEnvironment = 0.01f;
 #endif
 
 #if SPONZA
@@ -61,7 +61,7 @@ TutorialRayTracing::TutorialRayTracing()
 {
    _pushConstants.frameIndex = -1;
    title = "genesis: path tracer";
-   settings.overlay = true;
+   settings.overlay = false;
    camera.type = Camera::CameraType::lookat;
    camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
    camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
@@ -113,8 +113,6 @@ TutorialRayTracing::~TutorialRayTracing()
    delete _gltfModel;
    delete _sceneUbo;
 
-   delete _renderPass;
-   renderPass = 0;
 }
 
 /*
@@ -808,10 +806,7 @@ void TutorialRayTracing::setupRenderPass()
       genesis::VulkanFunctionsInitializer::initialize(_device);
    }
 
-   vkDestroyRenderPass(device, renderPass, nullptr);
-
    _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
-   renderPass = _renderPass->vulkanRenderPass();
 }
 
 void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer)
@@ -821,7 +816,7 @@ void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer 
    clearValues[1].depthStencil = { 1.0f, 0 };
 
    VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
-   renderPassBeginInfo.renderPass = renderPass;
+   renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
    renderPassBeginInfo.renderArea.offset = { 0, 0 };
    renderPassBeginInfo.renderArea.extent = { width, height };
    renderPassBeginInfo.clearValueCount = 2;

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vulkanexamplebase.h"
+#include "../genesis/VulkanExampleBase.h"
 #include "GenMath.h"
 
 namespace genesis
@@ -33,7 +33,7 @@ struct PushConstants
    float pad;
 };
 
-class TutorialRayTracing : public VulkanExampleBase
+class TutorialRayTracing : public genesis::VulkanExampleBase
 {
 public:
    TutorialRayTracing();
@@ -110,6 +110,4 @@ public:
    VkDescriptorSetLayout _rayTracingDescriptorSetLayout;
 
    PushConstants _pushConstants;
-
-   genesis::RenderPass* _renderPass;
 };
