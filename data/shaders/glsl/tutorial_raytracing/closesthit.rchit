@@ -60,7 +60,14 @@ void main()
 	vec3 rayDirection = samplingHemisphere(payLoad.seed, worldTangent, worldBiNormal, worldNormal);
 
 	uint samplerIndex = material.baseColorTextureIndex;
+
+#if 0
 	vec3 decal = texture(samplers[samplerIndex], uv).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
+#else
+	float maxLod = floor(log2(textureSize(samplers[samplerIndex], 0))).x;
+	float lod = pushConstants.textureLodBias * maxLod;
+	vec3 decal = textureLod(samplers[samplerIndex], uv, lod).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
+#endif
 
 	payLoad.rayOrigin = rayOrigin;
 	payLoad.rayDirection = rayDirection;

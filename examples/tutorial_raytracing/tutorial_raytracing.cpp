@@ -17,6 +17,7 @@
 #include "Buffer.h"
 #include "StorageImage.h"
 #include "ImageTransitions.h"
+#include "RenderPass.h"
 #include "ScreenShotUtility.h"
 #include "VulkanInitializers.h"
 
@@ -40,6 +41,7 @@ void TutorialRayTracing::resetCamera()
    camera.setPosition(glm::vec3(0.0f, 0.0f, -14.5f));
    camera.setRotation(glm::vec3(0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+   _pushConstants.contributionFromEnvironment = 0.01;
 #endif
 
 #if SPONZA
@@ -48,6 +50,7 @@ void TutorialRayTracing::resetCamera()
    camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
    camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+   _pushConstants.contributionFromEnvironment = 10;
 #endif
 }
 
@@ -58,7 +61,7 @@ TutorialRayTracing::TutorialRayTracing()
 {
    _pushConstants.frameIndex = -1;
    title = "genesis: path tracer";
-   settings.overlay = false;
+   settings.overlay = true;
    camera.type = Camera::CameraType::lookat;
    camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
    camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
@@ -109,6 +112,9 @@ TutorialRayTracing::~TutorialRayTracing()
    
    delete _gltfModel;
    delete _sceneUbo;
+
+   delete _renderPass;
+   renderPass = 0;
 }
 
 /*
@@ -218,11 +224,7 @@ Create the bottom level acceleration structure contains the scene's actual geome
 */
 void TutorialRayTracing::createBottomLevelAccelerationStructure()
 {
-   if (!_device)
-   {
-      _device = new genesis::Device(VulkanExampleBase::physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
-      genesis::VulkanFunctionsInitializer::initialize(_device);
-   }
+
    _gltfModel = new genesis::VulkanGltfModel(_device, true, true);
 #if SPONZA
    _gltfModel->loadFromFile(getAssetPath() + "models/sponza/sponza.gltf"
@@ -631,9 +633,13 @@ void TutorialRayTracing::keyPressed(uint32_t key)
    {
       saveScreenShot();
    }
-   if (key == KEY_SPACE)
+   else if (key == KEY_SPACE)
    {
       resetCamera();
+   }
+   else if (key == KEY_F4)
+   {
+      settings.overlay = !settings.overlay;
    }
 }
 
@@ -693,6 +699,8 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
 
    // Transition ray tracing output image back to general layout
    transitions.setImageLayout(drawCmdBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
+
+   drawImgui(drawCmdBuffers[commandBufferIndex], frameBuffers[commandBufferIndex]);
 
    VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[commandBufferIndex]));
 }
@@ -780,4 +788,47 @@ void TutorialRayTracing::render()
       _pushConstants.frameIndex = -1;
       updateSceneUbo();
    }
+}
+
+void TutorialRayTracing::OnUpdateUIOverlay(vks::UIOverlay* overlay)
+{
+   if (overlay->header("Settings")) {
+      if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f)) \
+      {
+         _pushConstants.frameIndex = -1;
+      }
+   }
+}
+
+void TutorialRayTracing::setupRenderPass()
+{
+   if (!_device)
+   {
+      _device = new genesis::Device(VulkanExampleBase::physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
+      genesis::VulkanFunctionsInitializer::initialize(_device);
+   }
+
+   vkDestroyRenderPass(device, renderPass, nullptr);
+
+   _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
+   renderPass = _renderPass->vulkanRenderPass();
+}
+
+void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer)
+{
+   VkClearValue clearValues[2];
+   clearValues[0].color = defaultClearColor;
+   clearValues[1].depthStencil = { 1.0f, 0 };
+
+   VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
+   renderPassBeginInfo.renderPass = renderPass;
+   renderPassBeginInfo.renderArea.offset = { 0, 0 };
+   renderPassBeginInfo.renderArea.extent = { width, height };
+   renderPassBeginInfo.clearValueCount = 2;
+   renderPassBeginInfo.pClearValues = clearValues;
+   renderPassBeginInfo.framebuffer = framebuffer;
+
+   vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+   VulkanExampleBase::drawUI(commandBuffer);
+   vkCmdEndRenderPass(commandBuffer);
 }

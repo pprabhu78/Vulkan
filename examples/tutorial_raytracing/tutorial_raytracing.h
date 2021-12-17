@@ -13,6 +13,7 @@ namespace genesis
    class Shader;
    class AccelerationStructure;
    class StorageImage;
+   class RenderPass;
 }
 
 // Holds data for a ray tracing scratch buffer that is used as a temporary storage
@@ -27,7 +28,9 @@ struct PushConstants
 {
    genesis::Vector4_32 clearColor;
    int frameIndex;
-   genesis::Vector3_32 pad;
+   float textureLodBias;
+   float contributionFromEnvironment;
+   float pad;
 };
 
 class TutorialRayTracing : public VulkanExampleBase
@@ -62,6 +65,11 @@ public:
    virtual void render();
    virtual void saveScreenShot(void);
    virtual void resetCamera(void);
+   virtual void OnUpdateUIOverlay(vks::UIOverlay* overlay) override;
+   virtual void setupRenderPass() override;
+
+   virtual void drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer);
+
 public:
    VkPhysicalDeviceRayTracingPipelinePropertiesKHR  _rayTracingPipelineProperties{};
    VkPhysicalDeviceAccelerationStructureFeaturesKHR _accelerationStructureFeatures{};
@@ -102,4 +110,6 @@ public:
    VkDescriptorSetLayout _rayTracingDescriptorSetLayout;
 
    PushConstants _pushConstants;
+
+   genesis::RenderPass* _renderPass;
 };

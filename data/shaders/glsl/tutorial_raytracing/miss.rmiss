@@ -15,7 +15,7 @@ void main()
     }
     else
     {
-        payLoad.hitValue = vec3(0.01);  // No contribution from environment
+        payLoad.hitValue = vec3(pushConstants.contributionFromEnvironment);  // No contribution from environment
     }
     payLoad.depth = 100;              // Ending trace
 #else

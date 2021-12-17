@@ -41,7 +41,9 @@ struct PushConstants
 {
    vec4 clearColor;
    int frameIndex;
-   vec3 pad;
+   float textureLodBias;
+   float contributionFromEnvironment;
+   float pad;
 };
 
 layout(push_constant) uniform _PushConstants { PushConstants pushConstants; };
