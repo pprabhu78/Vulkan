@@ -13,14 +13,6 @@
 namespace genesis
 {
 
-
-#if (defined(VK_USE_PLATFORM_MACOS_MVK) && defined(VK_EXAMPLE_XCODE_GENERATED))
-#include <Cocoa/Cocoa.h>
-#include <Carbon/Carbon.h>
-#include <QuartzCore/CAMetalLayer.h>
-#include <CoreVideo/CVDisplayLink.h>
-#endif
-
 std::vector<const char*> VulkanExampleBase::args;
 
 VkResult VulkanExampleBase::createInstance(bool enableValidation)
@@ -2376,8 +2368,6 @@ void VulkanExampleBase::setupSwapChain()
 }
 
 void VulkanExampleBase::OnUpdateUIOverlay(vks::UIOverlay *overlay) {}
-
-// Command line argument parser class
 
 
 }
