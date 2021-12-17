@@ -86,7 +86,6 @@ public:
 
    genesis::VulkanGltfModel* _gltfModel;
 
-   genesis::Device* _device;
 
    vks::Buffer transformBuffer;
    std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroups{};

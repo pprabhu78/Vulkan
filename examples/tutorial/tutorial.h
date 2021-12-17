@@ -1,6 +1,6 @@
 #pragma once
 
-#include "vulkanexamplebase.h"
+#include "../genesis/VulkanExampleBase.h"
 
 namespace genesis
 {
@@ -12,14 +12,14 @@ namespace genesis
    class Shader;
 }
 
-class Tutorial : public  VulkanExampleBase
+class Tutorial : public genesis::VulkanExampleBase
 {
 public:
    Tutorial();
    ~Tutorial();
 
 public:
-   virtual void setupRenderPass() override;
+
    virtual void buildCommandBuffers() override;
    virtual void render() override;
    virtual void viewChanged() override;
@@ -39,7 +39,6 @@ public:
    virtual void loadAssets(void);
 
 protected:
-   genesis::Device* _device;
 
    VkPipelineLayout _pipelineLayout;
    VkPipeline _pipeline;

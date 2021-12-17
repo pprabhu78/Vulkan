@@ -19,6 +19,10 @@ namespace genesis
 	};
 }
 
+#ifdef VK_CHECK_RESULT
+#undef VK_CHECK_RESULT
+#endif
+
 #define VK_CHECK_RESULT(f)																		\
 {																										\
 	VkResult res = (f);																			\

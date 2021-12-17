@@ -8,6 +8,7 @@
 
 #include "VulkanExampleBase.h"
 #include "RenderPass.h"
+#include "Device.h"
 
 namespace genesis
 {
@@ -287,7 +288,7 @@ void VulkanExampleBase::renderLoop()
 	destWidth = width;
 	destHeight = height;
 	lastTimestamp = std::chrono::high_resolution_clock::now();
-#if defined(_WIN32)
+
 	MSG msg;
 	bool quitMessageReceived = false;
 	while (!quitMessageReceived) {
@@ -303,335 +304,7 @@ void VulkanExampleBase::renderLoop()
 			nextFrame();
 		}
 	}
-#elif defined(VK_USE_PLATFORM_ANDROID_KHR)
-	while (1)
-	{
-		int ident;
-		int events;
-		struct android_poll_source* source;
-		bool destroy = false;
 
-		focused = true;
-
-		while ((ident = ALooper_pollAll(focused ? 0 : -1, NULL, &events, (void**)&source)) >= 0)
-		{
-			if (source != NULL)
-			{
-				source->process(androidApp, source);
-			}
-			if (androidApp->destroyRequested != 0)
-			{
-				LOGD("Android app destroy requested");
-				destroy = true;
-				break;
-			}
-		}
-
-		// App destruction requested
-		// Exit loop, example will be destroyed in application main
-		if (destroy)
-		{
-			ANativeActivity_finish(androidApp->activity);
-			break;
-		}
-
-		// Render frame
-		if (prepared)
-		{
-			auto tStart = std::chrono::high_resolution_clock::now();
-			render();
-			frameCounter++;
-			auto tEnd = std::chrono::high_resolution_clock::now();
-			auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-			frameTimer = tDiff / 1000.0f;
-			camera.update(frameTimer);
-			// Convert to clamped timer value
-			if (!paused)
-			{
-				timer += timerSpeed * frameTimer;
-				if (timer > 1.0)
-				{
-					timer -= 1.0f;
-				}
-			}
-			float fpsTimer = std::chrono::duration<double, std::milli>(tEnd - lastTimestamp).count();
-			if (fpsTimer > 1000.0f)
-			{
-				lastFPS = (float)frameCounter * (1000.0f / fpsTimer);
-				frameCounter = 0;
-				lastTimestamp = tEnd;
-			}
-
-			// TODO: Cap UI overlay update rates/only issue when update requested
-			updateOverlay();
-
-			bool updateView = false;
-
-			// Check touch state (for movement)
-			if (touchDown) {
-				touchTimer += frameTimer;
-			}
-			if (touchTimer >= 1.0) {
-				camera.keys.up = true;
-				viewChanged();
-			}
-
-			// Check gamepad state
-			const float deadZone = 0.0015f;
-			// todo : check if gamepad is present
-			// todo : time based and relative axis positions
-			if (camera.type != Camera::CameraType::firstperson)
-			{
-				// Rotate
-				if (std::abs(gamePadState.axisLeft.x) > deadZone)
-				{
-					camera.rotate(glm::vec3(0.0f, gamePadState.axisLeft.x * 0.5f, 0.0f));
-					updateView = true;
-				}
-				if (std::abs(gamePadState.axisLeft.y) > deadZone)
-				{
-					camera.rotate(glm::vec3(gamePadState.axisLeft.y * 0.5f, 0.0f, 0.0f));
-					updateView = true;
-				}
-				// Zoom
-				if (std::abs(gamePadState.axisRight.y) > deadZone)
-				{
-					camera.translate(glm::vec3(0.0f, 0.0f, gamePadState.axisRight.y * 0.01f));
-					updateView = true;
-				}
-				if (updateView)
-				{
-					viewChanged();
-				}
-			}
-			else
-			{
-				updateView = camera.updatePad(gamePadState.axisLeft, gamePadState.axisRight, frameTimer);
-				if (updateView)
-				{
-					viewChanged();
-				}
-			}
-		}
-	}
-#elif defined(_DIRECT2DISPLAY)
-	while (!quit)
-	{
-		auto tStart = std::chrono::high_resolution_clock::now();
-		if (viewUpdated)
-		{
-			viewUpdated = false;
-			viewChanged();
-		}
-		render();
-		frameCounter++;
-		auto tEnd = std::chrono::high_resolution_clock::now();
-		auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-		frameTimer = tDiff / 1000.0f;
-		camera.update(frameTimer);
-		if (camera.moving())
-		{
-			viewUpdated = true;
-		}
-		// Convert to clamped timer value
-		if (!paused)
-		{
-			timer += timerSpeed * frameTimer;
-			if (timer > 1.0)
-			{
-				timer -= 1.0f;
-			}
-		}
-		float fpsTimer = std::chrono::duration<double, std::milli>(tEnd - lastTimestamp).count();
-		if (fpsTimer > 1000.0f)
-		{
-			lastFPS = (float)frameCounter * (1000.0f / fpsTimer);
-			frameCounter = 0;
-			lastTimestamp = tEnd;
-		}
-		updateOverlay();
-	}
-#elif defined(VK_USE_PLATFORM_DIRECTFB_EXT)
-	while (!quit)
-	{
-		auto tStart = std::chrono::high_resolution_clock::now();
-		if (viewUpdated)
-		{
-			viewUpdated = false;
-			viewChanged();
-		}
-		DFBWindowEvent event;
-		while (!event_buffer->GetEvent(event_buffer, DFB_EVENT(&event)))
-		{
-			handleEvent(&event);
-		}
-		render();
-		frameCounter++;
-		auto tEnd = std::chrono::high_resolution_clock::now();
-		auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-		frameTimer = tDiff / 1000.0f;
-		camera.update(frameTimer);
-		if (camera.moving())
-		{
-			viewUpdated = true;
-		}
-		// Convert to clamped timer value
-		if (!paused)
-		{
-			timer += timerSpeed * frameTimer;
-			if (timer > 1.0)
-			{
-				timer -= 1.0f;
-			}
-		}
-		float fpsTimer = std::chrono::duration<double, std::milli>(tEnd - lastTimestamp).count();
-		if (fpsTimer > 1000.0f)
-		{
-			lastFPS = (float)frameCounter * (1000.0f / fpsTimer);
-			frameCounter = 0;
-			lastTimestamp = tEnd;
-		}
-		updateOverlay();
-	}
-#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
-	while (!quit)
-	{
-		auto tStart = std::chrono::high_resolution_clock::now();
-		if (viewUpdated)
-		{
-			viewUpdated = false;
-			viewChanged();
-		}
-
-		while (!configured)
-			wl_display_dispatch(display);
-		while (wl_display_prepare_read(display) != 0)
-			wl_display_dispatch_pending(display);
-		wl_display_flush(display);
-		wl_display_read_events(display);
-		wl_display_dispatch_pending(display);
-
-		render();
-		frameCounter++;
-		auto tEnd = std::chrono::high_resolution_clock::now();
-		auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-		frameTimer = tDiff / 1000.0f;
-		camera.update(frameTimer);
-		if (camera.moving())
-		{
-			viewUpdated = true;
-		}
-		// Convert to clamped timer value
-		if (!paused)
-		{
-			timer += timerSpeed * frameTimer;
-			if (timer > 1.0)
-			{
-				timer -= 1.0f;
-			}
-		}
-		float fpsTimer = std::chrono::duration<double, std::milli>(tEnd - lastTimestamp).count();
-		if (fpsTimer > 1000.0f)
-		{
-			if (!settings.overlay)
-			{
-				std::string windowTitle = getWindowTitle();
-				xdg_toplevel_set_title(xdg_toplevel, windowTitle.c_str());
-			}
-			lastFPS = (float)frameCounter * (1000.0f / fpsTimer);
-			frameCounter = 0;
-			lastTimestamp = tEnd;
-		}
-		updateOverlay();
-	}
-#elif defined(VK_USE_PLATFORM_XCB_KHR)
-	xcb_flush(connection);
-	while (!quit)
-	{
-		auto tStart = std::chrono::high_resolution_clock::now();
-		if (viewUpdated)
-		{
-			viewUpdated = false;
-			viewChanged();
-		}
-		xcb_generic_event_t *event;
-		while ((event = xcb_poll_for_event(connection)))
-		{
-			handleEvent(event);
-			free(event);
-		}
-		render();
-		frameCounter++;
-		auto tEnd = std::chrono::high_resolution_clock::now();
-		auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-		frameTimer = tDiff / 1000.0f;
-		camera.update(frameTimer);
-		if (camera.moving())
-		{
-			viewUpdated = true;
-		}
-		// Convert to clamped timer value
-		if (!paused)
-		{
-			timer += timerSpeed * frameTimer;
-			if (timer > 1.0)
-			{
-				timer -= 1.0f;
-			}
-		}
-		float fpsTimer = std::chrono::duration<double, std::milli>(tEnd - lastTimestamp).count();
-		if (fpsTimer > 1000.0f)
-		{
-			if (!settings.overlay)
-			{
-				std::string windowTitle = getWindowTitle();
-				xcb_change_property(connection, XCB_PROP_MODE_REPLACE,
-					window, XCB_ATOM_WM_NAME, XCB_ATOM_STRING, 8,
-					windowTitle.size(), windowTitle.c_str());
-			}
-			lastFPS = (float)frameCounter * (1000.0f / fpsTimer);
-			frameCounter = 0;
-			lastTimestamp = tEnd;
-		}
-		updateOverlay();
-	}
-#elif defined(VK_USE_PLATFORM_HEADLESS_EXT)
-	while (!quit)
-	{
-		auto tStart = std::chrono::high_resolution_clock::now();
-		if (viewUpdated)
-		{
-			viewUpdated = false;
-			viewChanged();
-		}
-		render();
-		frameCounter++;
-		auto tEnd = std::chrono::high_resolution_clock::now();
-		auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-		frameTimer = tDiff / 1000.0f;
-		camera.update(frameTimer);
-		if (camera.moving())
-		{
-			viewUpdated = true;
-		}
-		// Convert to clamped timer value
-		timer += timerSpeed * frameTimer;
-		if (timer > 1.0)
-		{
-			timer -= 1.0f;
-		}
-		float fpsTimer = std::chrono::duration<double, std::milli>(tEnd - lastTimestamp).count();
-		if (fpsTimer > 1000.0f)
-		{
-			lastFPS = (float)frameCounter * (1000.0f / fpsTimer);
-			frameCounter = 0;
-			lastTimestamp = tEnd;
-		}
-		updateOverlay();
-	}
-#elif (defined(VK_USE_PLATFORM_MACOS_MVK) && defined(VK_EXAMPLE_XCODE_GENERATED))
-	[NSApp run];
-#endif
 	// Flush device to make sure all resources can be freed
 	if (device != VK_NULL_HANDLE) {
 		vkDeviceWaitIdle(device);
@@ -729,6 +402,7 @@ void VulkanExampleBase::submitFrame()
 }
 
 VulkanExampleBase::VulkanExampleBase(bool enableValidation)
+: _device(nullptr)
 {
 #if !defined(VK_USE_PLATFORM_ANDROID_KHR)
 	// Check for a valid asset path
@@ -2579,6 +2253,15 @@ void VulkanExampleBase::setupFrameBuffer()
 	}
 }
 
+void VulkanExampleBase::setupRenderPass()
+{
+   if (!_device)
+   {
+      _device = new genesis::Device(VulkanExampleBase::physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
+   }
+	_renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
+}
+
 void VulkanExampleBase::getEnabledFeatures() {}
 
 void VulkanExampleBase::windowResize()
@@ -2696,102 +2379,5 @@ void VulkanExampleBase::OnUpdateUIOverlay(vks::UIOverlay *overlay) {}
 
 // Command line argument parser class
 
-CommandLineParser::CommandLineParser()
-{
-	add("help", { "--help" }, 0, "Show help");
-	add("validation", {"-v", "--validation"}, 0, "Enable validation layers");
-	add("vsync", {"-vs", "--vsync"}, 0, "Enable V-Sync");
-	add("fullscreen", { "-f", "--fullscreen" }, 0, "Start in fullscreen mode");
-	add("width", { "-w", "--width" }, 1, "Set window width");
-	add("height", { "-h", "--height" }, 1, "Set window height");
-	add("shaders", { "-s", "--shaders" }, 1, "Select shader type to use (glsl or hlsl)");
-	add("gpuselection", { "-g", "--gpu" }, 1, "Select GPU to run on");
-	add("gpulist", { "-gl", "--listgpus" }, 0, "Display a list of available Vulkan devices");
-	add("benchmark", { "-b", "--benchmark" }, 0, "Run example in benchmark mode");
-	add("benchmarkwarmup", { "-bw", "--benchwarmup" }, 1, "Set warmup time for benchmark mode in seconds");
-	add("benchmarkruntime", { "-br", "--benchruntime" }, 1, "Set duration time for benchmark mode in seconds");
-	add("benchmarkresultfile", { "-bf", "--benchfilename" }, 1, "Set file name for benchmark results");
-	add("benchmarkresultframes", { "-bt", "--benchframetimes" }, 0, "Save frame times to benchmark results file");
-	add("benchmarkframes", { "-bfs", "--benchmarkframes" }, 1, "Only render the given number of frames");
-}
 
-void CommandLineParser::add(std::string name, std::vector<std::string> commands, bool hasValue, std::string help)
-{
-	options[name].commands = commands;
-	options[name].help = help;
-	options[name].set = false;
-	options[name].hasValue = hasValue;
-	options[name].value = "";
-}
-
-void CommandLineParser::printHelp()
-{
-	std::cout << "Available command line options:\n";
-	for (auto option : options) {
-		std::cout << " ";
-		for (size_t i = 0; i < option.second.commands.size(); i++) {
-			std::cout << option.second.commands[i];
-			if (i < option.second.commands.size() - 1) {
-				std::cout << ", ";
-			}
-		}
-		std::cout << ": " << option.second.help << "\n";
-	}
-	std::cout << "Press any key to close...";
-}
-
-void CommandLineParser::parse(std::vector<const char*> arguments)
-{
-	bool printHelp = false;
-	// Known arguments
-	for (auto& option : options) {
-		for (auto& command : option.second.commands) {
-			for (size_t i = 0; i < arguments.size(); i++) {
-				if (strcmp(arguments[i], command.c_str()) == 0) {
-					option.second.set = true;
-					// Get value
-					if (option.second.hasValue) {
-						if (arguments.size() > i + 1) {
-							option.second.value = arguments[i + 1];
-						}
-						if (option.second.value == "") {
-							printHelp = true;
-							break;
-						}
-					}
-				}
-			}
-		}
-	}
-	// Print help for unknown arguments or missing argument values
-	if (printHelp) {
-		options["help"].set = true;
-	}
-}
-
-bool CommandLineParser::isSet(std::string name)
-{
-	return ((options.find(name) != options.end()) && options[name].set);
-}
-
-std::string CommandLineParser::getValueAsString(std::string name, std::string defaultValue)
-{
-	assert(options.find(name) != options.end());
-	std::string value = options[name].value;
-	return (value != "") ? value : defaultValue;
-}
-
-int32_t CommandLineParser::getValueAsInt(std::string name, int32_t defaultValue)
-{
-	assert(options.find(name) != options.end());
-	std::string value = options[name].value;
-	if (value != "") {
-		char* numConvPtr;
-		int32_t intVal = strtol(value.c_str(), &numConvPtr, 10);
-		return (intVal > 0) ? intVal : defaultValue;
-	} else {
-		return defaultValue;
-	}
-	return int32_t();
-}
 }

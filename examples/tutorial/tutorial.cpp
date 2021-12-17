@@ -10,6 +10,7 @@
 #include "Device.h"
 #include "tutorial.h"
 #include "Shader.h"
+#include "RenderPass.h"
 
 #include "VulkanInitializers.h"
 #include "VulkanGltf.h"
@@ -21,7 +22,6 @@
 #define SPONZA 1
 
 Tutorial::Tutorial()
-   : _device(nullptr)
 {
    title = "Vulkan Example - Basic indexed triangle";
 #if VENUS
@@ -69,15 +69,6 @@ Tutorial::~Tutorial()
    vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _setLayout0, nullptr);
 }
 
-void Tutorial::setupRenderPass()
-{
-   VulkanExampleBase::setupRenderPass();
-   if (!_device)
-   {
-      _device = new genesis::Device(VulkanExampleBase::physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
-   }
-}
-
 void Tutorial::buildCommandBuffers()
 {
    VkCommandBufferBeginInfo cmdBufInfo = {};
@@ -91,7 +82,7 @@ void Tutorial::buildCommandBuffers()
    clearValues[1].depthStencil = { 1.0f, 0 };
 
    VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
-   renderPassBeginInfo.renderPass = renderPass;
+   renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
    renderPassBeginInfo.renderArea.offset = { 0, 0 };
    renderPassBeginInfo.renderArea.extent = { width, height };
 
@@ -302,7 +293,7 @@ void Tutorial::preparePipelines()
       }
       _shaders.push_back(shader);
    }
-   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::VulkanInitializers::graphicsPipelineCreateInfo(_pipelineLayout, renderPass);
+   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::VulkanInitializers::graphicsPipelineCreateInfo(_pipelineLayout, _renderPass->vulkanRenderPass());
 
    graphicsPipelineCreateInfo.stageCount = static_cast<uint32_t>(shaderStageInfos.size());
    graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();

@@ -56,7 +56,6 @@ void TutorialRayTracing::resetCamera()
 
 TutorialRayTracing::TutorialRayTracing()
    : _gltfModel(nullptr)
-   , _device(nullptr)
    , _pushConstants{}
 {
    _pushConstants.frameIndex = -1;
