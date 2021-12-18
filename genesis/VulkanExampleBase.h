@@ -33,6 +33,19 @@
 #include <xcb/xcb.h>
 #endif
 
+#include "keycodes.hpp"
+#include "VulkanUIOverlay.h"
+#include "VulkanSwapChain.h"
+#include "VulkanDevice.h"
+
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/matrix_inverse.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -47,30 +60,13 @@
 #include <random>
 #include <algorithm>
 #include <sys/stat.h>
-
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_ENABLE_EXPERIMENTAL
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/matrix_inverse.hpp>
-#include <glm/gtc/type_ptr.hpp>
 #include <string>
 #include <numeric>
 #include <array>
 
 #include "vulkan/vulkan.h"
 
-#include "keycodes.hpp"
-#include "VulkanTools.h"
-#include "VulkanDebug.h"
-#include "VulkanUIOverlay.h"
-#include "VulkanSwapChain.h"
-#include "VulkanBuffer.h"
-#include "VulkanDevice.h"
-#include "VulkanTexture.h"
 
-#include "VulkanInitializers.hpp"
 #include "camera.hpp"
 #include "benchmark.hpp"
 
