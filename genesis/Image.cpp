@@ -92,7 +92,7 @@ namespace genesis
          bufferCopyRegions.push_back(bufferImageCopy);
       };
 
-      VkCommandBuffer commandBuffer = _device->getCommandBuffer(true);
+      VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
       VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT , 0, (uint32_t)_numMipMapLevels, 0, 1 };
       ImageTransitions transition;

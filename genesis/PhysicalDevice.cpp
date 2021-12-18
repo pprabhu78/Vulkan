@@ -2,6 +2,7 @@
 #include "Instance.h"
 
 #include <iostream>
+#include <cassert>
 
 namespace genesis
 {
@@ -13,7 +14,30 @@ namespace genesis
       // Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
       vkGetPhysicalDeviceProperties(_physicalDevice, &_physicalDeviceProperties);
       vkGetPhysicalDeviceFeatures(_physicalDevice, &_physicalDeviceFeatures);
+
       vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &_physicalDeviceMemoryProperties);
+
+      // Queue family properties, used for setting up requested queues upon device creation
+      uint32_t queueFamilyCount;
+      vkGetPhysicalDeviceQueueFamilyProperties(_physicalDevice, &queueFamilyCount, nullptr);
+      assert(queueFamilyCount > 0);
+      _queueFamilyProperties.resize(queueFamilyCount);
+      vkGetPhysicalDeviceQueueFamilyProperties(_physicalDevice, &queueFamilyCount, _queueFamilyProperties.data());
+
+      // Get list of supported extensions
+      uint32_t extCount = 0;
+      vkEnumerateDeviceExtensionProperties(_physicalDevice, nullptr, &extCount, nullptr);
+      if (extCount > 0)
+      {
+         std::vector<VkExtensionProperties> extensions(extCount);
+         if (vkEnumerateDeviceExtensionProperties(_physicalDevice, nullptr, &extCount, &extensions.front()) == VK_SUCCESS)
+         {
+            for (auto ext : extensions)
+            {
+               _supportedExtensions.push_back(ext.extensionName);
+            }
+         }
+      }
    }
    
    PhysicalDevice::~PhysicalDevice()
@@ -94,5 +118,51 @@ namespace genesis
       }
 
       throw "Could not find a suitable memory type!";
+   }
+
+   uint32_t PhysicalDevice::getQueueFamilyIndex(VkQueueFlagBits queueFlags) const
+   {	
+      // Dedicated queue for compute
+      // Try to find a queue family index that supports compute but not graphics
+      if (queueFlags & VK_QUEUE_COMPUTE_BIT)
+      {
+         for (uint32_t i = 0; i < static_cast<uint32_t>(_queueFamilyProperties.size()); i++)
+         {
+            if ((_queueFamilyProperties[i].queueFlags & queueFlags) && ((_queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0))
+            {
+               return i;
+            }
+         }
+      }
+
+      // Dedicated queue for transfer
+      // Try to find a queue family index that supports transfer but not graphics and compute
+      if (queueFlags & VK_QUEUE_TRANSFER_BIT)
+      {
+         for (uint32_t i = 0; i < static_cast<uint32_t>(_queueFamilyProperties.size()); i++)
+         {
+            if ((_queueFamilyProperties[i].queueFlags & queueFlags) && ((_queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0) && ((_queueFamilyProperties[i].queueFlags & VK_QUEUE_COMPUTE_BIT) == 0))
+            {
+               return i;
+            }
+         }
+      }
+
+      // For other queue types or if no separate compute queue is present, return the first one to support the requested flags
+      for (uint32_t i = 0; i < static_cast<uint32_t>(_queueFamilyProperties.size()); i++)
+      {
+         if (_queueFamilyProperties[i].queueFlags & queueFlags)
+         {
+            return i;
+         }
+      }
+
+      throw std::runtime_error("Could not find a matching queue family index");
+
+   }
+
+   bool PhysicalDevice::extensionSupported(const std::string& extension) const
+   {
+      return (std::find(_supportedExtensions.begin(), _supportedExtensions.end(), extension) != _supportedExtensions.end());
    }
 }

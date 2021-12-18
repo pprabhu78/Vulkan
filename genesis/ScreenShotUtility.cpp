@@ -55,7 +55,7 @@ namespace genesis
       VkImage srcImage = swapChainCurrentImage;
       VkImage dstImage = destinationStorageImage->vulkanImage();
 
-      VkCommandBuffer commandBuffer = _device->getCommandBuffer(true);
+      VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
       genesis::ImageTransitions transitions;
 

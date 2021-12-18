@@ -902,7 +902,7 @@ namespace genesis
 
       // Build the acceleration structure on the device via a one-time command buffer submission
       // Some implementations may support acceleration structure building on the host (VkPhysicalDeviceAccelerationStructureFeaturesKHR->accelerationStructureHostCommands), but we prefer device builds
-      VkCommandBuffer commandBuffer = _device->getCommandBuffer(true);
+      VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
       vkCmdBuildAccelerationStructuresKHR(
          commandBuffer,
          1,

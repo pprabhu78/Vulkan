@@ -36,7 +36,6 @@
 #include "keycodes.hpp"
 #include "VulkanUIOverlay.h"
 #include "VulkanSwapChain.h"
-#include "VulkanDevice.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -124,10 +123,7 @@ namespace genesis
 
 		/** @brief Optional pNext structure for passing extension structures to device creation */
 		void* deviceCreatepNextChain = nullptr;
-		/** @brief Logical device, application's view of the physical device (GPU) */
-		VkDevice device;
-		// Handle to the device graphics queue that command buffers are submitted to
-		VkQueue queue;
+		
 		// Depth buffer format (selected during Vulkan initialization)
 		VkFormat depthFormat;
 		// Command buffer pool
@@ -166,16 +162,13 @@ namespace genesis
 		uint32_t width = 1280 * 2;
 		uint32_t height = 720 * 2;
 
-		vks::UIOverlay UIOverlay;
+		genesis::UIOverlay UIOverlay;
 		CommandLineParser commandLineParser;
 
 		/** @brief Last frame time measured using a high performance timer (if available) */
 		float frameTimer = 1.0f;
 
 		vks::Benchmark benchmark;
-
-		/** @brief Encapsulated physical and logical vulkan device */
-		vks::VulkanDevice* vulkanDevice;
 
 		/** @brief Example settings that can be changed e.g. by command line arguments */
 		struct Settings {
@@ -281,7 +274,7 @@ namespace genesis
 		virtual void renderFrame();
 
 		/** @brief (Virtual) Called when the UI overlay is updating, can be used to add custom elements to the overlay */
-		virtual void OnUpdateUIOverlay(vks::UIOverlay* overlay);
+		virtual void OnUpdateUIOverlay(genesis::UIOverlay* overlay);
 	};
 
 	// OS specific macros for the example main entry points

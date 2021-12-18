@@ -151,7 +151,7 @@ namespace genesis
 
       if (_buffer)
       {
-         VkCommandBuffer copyCmd = _device->getCommandBuffer(true);
+         VkCommandBuffer copyCmd = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
          VkBufferCopy bufferCopy = {};
 
          bufferCopy.size = _sizeInBytes;

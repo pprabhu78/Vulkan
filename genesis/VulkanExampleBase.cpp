@@ -13,6 +13,7 @@
 #include "PhysicalDevice.h"
 #include "VulkanDebug.h"
 #include "VulkanInitializers.h"
+#include "VulkanFunctions.h"
 
 namespace genesis
 {
@@ -36,7 +37,7 @@ namespace genesis
       VulkanExampleBase::prepareFrame();
       submitInfo.commandBufferCount = 1;
       submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-      VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
+      VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
       VulkanExampleBase::submitFrame();
    }
 
@@ -62,7 +63,7 @@ namespace genesis
             VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             static_cast<uint32_t>(drawCmdBuffers.size()));
 
-      VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdBufAllocateInfo, drawCmdBuffers.data()));
+      VK_CHECK_RESULT(vkAllocateCommandBuffers(_device->vulkanDevice(), &cmdBufAllocateInfo, drawCmdBuffers.data()));
    }
 
    void VulkanExampleBase::destroyCommandBuffers()
@@ -71,7 +72,7 @@ namespace genesis
       {
          return;
       }
-      vkFreeCommandBuffers(device, cmdPool, static_cast<uint32_t>(drawCmdBuffers.size()), drawCmdBuffers.data());
+      vkFreeCommandBuffers(_device->vulkanDevice(), cmdPool, static_cast<uint32_t>(drawCmdBuffers.size()), drawCmdBuffers.data());
    }
 
    std::string VulkanExampleBase::getShadersPath() const
@@ -83,13 +84,13 @@ namespace genesis
    {
       VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
       pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-      VK_CHECK_RESULT(vkCreatePipelineCache(device, &pipelineCacheCreateInfo, nullptr, &pipelineCache));
+      VK_CHECK_RESULT(vkCreatePipelineCache(_device->vulkanDevice(), &pipelineCacheCreateInfo, nullptr, &pipelineCache));
    }
 
    void VulkanExampleBase::prepare()
    {
-      if (vulkanDevice->enableDebugMarkers) {
-         vks::debugmarker::setup(device);
+      if (_device->enableDebugMarkers()) {
+         genesis::debugmarker::setup(_device->vulkanDevice());
       }
       initSwapchain();
       createCommandPool();
@@ -102,8 +103,7 @@ namespace genesis
       setupFrameBuffer();
       settings.overlay = settings.overlay && (!benchmark.active);
       if (settings.overlay) {
-         UIOverlay.device = vulkanDevice;
-         UIOverlay.queue = queue;
+         UIOverlay.device = _device;
          UIOverlay.shaders = {
          loadShader(getShadersPath() + "base/uioverlay.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
          loadShader(getShadersPath() + "base/uioverlay.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
@@ -121,7 +121,7 @@ namespace genesis
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
       shaderStage.module = vks::tools::loadShader(androidApp->activity->assetManager, fileName.c_str(), device);
 #else
-      shaderStage.module = vks::tools::loadShader(fileName.c_str(), device);
+      shaderStage.module = vks::tools::loadShader(fileName.c_str(), _device->vulkanDevice());
 #endif
       shaderStage.pName = "main";
       assert(shaderStage.module != VK_NULL_HANDLE);
@@ -177,8 +177,8 @@ namespace genesis
    void VulkanExampleBase::renderLoop()
    {
       if (benchmark.active) {
-         benchmark.run([=] { render(); }, vulkanDevice->properties);
-         vkDeviceWaitIdle(device);
+         benchmark.run([=] { render(); }, _physicalDevice->physicalDeviceProperties());
+         vkDeviceWaitIdle(_device->vulkanDevice());
          if (benchmark.filename != "") {
             benchmark.saveResults();
          }
@@ -206,8 +206,8 @@ namespace genesis
       }
 
       // Flush device to make sure all resources can be freed
-      if (device != VK_NULL_HANDLE) {
-         vkDeviceWaitIdle(device);
+      if (_device->vulkanDevice() != VK_NULL_HANDLE) {
+         vkDeviceWaitIdle(_device->vulkanDevice());
       }
    }
 
@@ -279,7 +279,7 @@ namespace genesis
 
    void VulkanExampleBase::submitFrame()
    {
-      VkResult result = swapChain.queuePresent(queue, currentBuffer, semaphores.renderComplete);
+      VkResult result = swapChain.queuePresent(_device->graphicsQueue(), currentBuffer, semaphores.renderComplete);
       if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
          if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             // Swap chain is no longer compatible with the surface and needs to be recreated
@@ -290,7 +290,7 @@ namespace genesis
             VK_CHECK_RESULT(result);
          }
       }
-      VK_CHECK_RESULT(vkQueueWaitIdle(queue));
+      VK_CHECK_RESULT(vkQueueWaitIdle(_device->graphicsQueue()));
    }
 
    VulkanExampleBase::VulkanExampleBase(bool enableValidation)
@@ -384,38 +384,38 @@ namespace genesis
       swapChain.cleanup();
       if (descriptorPool != VK_NULL_HANDLE)
       {
-         vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+         vkDestroyDescriptorPool(_device->vulkanDevice(), descriptorPool, nullptr);
       }
       destroyCommandBuffers();
       delete _renderPass;
       for (uint32_t i = 0; i < frameBuffers.size(); i++)
       {
-         vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
+         vkDestroyFramebuffer(_device->vulkanDevice(), frameBuffers[i], nullptr);
       }
 
       for (auto& shaderModule : shaderModules)
       {
-         vkDestroyShaderModule(device, shaderModule, nullptr);
+         vkDestroyShaderModule(_device->vulkanDevice(), shaderModule, nullptr);
       }
-      vkDestroyImageView(device, depthStencil.view, nullptr);
-      vkDestroyImage(device, depthStencil.image, nullptr);
-      vkFreeMemory(device, depthStencil.mem, nullptr);
+      vkDestroyImageView(_device->vulkanDevice(), depthStencil.view, nullptr);
+      vkDestroyImage(_device->vulkanDevice(), depthStencil.image, nullptr);
+      vkFreeMemory(_device->vulkanDevice(), depthStencil.mem, nullptr);
 
-      vkDestroyPipelineCache(device, pipelineCache, nullptr);
+      vkDestroyPipelineCache(_device->vulkanDevice(), pipelineCache, nullptr);
 
-      vkDestroyCommandPool(device, cmdPool, nullptr);
+      vkDestroyCommandPool(_device->vulkanDevice(), cmdPool, nullptr);
 
-      vkDestroySemaphore(device, semaphores.presentComplete, nullptr);
-      vkDestroySemaphore(device, semaphores.renderComplete, nullptr);
+      vkDestroySemaphore(_device->vulkanDevice(), semaphores.presentComplete, nullptr);
+      vkDestroySemaphore(_device->vulkanDevice(), semaphores.renderComplete, nullptr);
       for (auto& fence : waitFences) {
-         vkDestroyFence(device, fence, nullptr);
+         vkDestroyFence(_device->vulkanDevice(), fence, nullptr);
       }
 
       if (settings.overlay) {
          UIOverlay.freeResources();
       }
 
-      delete vulkanDevice;
+      delete _device;
 
       delete _instance;
 
@@ -476,31 +476,25 @@ namespace genesis
       // Vulkan device creation
       // This is handled by a separate class that gets a logical device representation
       // and encapsulates functions related to a device
-      vulkanDevice = new vks::VulkanDevice(_physicalDevice->vulkanPhysicalDevice());
-      VkResult res = vulkanDevice->createLogicalDevice(_physicalDevice->enabledPhysicalDeviceFeatures(), _physicalDevice->enabledPhysicalDeviceExtensions(), deviceCreatepNextChain);
-      if (res != VK_SUCCESS) {
-         vks::tools::exitFatal("Could not create Vulkan device: \n" + vks::tools::errorString(res), res);
-         return false;
-      }
-      device = vulkanDevice->logicalDevice;
+      _device = new Device(_physicalDevice, deviceCreatepNextChain);
 
-      // Get a graphics queue from the device
-      vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &queue);
+      VulkanFunctionsInitializer::initialize(_device);
+
 
       // Find a suitable depth format
       VkBool32 validDepthFormat = vks::tools::getSupportedDepthFormat(_physicalDevice->vulkanPhysicalDevice(), &depthFormat);
       assert(validDepthFormat);
 
-      swapChain.connect(_instance->vulkanInstance(), _physicalDevice->vulkanPhysicalDevice(), device);
+      swapChain.connect(_instance->vulkanInstance(), _physicalDevice->vulkanPhysicalDevice(), _device->vulkanDevice());
 
       // Create synchronization objects
       VkSemaphoreCreateInfo semaphoreCreateInfo = VulkanInitializers::semaphoreCreateInfo();
       // Create a semaphore used to synchronize image presentation
       // Ensures that the image is displayed before we start submitting new commands to the queue
-      VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphores.presentComplete));
+      VK_CHECK_RESULT(vkCreateSemaphore(_device->vulkanDevice(), &semaphoreCreateInfo, nullptr, &semaphores.presentComplete));
       // Create a semaphore used to synchronize command submission
       // Ensures that the image is not presented until all commands have been submitted and executed
-      VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
+      VK_CHECK_RESULT(vkCreateSemaphore(_device->vulkanDevice(), &semaphoreCreateInfo, nullptr, &semaphores.renderComplete));
 
       // Set up submit info structure
       // Semaphores will stay the same during application lifetime
@@ -805,7 +799,7 @@ namespace genesis
       VkFenceCreateInfo fenceCreateInfo = VulkanInitializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
       waitFences.resize(drawCmdBuffers.size());
       for (auto& fence : waitFences) {
-         VK_CHECK_RESULT(vkCreateFence(device, &fenceCreateInfo, nullptr, &fence));
+         VK_CHECK_RESULT(vkCreateFence(_device->vulkanDevice(), &fenceCreateInfo, nullptr, &fence));
       }
    }
 
@@ -815,7 +809,7 @@ namespace genesis
       cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
       cmdPoolInfo.queueFamilyIndex = swapChain.queueNodeIndex;
       cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-      VK_CHECK_RESULT(vkCreateCommandPool(device, &cmdPoolInfo, nullptr, &cmdPool));
+      VK_CHECK_RESULT(vkCreateCommandPool(_device->vulkanDevice(), &cmdPoolInfo, nullptr, &cmdPool));
    }
 
    void VulkanExampleBase::setupDepthStencil()
@@ -831,16 +825,16 @@ namespace genesis
       imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
       imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-      VK_CHECK_RESULT(vkCreateImage(device, &imageCI, nullptr, &depthStencil.image));
+      VK_CHECK_RESULT(vkCreateImage(_device->vulkanDevice(), &imageCI, nullptr, &depthStencil.image));
       VkMemoryRequirements memReqs{};
-      vkGetImageMemoryRequirements(device, depthStencil.image, &memReqs);
+      vkGetImageMemoryRequirements(_device->vulkanDevice(), depthStencil.image, &memReqs);
 
       VkMemoryAllocateInfo memAllloc{};
       memAllloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
       memAllloc.allocationSize = memReqs.size;
-      memAllloc.memoryTypeIndex = vulkanDevice->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-      VK_CHECK_RESULT(vkAllocateMemory(device, &memAllloc, nullptr, &depthStencil.mem));
-      VK_CHECK_RESULT(vkBindImageMemory(device, depthStencil.image, depthStencil.mem, 0));
+      memAllloc.memoryTypeIndex = _physicalDevice->getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+      VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memAllloc, nullptr, &depthStencil.mem));
+      VK_CHECK_RESULT(vkBindImageMemory(_device->vulkanDevice(), depthStencil.image, depthStencil.mem, 0));
 
       VkImageViewCreateInfo imageViewCI{};
       imageViewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -856,7 +850,7 @@ namespace genesis
       if (depthFormat >= VK_FORMAT_D16_UNORM_S8_UINT) {
          imageViewCI.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
       }
-      VK_CHECK_RESULT(vkCreateImageView(device, &imageViewCI, nullptr, &depthStencil.view));
+      VK_CHECK_RESULT(vkCreateImageView(_device->vulkanDevice(), &imageViewCI, nullptr, &depthStencil.view));
    }
 
    void VulkanExampleBase::setupFrameBuffer()
@@ -881,16 +875,12 @@ namespace genesis
       for (uint32_t i = 0; i < frameBuffers.size(); i++)
       {
          attachments[0] = swapChain.buffers[i].view;
-         VK_CHECK_RESULT(vkCreateFramebuffer(device, &frameBufferCreateInfo, nullptr, &frameBuffers[i]));
+         VK_CHECK_RESULT(vkCreateFramebuffer(_device->vulkanDevice(), &frameBufferCreateInfo, nullptr, &frameBuffers[i]));
       }
    }
 
    void VulkanExampleBase::setupRenderPass()
    {
-      if (!_device)
-      {
-         _device = new genesis::Device(_physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
-      }
       _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
    }
 
@@ -906,7 +896,7 @@ namespace genesis
       resized = true;
 
       // Ensure all operations on the device have been finished before destroying resources
-      vkDeviceWaitIdle(device);
+      vkDeviceWaitIdle(_device->vulkanDevice());
 
       // Recreate swap chain
       width = destWidth;
@@ -914,12 +904,12 @@ namespace genesis
       setupSwapChain();
 
       // Recreate the frame buffers
-      vkDestroyImageView(device, depthStencil.view, nullptr);
-      vkDestroyImage(device, depthStencil.image, nullptr);
-      vkFreeMemory(device, depthStencil.mem, nullptr);
+      vkDestroyImageView(_device->vulkanDevice(), depthStencil.view, nullptr);
+      vkDestroyImage(_device->vulkanDevice(), depthStencil.image, nullptr);
+      vkFreeMemory(_device->vulkanDevice(), depthStencil.mem, nullptr);
       setupDepthStencil();
       for (uint32_t i = 0; i < frameBuffers.size(); i++) {
-         vkDestroyFramebuffer(device, frameBuffers[i], nullptr);
+         vkDestroyFramebuffer(_device->vulkanDevice(), frameBuffers[i], nullptr);
       }
       setupFrameBuffer();
 
@@ -935,7 +925,7 @@ namespace genesis
       createCommandBuffers();
       buildCommandBuffers();
 
-      vkDeviceWaitIdle(device);
+      vkDeviceWaitIdle(_device->vulkanDevice());
 
       if ((width > 0.0f) && (height > 0.0f)) {
          camera.updateAspectRatio((float)width / (float)height);
@@ -1007,7 +997,8 @@ namespace genesis
       swapChain.create(&width, &height, settings.vsync);
    }
 
-   void VulkanExampleBase::OnUpdateUIOverlay(vks::UIOverlay* overlay) {}
-
-
+   void VulkanExampleBase::OnUpdateUIOverlay(genesis::UIOverlay* overlay) 
+   {
+      // no op
+   }
 }

@@ -65,7 +65,7 @@ public:
    virtual void render();
    virtual void saveScreenShot(void);
    virtual void resetCamera(void);
-   virtual void OnUpdateUIOverlay(vks::UIOverlay* overlay) override;
+   virtual void OnUpdateUIOverlay(genesis::UIOverlay* overlay) override;
    virtual void setupRenderPass() override;
 
    virtual void drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer);

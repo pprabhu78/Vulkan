@@ -23,10 +23,11 @@
 #include "PhysicalDevice.h"
 
 #include <chrono>
+#include <sstream>
 
 #define VENUS 0
-#define SPONZA 0
-#define CORNELL 1
+#define SPONZA 1
+#define CORNELL 0
 
 void TutorialRayTracing::resetCamera()
 {
@@ -95,9 +96,9 @@ TutorialRayTracing::TutorialRayTracing()
 
 TutorialRayTracing::~TutorialRayTracing()
 {
-   vkDestroyPipeline(device, _rayTracingPipeline, nullptr);
-   vkDestroyPipelineLayout(device, _rayTracingPipelineLayout, nullptr);
-   vkDestroyDescriptorSetLayout(device, _rayTracingDescriptorSetLayout, nullptr);
+   vkDestroyPipeline(_device->vulkanDevice(), _rayTracingPipeline, nullptr);
+   vkDestroyPipelineLayout(_device->vulkanDevice(), _rayTracingPipelineLayout, nullptr);
+   vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rayTracingDescriptorSetLayout, nullptr);
 
    deleteStorageImages();
 
@@ -125,10 +126,10 @@ RayTracingScratchBuffer TutorialRayTracing::createScratchBuffer(VkDeviceSize siz
    bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
    bufferCreateInfo.size = size;
    bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-   VK_CHECK_RESULT(vkCreateBuffer(device, &bufferCreateInfo, nullptr, &scratchBuffer.handle));
+   VK_CHECK_RESULT(vkCreateBuffer(_device->vulkanDevice(), &bufferCreateInfo, nullptr, &scratchBuffer.handle));
 
    VkMemoryRequirements memoryRequirements{};
-   vkGetBufferMemoryRequirements(device, scratchBuffer.handle, &memoryRequirements);
+   vkGetBufferMemoryRequirements(_device->vulkanDevice(), scratchBuffer.handle, &memoryRequirements);
 
    VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{};
    memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
@@ -138,14 +139,14 @@ RayTracingScratchBuffer TutorialRayTracing::createScratchBuffer(VkDeviceSize siz
    memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
    memoryAllocateInfo.pNext = &memoryAllocateFlagsInfo;
    memoryAllocateInfo.allocationSize = memoryRequirements.size;
-   memoryAllocateInfo.memoryTypeIndex = vulkanDevice->getMemoryType(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-   VK_CHECK_RESULT(vkAllocateMemory(device, &memoryAllocateInfo, nullptr, &scratchBuffer.memory));
-   VK_CHECK_RESULT(vkBindBufferMemory(device, scratchBuffer.handle, scratchBuffer.memory, 0));
+   memoryAllocateInfo.memoryTypeIndex = _device->physicalDevice()->getMemoryTypeIndex(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+   VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &scratchBuffer.memory));
+   VK_CHECK_RESULT(vkBindBufferMemory(_device->vulkanDevice(), scratchBuffer.handle, scratchBuffer.memory, 0));
 
    VkBufferDeviceAddressInfoKHR bufferDeviceAddressInfo{};
    bufferDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
    bufferDeviceAddressInfo.buffer = scratchBuffer.handle;
-   scratchBuffer.deviceAddress = genesis::vkGetBufferDeviceAddressKHR(device, &bufferDeviceAddressInfo);
+   scratchBuffer.deviceAddress = genesis::vkGetBufferDeviceAddressKHR(_device->vulkanDevice(), &bufferDeviceAddressInfo);
 
    return scratchBuffer;
 }
@@ -153,10 +154,10 @@ RayTracingScratchBuffer TutorialRayTracing::createScratchBuffer(VkDeviceSize siz
 void TutorialRayTracing::deleteScratchBuffer(RayTracingScratchBuffer& scratchBuffer)
 {
    if (scratchBuffer.memory != VK_NULL_HANDLE) {
-      vkFreeMemory(device, scratchBuffer.memory, nullptr);
+      vkFreeMemory(_device->vulkanDevice(), scratchBuffer.memory, nullptr);
    }
    if (scratchBuffer.handle != VK_NULL_HANDLE) {
-      vkDestroyBuffer(device, scratchBuffer.handle, nullptr);
+      vkDestroyBuffer(_device->vulkanDevice(), scratchBuffer.handle, nullptr);
    }
 }
 
@@ -168,7 +169,7 @@ uint64_t TutorialRayTracing::getBufferDeviceAddress(VkBuffer buffer)
    VkBufferDeviceAddressInfoKHR bufferDeviceAI{};
    bufferDeviceAI.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
    bufferDeviceAI.buffer = buffer;
-   return genesis::vkGetBufferDeviceAddressKHR(device, &bufferDeviceAI);
+   return genesis::vkGetBufferDeviceAddressKHR(_device->vulkanDevice(), &bufferDeviceAI);
 }
 
 void TutorialRayTracing::writeStorageImageDescriptors()
@@ -182,7 +183,7 @@ void TutorialRayTracing::writeStorageImageDescriptors()
    , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &finalImageDescriptor)
    };
 
-   vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
+   vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
 }
 
 void TutorialRayTracing::deleteStorageImages()
@@ -208,7 +209,7 @@ void TutorialRayTracing::createStorageImages()
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
 
    genesis::ImageTransitions transitions;
-   VkCommandBuffer commandBuffer = _device->getCommandBuffer(true);
+   VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
    transitions.setImageLayout(commandBuffer, _intermediateImage->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
    transitions.setImageLayout(commandBuffer, _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
@@ -247,7 +248,7 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
    0.0f, 0.0f, 1.0f, 0.0f
    };
 
-   VK_CHECK_RESULT(vulkanDevice->createBuffer(
+   VK_CHECK_RESULT(_device->createBuffer(
       VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
       &transformBuffer,
@@ -279,7 +280,7 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
 
    // Buffer for instance data
    vks::Buffer instancesBuffer;
-   VK_CHECK_RESULT(vulkanDevice->createBuffer(
+   VK_CHECK_RESULT(_device->createBuffer(
       VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
       &instancesBuffer,
@@ -313,7 +314,7 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
    VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo{};
    accelerationStructureBuildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
    genesis::vkGetAccelerationStructureBuildSizesKHR(
-      device,
+      _device->vulkanDevice(),
       VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
       &accelerationStructureBuildGeometryInfo,
       &primitive_count,
@@ -343,13 +344,13 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
 
    // Build the acceleration structure on the device via a one-time command buffer submission
    // Some implementations may support acceleration structure building on the host (VkPhysicalDeviceAccelerationStructureFeaturesKHR->accelerationStructureHostCommands), but we prefer device builds
-   VkCommandBuffer commandBuffer = vulkanDevice->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+   VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
    genesis::vkCmdBuildAccelerationStructuresKHR(
       commandBuffer,
       1,
       &accelerationBuildGeometryInfo,
       accelerationBuildStructureRangeInfos.data());
-   vulkanDevice->flushCommandBuffer(commandBuffer, queue);
+   _device->flushCommandBuffer(commandBuffer);
 
    VkAccelerationStructureDeviceAddressInfoKHR accelerationDeviceAddressInfo{};
    accelerationDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
@@ -380,13 +381,13 @@ void TutorialRayTracing::createShaderBindingTable() {
    const uint32_t sbtSize = groupCount * handleSizeAligned;
 
    std::vector<uint8_t> shaderHandleStorage(sbtSize);
-   VK_CHECK_RESULT(genesis::vkGetRayTracingShaderGroupHandlesKHR(device, _rayTracingPipeline, 0, groupCount, sbtSize, shaderHandleStorage.data()));
+   VK_CHECK_RESULT(genesis::vkGetRayTracingShaderGroupHandlesKHR(_device->vulkanDevice(), _rayTracingPipeline, 0, groupCount, sbtSize, shaderHandleStorage.data()));
 
    const VkBufferUsageFlags bufferUsageFlags = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
    const VkMemoryPropertyFlags memoryUsageFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-   VK_CHECK_RESULT(vulkanDevice->createBuffer(bufferUsageFlags, memoryUsageFlags, &_raygenShaderBindingTable, handleSize));
-   VK_CHECK_RESULT(vulkanDevice->createBuffer(bufferUsageFlags, memoryUsageFlags, &_missShaderBindingTable, handleSize));
-   VK_CHECK_RESULT(vulkanDevice->createBuffer(bufferUsageFlags, memoryUsageFlags, &_hitShaderBindingTable, handleSize));
+   VK_CHECK_RESULT(_device->createBuffer(bufferUsageFlags, memoryUsageFlags, &_raygenShaderBindingTable, handleSize));
+   VK_CHECK_RESULT(_device->createBuffer(bufferUsageFlags, memoryUsageFlags, &_missShaderBindingTable, handleSize));
+   VK_CHECK_RESULT(_device->createBuffer(bufferUsageFlags, memoryUsageFlags, &_hitShaderBindingTable, handleSize));
 
    // Copy handles
    _raygenShaderBindingTable.map();
@@ -423,10 +424,10 @@ void TutorialRayTracing::createDescriptorSets()
    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2 },
    };
    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::VulkanInitializers::descriptorPoolCreateInfo(poolSizes, 1);
-   VK_CHECK_RESULT(vkCreateDescriptorPool(device, &descriptorPoolCreateInfo, nullptr, &descriptorPool));
+   VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &descriptorPool));
 
    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::VulkanInitializers::descriptorSetAllocateInfo(descriptorPool, &_rayTracingDescriptorSetLayout, 1);
-   VK_CHECK_RESULT(vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &_rayTracingDescriptorSet));
+   VK_CHECK_RESULT(vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &_rayTracingDescriptorSet));
 
    VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = genesis::VulkanInitializers::writeDescriptorSetAccelerationStructureKHR();
    descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
@@ -455,7 +456,7 @@ void TutorialRayTracing::createDescriptorSets()
       , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, _gltfModel->indexBuffer()->descriptorPtr())
    };
 
-   vkUpdateDescriptorSets(device, static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
+   vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
 }
 
 /*
@@ -475,7 +476,7 @@ void TutorialRayTracing::createRayTracingPipeline()
    };
 
    VkDescriptorSetLayoutCreateInfo descriptorSetlayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(descriptorSetLayoutBindings);
-   VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device, &descriptorSetlayoutInfo, nullptr, &_rayTracingDescriptorSetLayout));
+   VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &descriptorSetlayoutInfo, nullptr, &_rayTracingDescriptorSetLayout));
 
    std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _rayTracingDescriptorSetLayout, _gltfModel->vulkanDescriptorSetLayout() };
 
@@ -488,7 +489,7 @@ void TutorialRayTracing::createRayTracingPipeline()
    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 
-   VK_CHECK_RESULT(vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &_rayTracingPipelineLayout));
+   VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_rayTracingPipelineLayout));
 
    /*
    Setup ray tracing shader groups
@@ -545,7 +546,7 @@ void TutorialRayTracing::createRayTracingPipeline()
    rayTracingPipelineCI.pGroups = shaderGroups.data();
    rayTracingPipelineCI.maxPipelineRayRecursionDepth = 1;
    rayTracingPipelineCI.layout = _rayTracingPipelineLayout;
-   VK_CHECK_RESULT(genesis::vkCreateRayTracingPipelinesKHR(device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rayTracingPipelineCI, nullptr, &_rayTracingPipeline));
+   VK_CHECK_RESULT(genesis::vkCreateRayTracingPipelinesKHR(_device->vulkanDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rayTracingPipelineCI, nullptr, &_rayTracingPipeline));
 }
 
 /*
@@ -770,7 +771,7 @@ void TutorialRayTracing::draw()
 
    submitInfo.commandBufferCount = 1;
    submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-   VK_CHECK_RESULT(vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE));
+   VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
    VulkanExampleBase::submitFrame();
 }
 
@@ -789,7 +790,7 @@ void TutorialRayTracing::render()
    }
 }
 
-void TutorialRayTracing::OnUpdateUIOverlay(vks::UIOverlay* overlay)
+void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
 {
    if (overlay->header("Settings")) {
       if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f)) \
@@ -801,12 +802,6 @@ void TutorialRayTracing::OnUpdateUIOverlay(vks::UIOverlay* overlay)
 
 void TutorialRayTracing::setupRenderPass()
 {
-   if (!_device)
-   {
-      _device = new genesis::Device(_physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
-      genesis::VulkanFunctionsInitializer::initialize(_device);
-   }
-
    _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
 }
 

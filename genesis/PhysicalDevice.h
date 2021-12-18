@@ -36,6 +36,11 @@ namespace genesis
 
       //! memory type index
       virtual uint32_t getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
+
+      //! queue family index
+      virtual uint32_t getQueueFamilyIndex(VkQueueFlagBits queueFlags) const;
+
+      virtual bool extensionSupported(const std::string& extension) const;
       
    protected:
       // Stores physical device properties (for e.g. checking device limits)
@@ -53,6 +58,10 @@ namespace genesis
 
       /** @brief Set of device extensions to be enabled */
       std::vector<const char*> _enabledPhysicalDeviceExtensions;
+
+      std::vector<std::string> _supportedExtensions;
+
+      std::vector<VkQueueFamilyProperties> _queueFamilyProperties;
    };
 }
 
