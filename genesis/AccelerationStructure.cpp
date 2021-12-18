@@ -1,5 +1,6 @@
 #include "AccelerationStructure.h"
 #include "Device.h"
+#include "PhysicalDevice.h"
 #include "VulkanDebug.h"
 #include "VulkanFunctions.h"
 #include <iostream>
@@ -26,7 +27,7 @@ namespace genesis
       memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
       memoryAllocateInfo.pNext = &memoryAllocateFlagsInfo;
       memoryAllocateInfo.allocationSize = memoryRequirements.size;
-      memoryAllocateInfo.memoryTypeIndex = _device->getMemoryTypeIndex(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+      memoryAllocateInfo.memoryTypeIndex = _device->physicalDevice()->getMemoryTypeIndex(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
       VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &_memory));
 
       VK_CHECK_RESULT(vkBindBufferMemory(_device->vulkanDevice(), _buffer, _memory, 0));

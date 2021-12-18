@@ -76,4 +76,23 @@ namespace genesis
    {
       return _physicalDeviceMemoryProperties;
    }
+
+
+   uint32_t PhysicalDevice::getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const
+   {
+      // Iterate over all memory types available for the device used in this example
+      for (uint32_t i = 0; i < _physicalDeviceMemoryProperties.memoryTypeCount; i++)
+      {
+         if ((typeBits & 1) == 1)
+         {
+            if ((_physicalDeviceMemoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+            {
+               return i;
+            }
+         }
+         typeBits >>= 1;
+      }
+
+      throw "Could not find a suitable memory type!";
+   }
 }

@@ -20,8 +20,6 @@ namespace genesis
       virtual VkCommandBuffer getCommandBuffer(bool begin);
       virtual void flushCommandBuffer(VkCommandBuffer commandBuffer);
 
-      virtual uint32_t getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
-
    public:
       const PhysicalDevice* _physicalDevice;
 

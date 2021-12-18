@@ -78,23 +78,4 @@ namespace genesis
       vkFreeCommandBuffers(_logicalDevice, _commandPool, 1, &commandBuffer);
    }
 
-   uint32_t Device::getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const
-   {
-      const VkPhysicalDeviceMemoryProperties& physicalDeviceMemoryProperties = _physicalDevice->physicalDeviceMemoryProperties();
-
-      // Iterate over all memory types available for the device used in this example
-      for (uint32_t i = 0; i < physicalDeviceMemoryProperties.memoryTypeCount; i++)
-      {
-         if ((typeBits & 1) == 1)
-         {
-            if ((physicalDeviceMemoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
-            {
-               return i;
-            }
-         }
-         typeBits >>= 1;
-      }
-
-      throw "Could not find a suitable memory type!";
-   }
 }

@@ -33,6 +33,9 @@ namespace genesis
 
       //! All the extensions enabled (const)
       virtual const std::vector<const char*>& enabledPhysicalDeviceExtensions(void) const;
+
+      //! memory type index
+      virtual uint32_t getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
       
    protected:
       // Stores physical device properties (for e.g. checking device limits)

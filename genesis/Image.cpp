@@ -1,5 +1,6 @@
 #include "Image.h"
 #include "Device.h"
+#include "PhysicalDevice.h"
 #include "Buffer.h"
 #include "VulkanInitializers.h"
 #include "VulkanDebug.h"
@@ -49,7 +50,7 @@ namespace genesis
 
       VkMemoryAllocateInfo memoryAllocateInfo = genesis::VulkanInitializers::memoryAllocateInfo();
       memoryAllocateInfo.allocationSize = memoryRequirements.size;
-      memoryAllocateInfo.memoryTypeIndex = _device->getMemoryTypeIndex(memoryRequirements.memoryTypeBits
+      memoryAllocateInfo.memoryTypeIndex = _device->physicalDevice()->getMemoryTypeIndex(memoryRequirements.memoryTypeBits
          , memoryPropertyFlags);
 
       VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &_deviceMemory));

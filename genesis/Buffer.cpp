@@ -1,5 +1,6 @@
 #include "Buffer.h"
 #include "Device.h"
+#include "PhysicalDevice.h"
 #include "VulkanFunctions.h"
 #include "VulkanDebug.h"
 #include "GenAssert.h"
@@ -82,7 +83,7 @@ namespace genesis
          break;
       }
 
-      memoryAllocateInfo.memoryTypeIndex = _device->getMemoryTypeIndex(memoryRequirements.memoryTypeBits
+      memoryAllocateInfo.memoryTypeIndex = _device->physicalDevice()->getMemoryTypeIndex(memoryRequirements.memoryTypeBits
          , memoryProperties);
 
       VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &_deviceMemory));
