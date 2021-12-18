@@ -27,7 +27,7 @@ namespace genesis
       this->settings.validation = true;
 #endif
 
-      _instance = new Instance(name, enabledInstanceExtensions, apiVersion, this->settings.validation);
+      _instance = new Instance(name, _enabledInstanceExtensions, apiVersion, this->settings.validation);
       return _instance->creationStatus();
    }
 
@@ -462,13 +462,13 @@ namespace genesis
          std::cout << "Available Vulkan devices" << "\n";
          for (uint32_t i = 0; i < gpuCount; i++) {
 
-            PhysicalDevice physicalDevice(_instance, i);
+            PhysicalDevice physicalDevice(_instance, i, {});
             physicalDevice.printDetails();
          }
       }
 #endif
 
-      _physicalDevice = new PhysicalDevice(_instance, selectedDevice);
+      _physicalDevice = new PhysicalDevice(_instance, selectedDevice, _enabledPhysicalDeviceExtensions);
 
       // Derived examples can override this to set actual features (based on above readings) to enable for logical device creation
       getEnabledFeatures();
@@ -477,7 +477,7 @@ namespace genesis
       // This is handled by a separate class that gets a logical device representation
       // and encapsulates functions related to a device
       vulkanDevice = new vks::VulkanDevice(_physicalDevice->vulkanPhysicalDevice());
-      VkResult res = vulkanDevice->createLogicalDevice(_physicalDevice->enabledPhysicalDeviceFeatures(), enabledDeviceExtensions, deviceCreatepNextChain);
+      VkResult res = vulkanDevice->createLogicalDevice(_physicalDevice->enabledPhysicalDeviceFeatures(), _enabledPhysicalDeviceExtensions, deviceCreatepNextChain);
       if (res != VK_SUCCESS) {
          vks::tools::exitFatal("Could not create Vulkan device: \n" + vks::tools::errorString(res), res);
          return false;

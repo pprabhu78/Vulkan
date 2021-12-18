@@ -5,12 +5,14 @@
 
 namespace genesis
 {
-   PhysicalDevice::PhysicalDevice(const Instance* instance, int deviceIndex)
+   PhysicalDevice::PhysicalDevice(const Instance* instance, int deviceIndex
+      , const std::vector<const char*>& enabledPhysicalDeviceExtensions)
+      : _enabledPhysicalDeviceExtensions(enabledPhysicalDeviceExtensions)
    {
       _physicalDevice =  instance->physicalDevices()[deviceIndex];
       // Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
-      vkGetPhysicalDeviceProperties(_physicalDevice, &_deviceProperties);
-      vkGetPhysicalDeviceFeatures(_physicalDevice, &_deviceFeatures);
+      vkGetPhysicalDeviceProperties(_physicalDevice, &_physicalDeviceProperties);
+      vkGetPhysicalDeviceFeatures(_physicalDevice, &_physicalDeviceFeatures);
       vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &_deviceMemoryProperties);
    }
    
@@ -36,14 +38,14 @@ namespace genesis
 
    void PhysicalDevice::printDetails()
    {
-      std::cout << "Device: " << _deviceProperties.deviceName << std::endl;
-      std::cout << " Type: " << physicalDeviceTypeString(_deviceProperties.deviceType) << "\n";
-      std::cout << " API: " << (_deviceProperties.apiVersion >> 22) << "." << ((_deviceProperties.apiVersion >> 12) & 0x3ff) << "." << (_deviceProperties.apiVersion & 0xfff) << "\n";
+      std::cout << "Device: " << _physicalDeviceProperties.deviceName << std::endl;
+      std::cout << " Type: " << physicalDeviceTypeString(_physicalDeviceProperties.deviceType) << "\n";
+      std::cout << " API: " << (_physicalDeviceProperties.apiVersion >> 22) << "." << ((_physicalDeviceProperties.apiVersion >> 12) & 0x3ff) << "." << (_physicalDeviceProperties.apiVersion & 0xfff) << "\n";
    }
 
    const VkPhysicalDeviceProperties& PhysicalDevice::physicalDeviceProperties(void) const
    {
-      return _deviceProperties;
+      return _physicalDeviceProperties;
    }
 
    VkPhysicalDevice PhysicalDevice::vulkanPhysicalDevice(void) const
@@ -51,13 +53,22 @@ namespace genesis
       return _physicalDevice;
    }
 
-   const VkPhysicalDeviceFeatures& PhysicalDevice::physicalDeviceFeatures(void) const
+   const VkPhysicalDeviceFeatures& PhysicalDevice::enabledPhysicalDeviceFeatures(void) const
    {
-      return _physicalDeviceFeatures;
+      return _enabledPhysicalDeviceFeatures;
    }
-
    VkPhysicalDeviceFeatures& PhysicalDevice::enabledPhysicalDeviceFeatures(void)
    {
       return _enabledPhysicalDeviceFeatures;
+   }
+   
+   const std::vector<const char*>& PhysicalDevice::enabledPhysicalDeviceExtensions(void) const
+   {
+      return _enabledPhysicalDeviceExtensions;
+   }
+
+   const VkPhysicalDeviceFeatures& PhysicalDevice::physicalDeviceFeatures(void) const
+   {
+      return _physicalDeviceFeatures;
    }
 }
