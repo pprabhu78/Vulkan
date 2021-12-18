@@ -77,6 +77,7 @@
 namespace genesis
 {
 	class RenderPass;
+	class Instance;
 	class Device;
 
 
@@ -101,6 +102,7 @@ namespace genesis
 		void destroyCommandBuffers();
 		std::string shaderDir = "glsl";
 	protected:
+		Instance* _instance;
 
       Device* _device;
 
@@ -111,8 +113,6 @@ namespace genesis
 		uint32_t frameCounter = 0;
 		uint32_t lastFPS = 0;
 		std::chrono::time_point<std::chrono::high_resolution_clock> lastTimestamp;
-		// Vulkan instance, stores all per-application states
-		VkInstance instance;
 		std::vector<std::string> supportedInstanceExtensions;
 		// Physical device (GPU) that Vulkan will use
 		VkPhysicalDevice physicalDevice;
@@ -126,7 +126,7 @@ namespace genesis
 		VkPhysicalDeviceFeatures enabledFeatures{};
 		/** @brief Set of device extensions to be enabled for this example (must be set in the derived constructor) */
 		std::vector<const char*> enabledDeviceExtensions;
-		std::vector<const char*> enabledInstanceExtensions;
+		std::vector<std::string> enabledInstanceExtensions;
 		/** @brief Optional pNext structure for passing extension structures to device creation */
 		void* deviceCreatepNextChain = nullptr;
 		/** @brief Logical device, application's view of the physical device (GPU) */
