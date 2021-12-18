@@ -36,7 +36,6 @@ namespace genesis
 
       virtual bool enableDebugMarkers(void) const;
 
-      virtual VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, VkBuffer* buffer, VkDeviceMemory* memory, void* data = nullptr);
       virtual VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, vks::Buffer* buffer, VkDeviceSize size, void* data = nullptr);
    protected:
       virtual void initQueueFamilyIndices(VkQueueFlags requestedQueueTypes);
