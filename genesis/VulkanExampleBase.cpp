@@ -430,8 +430,7 @@ bool VulkanExampleBase::initVulkan()
 		return false;
 	}
 
-	std::vector<int> devices;
-	bool ok = _instance->enumeratePhysicalDevices(devices);
+	bool ok = _instance->enumeratePhysicalDevices();
 	if (!ok)
 	{
 		std::cout << "Could not enumerate physical devices : \n" << VulkanErrorToString::toString(err) << std::endl;
@@ -444,7 +443,7 @@ bool VulkanExampleBase::initVulkan()
 	// Defaults to the first device unless specified by command line
 	uint32_t selectedDevice = 0;
 
-	size_t gpuCount = devices.size();
+	size_t gpuCount = _instance->physicalDevices().size();
 
 #if !defined(VK_USE_PLATFORM_ANDROID_KHR)
 	// GPU selection via command line argument

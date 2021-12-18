@@ -218,7 +218,7 @@ namespace genesis
       return _createResult;
    }
 
-   bool Instance::enumeratePhysicalDevices(std::vector<int>& deviceIndices)
+   bool Instance::enumeratePhysicalDevices()
    {	
       // Physical device
       uint32_t gpuCount = 0;

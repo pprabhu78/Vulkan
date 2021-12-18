@@ -17,7 +17,7 @@ namespace genesis
 
       virtual VkResult creationStatus(void) const;
 
-      virtual bool enumeratePhysicalDevices(std::vector<int>& deviceIndices);
+      virtual bool enumeratePhysicalDevices();
 
       virtual const std::vector<VkPhysicalDevice>& physicalDevices(void) const;
    protected:
