@@ -1,6 +1,7 @@
 #include "ScreenShotUtility.h"
 #include "ImageTransitions.h"
 #include "StorageImage.h"
+#include "PhysicalDevice.h"
 #include "Device.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -31,14 +32,14 @@ namespace genesis
       VkFormatProperties formatProps;
 
       // Check if the device supports blitting from optimal images (the swapchain images are in optimal format)
-      vkGetPhysicalDeviceFormatProperties(_device->physicalDevice(), swapChainColorFormat, &formatProps);
+      vkGetPhysicalDeviceFormatProperties(_device->physicalDevice()->vulkanPhysicalDevice(), swapChainColorFormat, &formatProps);
       if (!(formatProps.optimalTilingFeatures & VK_FORMAT_FEATURE_BLIT_SRC_BIT)) {
          std::cout << "Device does not support blitting from optimal tiled images, using copy instead of blit!" << std::endl;
          supportsBlit = false;
       }
 
       // Check if the device supports blitting to linear images
-      vkGetPhysicalDeviceFormatProperties(_device->physicalDevice(), VK_FORMAT_R8G8B8A8_UNORM, &formatProps);
+      vkGetPhysicalDeviceFormatProperties(_device->physicalDevice()->vulkanPhysicalDevice(), VK_FORMAT_R8G8B8A8_UNORM, &formatProps);
       if (!(formatProps.linearTilingFeatures & VK_FORMAT_FEATURE_BLIT_DST_BIT)) {
          std::cout << "Device does not support blitting to linear tiled images, using copy instead of blit!" << std::endl;
          supportsBlit = false;

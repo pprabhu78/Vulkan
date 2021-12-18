@@ -21,6 +21,9 @@ namespace genesis
       //! All the features supported (initialized in constructor)
       virtual const VkPhysicalDeviceFeatures& physicalDeviceFeatures(void) const;
 
+      //! All the memory properties supported (initialized in constructor)
+      virtual const VkPhysicalDeviceMemoryProperties& physicalDeviceMemoryProperties(void) const;
+
 
       //! All the features enabled (non-const). Used to set
       virtual VkPhysicalDeviceFeatures& enabledPhysicalDeviceFeatures(void);
@@ -39,7 +42,7 @@ namespace genesis
       VkPhysicalDeviceFeatures _physicalDeviceFeatures;
 
       // Stores all available memory (type) properties for the physical device
-      VkPhysicalDeviceMemoryProperties _deviceMemoryProperties;
+      VkPhysicalDeviceMemoryProperties _physicalDeviceMemoryProperties;
 
       VkPhysicalDevice _physicalDevice;
 

@@ -1,19 +1,18 @@
 #include "Device.h"
+#include "PhysicalDevice.h"
 #include "VulkanInitializers.h"
 #include "VulkanDebug.h"
 
+
 namespace genesis
 {
-   Device::Device(VkPhysicalDevice physicalDevice, VkDevice logicalDevice, VkQueue graphicsQueue, VkCommandPool commandPool)
+   Device::Device(PhysicalDevice* physicalDevice, VkDevice logicalDevice, VkQueue graphicsQueue, VkCommandPool commandPool)
       : _logicalDevice(logicalDevice)
       , _queue(graphicsQueue)
       , _commandPool(commandPool)
       , _physicalDevice(physicalDevice)
    {
-      // Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
-      vkGetPhysicalDeviceProperties(_physicalDevice, &_physicalDeviceProperties);
-      vkGetPhysicalDeviceFeatures(_physicalDevice, &_physicalDeviceFeatures);
-      vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &_physicalDeviceMemoryProperties);
+      
    }
 
    Device::~Device()
@@ -26,7 +25,7 @@ namespace genesis
       return _logicalDevice;
    }
 
-   VkPhysicalDevice Device::physicalDevice() const
+   const PhysicalDevice* Device::physicalDevice() const
    {
       return _physicalDevice;
    }
@@ -81,12 +80,14 @@ namespace genesis
 
    uint32_t Device::getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const
    {
+      const VkPhysicalDeviceMemoryProperties& physicalDeviceMemoryProperties = _physicalDevice->physicalDeviceMemoryProperties();
+
       // Iterate over all memory types available for the device used in this example
-      for (uint32_t i = 0; i < _physicalDeviceMemoryProperties.memoryTypeCount; i++)
+      for (uint32_t i = 0; i < physicalDeviceMemoryProperties.memoryTypeCount; i++)
       {
          if ((typeBits & 1) == 1)
          {
-            if ((_physicalDeviceMemoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+            if ((physicalDeviceMemoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
             {
                return i;
             }

@@ -803,7 +803,7 @@ void TutorialRayTracing::setupRenderPass()
 {
    if (!_device)
    {
-      _device = new genesis::Device(_physicalDevice->vulkanPhysicalDevice(), VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
+      _device = new genesis::Device(_physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
       genesis::VulkanFunctionsInitializer::initialize(_device);
    }
 

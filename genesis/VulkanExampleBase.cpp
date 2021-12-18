@@ -477,7 +477,7 @@ namespace genesis
       // This is handled by a separate class that gets a logical device representation
       // and encapsulates functions related to a device
       vulkanDevice = new vks::VulkanDevice(_physicalDevice->vulkanPhysicalDevice());
-      VkResult res = vulkanDevice->createLogicalDevice(_physicalDevice->enabledPhysicalDeviceFeatures(), _enabledPhysicalDeviceExtensions, deviceCreatepNextChain);
+      VkResult res = vulkanDevice->createLogicalDevice(_physicalDevice->enabledPhysicalDeviceFeatures(), _physicalDevice->enabledPhysicalDeviceExtensions(), deviceCreatepNextChain);
       if (res != VK_SUCCESS) {
          vks::tools::exitFatal("Could not create Vulkan device: \n" + vks::tools::errorString(res), res);
          return false;
@@ -889,7 +889,7 @@ namespace genesis
    {
       if (!_device)
       {
-         _device = new genesis::Device(_physicalDevice->vulkanPhysicalDevice(), VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
+         _device = new genesis::Device(_physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
       }
       _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
    }

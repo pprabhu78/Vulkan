@@ -13,7 +13,7 @@ namespace genesis
       // Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
       vkGetPhysicalDeviceProperties(_physicalDevice, &_physicalDeviceProperties);
       vkGetPhysicalDeviceFeatures(_physicalDevice, &_physicalDeviceFeatures);
-      vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &_deviceMemoryProperties);
+      vkGetPhysicalDeviceMemoryProperties(_physicalDevice, &_physicalDeviceMemoryProperties);
    }
    
    PhysicalDevice::~PhysicalDevice()
@@ -70,5 +70,10 @@ namespace genesis
    const VkPhysicalDeviceFeatures& PhysicalDevice::physicalDeviceFeatures(void) const
    {
       return _physicalDeviceFeatures;
+   }
+
+   const VkPhysicalDeviceMemoryProperties& PhysicalDevice::physicalDeviceMemoryProperties(void) const
+   {
+      return _physicalDeviceMemoryProperties;
    }
 }
