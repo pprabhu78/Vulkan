@@ -10,6 +10,7 @@
 #include "RenderPass.h"
 #include "Instance.h"
 #include "Device.h"
+#include "PhysicalDevice.h"
 
 namespace genesis
 {
@@ -40,7 +41,7 @@ void VulkanExampleBase::renderFrame()
 
 std::string VulkanExampleBase::getWindowTitle()
 {
-	std::string device(deviceProperties.deviceName);
+	std::string device(_physicalDevice->physicalDeviceProperties().deviceName);
 	std::string windowTitle;
 	windowTitle = title + " - " + device;
 	if (!settings.overlay) {
@@ -230,7 +231,7 @@ void VulkanExampleBase::updateOverlay()
 	ImGui::SetNextWindowSize(ImVec2(0, 0), ImGuiSetCond_FirstUseEver);
 	ImGui::Begin("Vulkan Example", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
 	ImGui::TextUnformatted(title.c_str());
-	ImGui::TextUnformatted(deviceProperties.deviceName);
+	ImGui::TextUnformatted(_physicalDevice->physicalDeviceProperties().deviceName);
 	ImGui::Text("%.2f ms/frame (%.1d fps)", (1000.0f / lastFPS), lastFPS);
 
 
@@ -429,20 +430,11 @@ bool VulkanExampleBase::initVulkan()
 		return false;
 	}
 
-
-	// Physical device
-	uint32_t gpuCount = 0;
-	// Get number of available physical devices
-	VK_CHECK_RESULT(vkEnumeratePhysicalDevices(_instance->vulkanInstance(), &gpuCount, nullptr));
-	if (gpuCount == 0) {
-		vks::tools::exitFatal("No device with Vulkan support found", -1);
-		return false;
-	}
-	// Enumerate devices
-	std::vector<VkPhysicalDevice> physicalDevices(gpuCount);
-	err = vkEnumeratePhysicalDevices(_instance->vulkanInstance(), &gpuCount, physicalDevices.data());
-	if (err) {
-		vks::tools::exitFatal("Could not enumerate physical devices : \n" + vks::tools::errorString(err), err);
+	std::vector<int> devices;
+	bool ok = _instance->enumeratePhysicalDevices(devices);
+	if (!ok)
+	{
+		std::cout << "Could not enumerate physical devices : \n" << VulkanErrorToString::toString(err) << std::endl;
 		return false;
 	}
 
@@ -451,6 +443,8 @@ bool VulkanExampleBase::initVulkan()
 	// Select physical device to be used for the Vulkan example
 	// Defaults to the first device unless specified by command line
 	uint32_t selectedDevice = 0;
+
+	size_t gpuCount = devices.size();
 
 #if !defined(VK_USE_PLATFORM_ANDROID_KHR)
 	// GPU selection via command line argument
@@ -465,21 +459,14 @@ bool VulkanExampleBase::initVulkan()
 	if (commandLineParser.isSet("gpulist")) {
 		std::cout << "Available Vulkan devices" << "\n";
 		for (uint32_t i = 0; i < gpuCount; i++) {
-			VkPhysicalDeviceProperties deviceProperties;
-			vkGetPhysicalDeviceProperties(physicalDevices[i], &deviceProperties);
-			std::cout << "Device [" << i << "] : " << deviceProperties.deviceName << std::endl;
-			std::cout << " Type: " << vks::tools::physicalDeviceTypeString(deviceProperties.deviceType) << "\n";
-			std::cout << " API: " << (deviceProperties.apiVersion >> 22) << "." << ((deviceProperties.apiVersion >> 12) & 0x3ff) << "." << (deviceProperties.apiVersion & 0xfff) << "\n";
+
+			PhysicalDevice physicalDevice(_instance, i);
+			physicalDevice.printDetails();
 		}
 	}
 #endif
 
-	physicalDevice = physicalDevices[selectedDevice];
-
-	// Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
-	vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
-	vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
-	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &deviceMemoryProperties);
+	_physicalDevice = new PhysicalDevice(_instance, selectedDevice);
 
 	// Derived examples can override this to set actual features (based on above readings) to enable for logical device creation
 	getEnabledFeatures();
@@ -487,8 +474,8 @@ bool VulkanExampleBase::initVulkan()
 	// Vulkan device creation
 	// This is handled by a separate class that gets a logical device representation
 	// and encapsulates functions related to a device
-	vulkanDevice = new vks::VulkanDevice(physicalDevice);
-	VkResult res = vulkanDevice->createLogicalDevice(enabledFeatures, enabledDeviceExtensions, deviceCreatepNextChain);
+	vulkanDevice = new vks::VulkanDevice(_physicalDevice->vulkanPhysicalDevice());
+	VkResult res = vulkanDevice->createLogicalDevice(_physicalDevice->enabledPhysicalDeviceFeatures(), enabledDeviceExtensions, deviceCreatepNextChain);
 	if (res != VK_SUCCESS) {
 		vks::tools::exitFatal("Could not create Vulkan device: \n" + vks::tools::errorString(res), res);
 		return false;
@@ -499,10 +486,10 @@ bool VulkanExampleBase::initVulkan()
 	vkGetDeviceQueue(device, vulkanDevice->queueFamilyIndices.graphics, 0, &queue);
 
 	// Find a suitable depth format
-	VkBool32 validDepthFormat = vks::tools::getSupportedDepthFormat(physicalDevice, &depthFormat);
+	VkBool32 validDepthFormat = vks::tools::getSupportedDepthFormat(_physicalDevice->vulkanPhysicalDevice(), &depthFormat);
 	assert(validDepthFormat);
 
-	swapChain.connect(_instance->vulkanInstance(), physicalDevice, device);
+	swapChain.connect(_instance->vulkanInstance(), _physicalDevice->vulkanPhysicalDevice(), device);
 
 	// Create synchronization objects
 	VkSemaphoreCreateInfo semaphoreCreateInfo = vks::initializers::semaphoreCreateInfo();
@@ -900,7 +887,7 @@ void VulkanExampleBase::setupRenderPass()
 {
    if (!_device)
    {
-      _device = new genesis::Device(VulkanExampleBase::physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
+      _device = new genesis::Device(_physicalDevice->vulkanPhysicalDevice(), VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
    }
 	_renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
 }

@@ -20,6 +20,7 @@
 #include "RenderPass.h"
 #include "ScreenShotUtility.h"
 #include "VulkanInitializers.h"
+#include "PhysicalDevice.h"
 
 #include <chrono>
 
@@ -90,7 +91,6 @@ TutorialRayTracing::TutorialRayTracing()
 
    enabledDeviceExtensions.push_back(VK_KHR_SHADER_CLOCK_EXTENSION_NAME);
 
-   enabledFeatures.shaderInt64 = true;
 }
 
 TutorialRayTracing::~TutorialRayTracing()
@@ -704,6 +704,8 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
 
 void TutorialRayTracing::getEnabledFeatures()
 {
+   _physicalDevice->enabledPhysicalDeviceFeatures().shaderInt64 = true;
+
    // Enable features required for ray tracing using feature chaining via pNext		
    _enabledBufferDeviceAddresFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
    _enabledBufferDeviceAddresFeatures.bufferDeviceAddress = VK_TRUE;
@@ -739,14 +741,14 @@ void TutorialRayTracing::prepare()
    VkPhysicalDeviceProperties2 deviceProperties2{};
    deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
    deviceProperties2.pNext = &_rayTracingPipelineProperties;
-   vkGetPhysicalDeviceProperties2(physicalDevice, &deviceProperties2);
+   vkGetPhysicalDeviceProperties2(_physicalDevice->vulkanPhysicalDevice(), &deviceProperties2);
 
    // Get acceleration structure properties, which will be used later on in the sample
    _accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
    VkPhysicalDeviceFeatures2 deviceFeatures2{};
    deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
    deviceFeatures2.pNext = &_accelerationStructureFeatures;
-   vkGetPhysicalDeviceFeatures2(physicalDevice, &deviceFeatures2);
+   vkGetPhysicalDeviceFeatures2(_physicalDevice->vulkanPhysicalDevice(), &deviceFeatures2);
 
    // Create the acceleration structures used to render the ray traced scene
    createBottomLevelAccelerationStructure();
@@ -801,7 +803,7 @@ void TutorialRayTracing::setupRenderPass()
 {
    if (!_device)
    {
-      _device = new genesis::Device(VulkanExampleBase::physicalDevice, VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
+      _device = new genesis::Device(_physicalDevice->vulkanPhysicalDevice(), VulkanExampleBase::device, VulkanExampleBase::queue, VulkanExampleBase::cmdPool);
       genesis::VulkanFunctionsInitializer::initialize(_device);
    }
 

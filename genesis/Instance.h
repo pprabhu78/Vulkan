@@ -14,7 +14,12 @@ namespace genesis
       virtual ~Instance();
    public:
       virtual VkInstance vulkanInstance(void) const;
+
       virtual VkResult creationStatus(void) const;
+
+      virtual bool enumeratePhysicalDevices(std::vector<int>& deviceIndices);
+
+      virtual const std::vector<VkPhysicalDevice>& physicalDevices(void) const;
    protected:
       
       VkInstance _instance;
@@ -24,6 +29,8 @@ namespace genesis
       const bool _validation;
 
       VkResult _createResult;
+
+      std::vector<VkPhysicalDevice> _physicalDevices;
    };
 
 }

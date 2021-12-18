@@ -195,7 +195,7 @@ namespace genesis
       VkDebugReportFlagsEXT debugReportFlags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
       // Additional flags include performance info, loader and layer debug messages, etc.
       setupDebugging(_instance, debugReportFlags, VK_NULL_HANDLE);
-      
+
    }
 
    Instance::~Instance()
@@ -216,5 +216,30 @@ namespace genesis
    VkResult Instance::creationStatus(void) const
    {
       return _createResult;
+   }
+
+   bool Instance::enumeratePhysicalDevices(std::vector<int>& deviceIndices)
+   {	
+      // Physical device
+      uint32_t gpuCount = 0;
+      // Get number of available physical devices
+      VK_CHECK_RESULT(vkEnumeratePhysicalDevices(_instance, &gpuCount, nullptr));
+      if (gpuCount == 0) {
+         std::cout << "No device with Vulkan support found" << std::endl;
+         return false;
+      }
+      // Enumerate devices
+      _physicalDevices.resize(gpuCount);
+      VkResult err = vkEnumeratePhysicalDevices(_instance, &gpuCount, _physicalDevices.data());
+      if (err) {
+         std::cout << "Could not enumerate physical devices : \n" <<VulkanErrorToString::toString(err) << std::endl;
+         return false;
+      }
+      return true;
+   }
+
+   const std::vector<VkPhysicalDevice>& Instance::physicalDevices(void) const
+   {
+      return _physicalDevices;
    }
 }

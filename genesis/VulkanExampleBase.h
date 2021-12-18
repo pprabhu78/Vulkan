@@ -78,6 +78,7 @@ namespace genesis
 {
 	class RenderPass;
 	class Instance;
+	class PhysicalDevice;
 	class Device;
 
 
@@ -114,16 +115,11 @@ namespace genesis
 		uint32_t lastFPS = 0;
 		std::chrono::time_point<std::chrono::high_resolution_clock> lastTimestamp;
 		std::vector<std::string> supportedInstanceExtensions;
+		
 		// Physical device (GPU) that Vulkan will use
-		VkPhysicalDevice physicalDevice;
-		// Stores physical device properties (for e.g. checking device limits)
-		VkPhysicalDeviceProperties deviceProperties;
-		// Stores the features available on the selected physical device (for e.g. checking if a feature is available)
-		VkPhysicalDeviceFeatures deviceFeatures;
-		// Stores all available memory (type) properties for the physical device
-		VkPhysicalDeviceMemoryProperties deviceMemoryProperties;
-		/** @brief Set of physical device features to be enabled for this example (must be set in the derived constructor) */
-		VkPhysicalDeviceFeatures enabledFeatures{};
+		PhysicalDevice* _physicalDevice;
+
+
 		/** @brief Set of device extensions to be enabled for this example (must be set in the derived constructor) */
 		std::vector<const char*> enabledDeviceExtensions;
 		std::vector<std::string> enabledInstanceExtensions;

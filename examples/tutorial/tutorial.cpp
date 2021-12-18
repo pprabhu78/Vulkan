@@ -11,6 +11,7 @@
 #include "tutorial.h"
 #include "Shader.h"
 #include "RenderPass.h"
+#include "PhysicalDevice.h"
 
 #include "VulkanInitializers.h"
 #include "VulkanGltf.h"
@@ -360,11 +361,11 @@ void Tutorial::prepare()
 void Tutorial::getEnabledFeatures()
 {
    // Example uses multi draw indirect if available
-   if (deviceFeatures.multiDrawIndirect) {
-      enabledFeatures.multiDrawIndirect = VK_TRUE;
+   if (_physicalDevice->physicalDeviceFeatures().multiDrawIndirect) {
+      _physicalDevice->enabledPhysicalDeviceFeatures().multiDrawIndirect = VK_TRUE;
    }
    // Enable anisotropic filtering if supported
-   if (deviceFeatures.samplerAnisotropy) {
-      enabledFeatures.samplerAnisotropy = VK_TRUE;
+   if (_physicalDevice->physicalDeviceFeatures().samplerAnisotropy) {
+      _physicalDevice->enabledPhysicalDeviceFeatures().samplerAnisotropy = VK_TRUE;
    }
 };
