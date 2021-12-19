@@ -10,24 +10,13 @@
 #include "VulkanUIOverlay.h"
 #include "Device.h"
 #include "PhysicalDevice.h"
+#include "VulkanInitializers.h"
 #include "Buffer.h"
 
 namespace genesis
 {
    UIOverlay::UIOverlay()
    {
-#if defined(__ANDROID__)		
-      if (vks::android::screenDensity >= ACONFIGURATION_DENSITY_XXHIGH) {
-         scale = 3.5f;
-      }
-      else if (vks::android::screenDensity >= ACONFIGURATION_DENSITY_XHIGH) {
-         scale = 2.5f;
-      }
-      else if (vks::android::screenDensity >= ACONFIGURATION_DENSITY_HIGH) {
-         scale = 2.0f;
-      };
-#endif
-
       // Init ImGui
       ImGui::CreateContext();
       // Color scheme
@@ -52,27 +41,15 @@ namespace genesis
       // Create font texture
       unsigned char* fontData;
       int texWidth, texHeight;
-#if defined(__ANDROID__)
-      float scale = (float)vks::android::screenDensity / (float)ACONFIGURATION_DENSITY_MEDIUM;
-      AAsset* asset = AAssetManager_open(androidApp->activity->assetManager, "Roboto-Medium.ttf", AASSET_MODE_STREAMING);
-      if (asset) {
-         size_t size = AAsset_getLength(asset);
-         assert(size > 0);
-         char* fontAsset = new char[size];
-         AAsset_read(asset, fontAsset, size);
-         AAsset_close(asset);
-         io.Fonts->AddFontFromMemoryTTF(fontAsset, size, 14.0f * scale);
-         delete[] fontAsset;
-      }
-#else
+
       const std::string filename = getAssetPath() + "Roboto-Medium.ttf";
       io.Fonts->AddFontFromFileTTF(filename.c_str(), 24);
-#endif		
+
       io.Fonts->GetTexDataAsRGBA32(&fontData, &texWidth, &texHeight);
       VkDeviceSize uploadSize = texWidth * texHeight * 4 * sizeof(char);
 
       // Create target image for copy
-      VkImageCreateInfo imageInfo = vks::initializers::imageCreateInfo();
+      VkImageCreateInfo imageInfo = VulkanInitializers::imageCreateInfo();
       imageInfo.imageType = VK_IMAGE_TYPE_2D;
       imageInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
       imageInfo.extent.width = texWidth;
@@ -88,14 +65,14 @@ namespace genesis
       VK_CHECK_RESULT(vkCreateImage(device->vulkanDevice(), &imageInfo, nullptr, &fontImage));
       VkMemoryRequirements memReqs;
       vkGetImageMemoryRequirements(device->vulkanDevice(), fontImage, &memReqs);
-      VkMemoryAllocateInfo memAllocInfo = vks::initializers::memoryAllocateInfo();
+      VkMemoryAllocateInfo memAllocInfo = VulkanInitializers::memoryAllocateInfo();
       memAllocInfo.allocationSize = memReqs.size;
       memAllocInfo.memoryTypeIndex = device->physicalDevice()->getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
       VK_CHECK_RESULT(vkAllocateMemory(device->vulkanDevice(), &memAllocInfo, nullptr, &fontMemory));
       VK_CHECK_RESULT(vkBindImageMemory(device->vulkanDevice(), fontImage, fontMemory, 0));
 
       // Image view
-      VkImageViewCreateInfo viewInfo = vks::initializers::imageViewCreateInfo();
+      VkImageViewCreateInfo viewInfo = VulkanInitializers::imageViewCreateInfo();
       viewInfo.image = fontImage;
       viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
       viewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -159,7 +136,7 @@ namespace genesis
       delete stagingBuffer;
 
       // Font texture Sampler
-      VkSamplerCreateInfo samplerInfo = vks::initializers::samplerCreateInfo();
+      VkSamplerCreateInfo samplerInfo = VulkanInitializers::samplerCreateInfo();
       samplerInfo.magFilter = VK_FILTER_LINEAR;
       samplerInfo.minFilter = VK_FILTER_LINEAR;
       samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
@@ -171,28 +148,28 @@ namespace genesis
 
       // Descriptor pool
       std::vector<VkDescriptorPoolSize> poolSizes = {
-      vks::initializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+      VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
       };
-      VkDescriptorPoolCreateInfo descriptorPoolInfo = vks::initializers::descriptorPoolCreateInfo(poolSizes, 2);
+      VkDescriptorPoolCreateInfo descriptorPoolInfo = VulkanInitializers::descriptorPoolCreateInfo(poolSizes, 2);
       VK_CHECK_RESULT(vkCreateDescriptorPool(device->vulkanDevice(), &descriptorPoolInfo, nullptr, &descriptorPool));
 
       // Descriptor set layout
       std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
-      vks::initializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
+      VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
       };
-      VkDescriptorSetLayoutCreateInfo descriptorLayout = vks::initializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
+      VkDescriptorSetLayoutCreateInfo descriptorLayout = VulkanInitializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
       VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device->vulkanDevice(), &descriptorLayout, nullptr, &descriptorSetLayout));
 
       // Descriptor set
-      VkDescriptorSetAllocateInfo allocInfo = vks::initializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
+      VkDescriptorSetAllocateInfo allocInfo = VulkanInitializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
       VK_CHECK_RESULT(vkAllocateDescriptorSets(device->vulkanDevice(), &allocInfo, &descriptorSet));
-      VkDescriptorImageInfo fontDescriptor = vks::initializers::descriptorImageInfo(
+      VkDescriptorImageInfo fontDescriptor = VulkanInitializers::descriptorImageInfo(
          sampler,
          fontView,
          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
       );
       std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-      vks::initializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &fontDescriptor)
+      VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &fontDescriptor)
       };
       vkUpdateDescriptorSets(device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
    }
@@ -202,18 +179,18 @@ namespace genesis
    {
       // Pipeline layout
       // Push constants for UI rendering parameters
-      VkPushConstantRange pushConstantRange = vks::initializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(PushConstBlock), 0);
-      VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = vks::initializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
+      VkPushConstantRange pushConstantRange = VulkanInitializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(PushConstBlock), 0);
+      VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = VulkanInitializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
       pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
       pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
       VK_CHECK_RESULT(vkCreatePipelineLayout(device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
 
       // Setup graphics pipeline for UI rendering
       VkPipelineInputAssemblyStateCreateInfo inputAssemblyState =
-         vks::initializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
+         VulkanInitializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 
       VkPipelineRasterizationStateCreateInfo rasterizationState =
-         vks::initializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
+         VulkanInitializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_COUNTER_CLOCKWISE);
 
       // Enable blending
       VkPipelineColorBlendAttachmentState blendAttachmentState{};
@@ -227,25 +204,25 @@ namespace genesis
       blendAttachmentState.alphaBlendOp = VK_BLEND_OP_ADD;
 
       VkPipelineColorBlendStateCreateInfo colorBlendState =
-         vks::initializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
+         VulkanInitializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
 
       VkPipelineDepthStencilStateCreateInfo depthStencilState =
-         vks::initializers::pipelineDepthStencilStateCreateInfo(VK_FALSE, VK_FALSE, VK_COMPARE_OP_ALWAYS);
+         VulkanInitializers::pipelineDepthStencilStateCreateInfo(VK_FALSE, VK_FALSE, VK_COMPARE_OP_ALWAYS);
 
       VkPipelineViewportStateCreateInfo viewportState =
-         vks::initializers::pipelineViewportStateCreateInfo(1, 1, 0);
+         VulkanInitializers::pipelineViewportStateCreateInfo(1, 1, 0);
 
       VkPipelineMultisampleStateCreateInfo multisampleState =
-         vks::initializers::pipelineMultisampleStateCreateInfo(rasterizationSamples);
+         VulkanInitializers::pipelineMultisampleStateCreateInfo(rasterizationSamples);
 
       std::vector<VkDynamicState> dynamicStateEnables = {
       VK_DYNAMIC_STATE_VIEWPORT,
       VK_DYNAMIC_STATE_SCISSOR
       };
       VkPipelineDynamicStateCreateInfo dynamicState =
-         vks::initializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
+         VulkanInitializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 
-      VkGraphicsPipelineCreateInfo pipelineCreateInfo = vks::initializers::pipelineCreateInfo(pipelineLayout, renderPass);
+      VkGraphicsPipelineCreateInfo pipelineCreateInfo = VulkanInitializers::graphicsPipelineCreateInfo(pipelineLayout, renderPass);
 
       pipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
       pipelineCreateInfo.pRasterizationState = &rasterizationState;
@@ -260,14 +237,14 @@ namespace genesis
 
       // Vertex bindings an attributes based on ImGui vertex definition
       std::vector<VkVertexInputBindingDescription> vertexInputBindings = {
-      vks::initializers::vertexInputBindingDescription(0, sizeof(ImDrawVert), VK_VERTEX_INPUT_RATE_VERTEX),
+      VulkanInitializers::vertexInputBindingDescription(0, sizeof(ImDrawVert), VK_VERTEX_INPUT_RATE_VERTEX),
       };
       std::vector<VkVertexInputAttributeDescription> vertexInputAttributes = {
-      vks::initializers::vertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, pos)),	// Location 0: Position
-      vks::initializers::vertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, uv)),	// Location 1: UV
-      vks::initializers::vertexInputAttributeDescription(0, 2, VK_FORMAT_R8G8B8A8_UNORM, offsetof(ImDrawVert, col)),	// Location 0: Color
+      VulkanInitializers::vertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, pos)),	// Location 0: Position
+      VulkanInitializers::vertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(ImDrawVert, uv)),	// Location 1: UV
+      VulkanInitializers::vertexInputAttributeDescription(0, 2, VK_FORMAT_R8G8B8A8_UNORM, offsetof(ImDrawVert, col)),	// Location 0: Color
       };
-      VkPipelineVertexInputStateCreateInfo vertexInputState = vks::initializers::pipelineVertexInputStateCreateInfo();
+      VkPipelineVertexInputStateCreateInfo vertexInputState = VulkanInitializers::pipelineVertexInputStateCreateInfo();
       vertexInputState.vertexBindingDescriptionCount = static_cast<uint32_t>(vertexInputBindings.size());
       vertexInputState.pVertexBindingDescriptions = vertexInputBindings.data();
       vertexInputState.vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexInputAttributes.size());
