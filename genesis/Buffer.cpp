@@ -63,9 +63,9 @@ namespace genesis
       VkMemoryAllocateInfo memoryAllocateInfo = VulkanInitializers::memoryAllocateInfo();
       memoryAllocateInfo.allocationSize = memoryRequirements.size;
 
+      VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo = VulkanInitializers::memoryAllocateFlagsInfo();
       if (bufferProperties._deviceAddressing)
       {
-         VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo = VulkanInitializers::memoryAllocateFlagsInfo();
          memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
          memoryAllocateInfo.pNext = &memoryAllocateFlagsInfo;
       }
