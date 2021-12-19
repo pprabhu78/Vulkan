@@ -24,7 +24,7 @@ namespace genesis
    class VulkanBuffer
    {
    public:
-      VulkanBuffer(Device* device, BufferType bufferType, int sizeInBytes, VkBufferUsageFlags additionalFlags = 0);
+      VulkanBuffer(Device* device, BufferType bufferType, int sizeInBytes, VkBufferUsageFlags additionalFlags);
       virtual ~VulkanBuffer();
    public:
       virtual VkBuffer vulkanBuffer(void) const;

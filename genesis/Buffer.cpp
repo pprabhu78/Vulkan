@@ -39,13 +39,12 @@ namespace genesis
       return usageFlags;
    }
 
-   VulkanBuffer::VulkanBuffer(Device* _device, BufferType bufferType, int sizeInBytes, VkBufferUsageFlags additionalFlags)
+   VulkanBuffer::VulkanBuffer(Device* _device, BufferType bufferType, int sizeInBytes, VkBufferUsageFlags usageFlags)
       : _buffer(0)
       , _deviceMemory(0)
       , _device(_device)
    {
-      VkBufferCreateInfo bufferCreateInfo = VulkanInitializers::bufferCreateInfo(getBufferUsageFlags(bufferType, additionalFlags)
-         , sizeInBytes);
+      VkBufferCreateInfo bufferCreateInfo = VulkanInitializers::bufferCreateInfo(usageFlags, sizeInBytes);
       
       VK_CHECK_RESULT(vkCreateBuffer(_device->vulkanDevice(), &bufferCreateInfo, nullptr, &_buffer));
 
@@ -105,10 +104,10 @@ namespace genesis
    {
       if (staging)
       {
-         _stagingBuffer = new VulkanBuffer(_device, BT_STAGING, _sizeInBytes);
+         _stagingBuffer = new VulkanBuffer(_device, BT_STAGING, _sizeInBytes, getBufferUsageFlags(BT_STAGING, additionalFlags));
       }
 
-      _buffer = new VulkanBuffer(_device, bufferType, _sizeInBytes, additionalFlags);
+      _buffer = new VulkanBuffer(_device, bufferType, _sizeInBytes, getBufferUsageFlags(bufferType, additionalFlags));
 
       if (!name.empty())
       {
