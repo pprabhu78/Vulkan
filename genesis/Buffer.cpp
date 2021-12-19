@@ -9,39 +9,44 @@
 namespace genesis
 {
 
+   static VkBufferUsageFlags getBufferUsageFlags(BufferType bufferType, VkBufferUsageFlags additionalFlags)
+   {
+      VkBufferUsageFlags usageFlags = 0;
+      switch (bufferType)
+      {
+      case BT_STAGING:
+         usageFlags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+         break;
+      case BT_VERTEX_BUFFER:
+         usageFlags = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+         break;
+      case BT_INDEX_BUFFER:
+         usageFlags = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+         break;
+      case BT_UBO:
+         usageFlags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+         break;
+      case BT_SBO:
+         usageFlags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+         break;
+      case BT_INDIRECT_BUFFER:
+         usageFlags = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+         break;
+      }
+
+      usageFlags |= additionalFlags;
+
+      return usageFlags;
+   }
+
    VulkanBuffer::VulkanBuffer(Device* _device, BufferType bufferType, int sizeInBytes, VkBufferUsageFlags additionalFlags)
       : _buffer(0)
       , _deviceMemory(0)
       , _device(_device)
    {
-      VkBufferCreateInfo bufferCreateInfo = {};
-      bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-      bufferCreateInfo.size = sizeInBytes;
-
-      switch (bufferType)
-      {
-      case BT_STAGING:
-         bufferCreateInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-         break;
-      case BT_VERTEX_BUFFER:
-         bufferCreateInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-         break;
-      case BT_INDEX_BUFFER:
-         bufferCreateInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-         break;
-      case BT_UBO:
-         bufferCreateInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-         break;
-      case BT_SBO:
-         bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-         break;
-      case BT_INDIRECT_BUFFER:
-         bufferCreateInfo.usage = VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT| VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-         break;
-      }
-
-      bufferCreateInfo.usage |= additionalFlags;
-
+      VkBufferCreateInfo bufferCreateInfo = VulkanInitializers::bufferCreateInfo(getBufferUsageFlags(bufferType, additionalFlags)
+         , sizeInBytes);
+      
       VK_CHECK_RESULT(vkCreateBuffer(_device->vulkanDevice(), &bufferCreateInfo, nullptr, &_buffer));
 
       VkMemoryRequirements memoryRequirements;
