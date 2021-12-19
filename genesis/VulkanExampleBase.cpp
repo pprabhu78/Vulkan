@@ -17,7 +17,7 @@
 
 #ifdef VK_USE_PLATFORM_GLFW
 #if _WIN32
-   #define GLFW_EXPOSE_NATIVE_WIN32
+#define GLFW_EXPOSE_NATIVE_WIN32
 #endif
 #include "../../../../external/glfw/include/GLFW/glfw3.h"
 #include "../../../../external/glfw/include/GLFW/glfw3native.h"
@@ -110,15 +110,14 @@ namespace genesis
       createPipelineCache();
       setupFrameBuffer();
       settings.overlay = settings.overlay && (!benchmark.active);
-      if (settings.overlay) {
-         UIOverlay.device = _device;
-         UIOverlay.shaders = {
-         loadShader(getShadersPath() + "base/uioverlay.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
-         loadShader(getShadersPath() + "base/uioverlay.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
-         };
-         UIOverlay.prepareResources();
-         UIOverlay.preparePipeline(pipelineCache, _renderPass->vulkanRenderPass());
-      }
+
+      UIOverlay.device = _device;
+      UIOverlay.shaders = {
+      loadShader(getShadersPath() + "base/uioverlay.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
+      loadShader(getShadersPath() + "base/uioverlay.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
+      };
+      UIOverlay.prepareResources();
+      UIOverlay.preparePipeline(pipelineCache, _renderPass->vulkanRenderPass());
    }
 
    VkPipelineShaderStageCreateInfo VulkanExampleBase::loadShader(std::string fileName, VkShaderStageFlagBits stage)
@@ -423,9 +422,7 @@ namespace genesis
          vkDestroyFence(_device->vulkanDevice(), fence, nullptr);
       }
 
-      if (settings.overlay) {
-         UIOverlay.freeResources();
-      }
+      UIOverlay.freeResources();
 
       delete _device;
 
@@ -560,7 +557,7 @@ namespace genesis
 
    static void char_cb(GLFWwindow* window, unsigned int key)
    {
-      
+
    }
 
    static void drop_cb(GLFWwindow* window, int count, const char** paths)
@@ -686,7 +683,7 @@ namespace genesis
 
    void VulkanExampleBase::onFramebufferSize(int w, int h)
    {
-      if ((prepared) )
+      if ((prepared))
       {
          destWidth = w;
          destHeight = h;
@@ -695,7 +692,7 @@ namespace genesis
    }
 
    static void setupGlfwCallbacks(GLFWwindow* window)
-   {  
+   {
       glfwSetKeyCallback(window, &key_cb);
       glfwSetMouseButtonCallback(window, &mousebutton_cb);
       glfwSetCursorPosCallback(window, &cursorpos_cb);
@@ -710,7 +707,7 @@ namespace genesis
    {
       //if (settings.fullscreen)
 
-     // Setup GLFW window
+      // Setup GLFW window
       glfwSetErrorCallback(onErrorCallback);
       if (!glfwInit())
       {
@@ -972,7 +969,7 @@ namespace genesis
       swapChain.create(&width, &height, settings.vsync);
    }
 
-   void VulkanExampleBase::OnUpdateUIOverlay(genesis::UIOverlay* overlay) 
+   void VulkanExampleBase::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
    {
       // no op
    }
