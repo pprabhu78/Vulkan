@@ -75,7 +75,12 @@ function(buildExample EXAMPLE_NAME)
 		file(GLOB SHADERS ${SHADER_DIR_GLSL}/*.*)
 
 		source_group("Shaders" FILES ${vertex-shaders} ${fragment-shaders} ${compute-shaders} ${raytracing-shaders} ${other-shaders})
-		add_executable(${EXAMPLE_NAME} WIN32 ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})
+		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
+			add_executable(${EXAMPLE_NAME} ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})
+		else()
+			add_executable(${EXAMPLE_NAME} WIN32 ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})
+		endif()
+		
 		target_link_libraries(${EXAMPLE_NAME} base ${Vulkan_LIBRARY} ${WINLIBS})
 
 		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))

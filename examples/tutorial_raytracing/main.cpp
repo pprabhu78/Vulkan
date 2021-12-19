@@ -1,24 +1,13 @@
 #include "tutorial_raytracing.h"
 
-TutorialRayTracing* myTutorial;
-LRESULT CALLBACK WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+int main(int argc, char** argv)
 {
-   if (myTutorial != NULL)
-   {
-      myTutorial->handleMessages(hWnd, uMsg, wParam, lParam);
-   }
-   return (DefWindowProc(hWnd, uMsg, wParam, lParam));
-}
-
-
-int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR pCmdLine, int nCmdShow)
-{
-   for (size_t i = 0; i < __argc; i++) { TutorialRayTracing::args.push_back(__argv[i]); };
-   myTutorial = new TutorialRayTracing();
+   for (size_t i = 0; i < __argc; i++) { TutorialRayTracing::args.push_back(argv[i]); };
+   TutorialRayTracing* myTutorial = new TutorialRayTracing();
    myTutorial->initVulkan();
-   myTutorial->setupWindow(hInstance, WndProc);
+   myTutorial->setupWindow();
    myTutorial->prepare();
    myTutorial->renderLoop();
    delete myTutorial;
-   return 0;
+return 0;
 }

@@ -10,29 +10,6 @@
 
 #include "CommandLinerParser.h"
 
-#ifdef _WIN32
-#pragma comment(linker, "/subsystem:windows")
-#include <windows.h>
-#include <fcntl.h>
-#include <io.h>
-#include <ShellScalingAPI.h>
-#elif defined(VK_USE_PLATFORM_ANDROID_KHR)
-#include <android/native_activity.h>
-#include <android/asset_manager.h>
-#include <android_native_app_glue.h>
-#include <sys/system_properties.h>
-#include "VulkanAndroid.h"
-#elif defined(VK_USE_PLATFORM_DIRECTFB_EXT)
-#include <directfb.h>
-#elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
-#include <wayland-client.h>
-#include "xdg-shell-client-protocol.h"
-#elif defined(_DIRECT2DISPLAY)
-//
-#elif defined(VK_USE_PLATFORM_XCB_KHR)
-#include <xcb/xcb.h>
-#endif
-
 #include "keycodes.hpp"
 #include "VulkanUIOverlay.h"
 #include "VulkanSwapChain.h"
@@ -65,9 +42,10 @@
 
 #include "vulkan/vulkan.h"
 
-
 #include "camera.hpp"
 #include "benchmark.hpp"
+
+struct GLFWwindow;
 
 namespace genesis
 {
@@ -217,18 +195,14 @@ namespace genesis
 			bool middle = false;
 		} mouseButtons;
 
-		HWND window;
-		HINSTANCE windowInstance;
-
+		GLFWwindow* window;
 
 		VulkanExampleBase(bool enableValidation = false);
 		virtual ~VulkanExampleBase();
 		/** @brief Setup the vulkan instance, enable required extensions and connect to the physical device (GPU) */
 		bool initVulkan();
 
-		void setupConsole(std::string title);
-		void setupDPIAwareness();
-		HWND setupWindow(HINSTANCE hinstance, WNDPROC wndproc);
+		GLFWwindow* setupWindow();
 		void handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 		/** @brief (Virtual) Creates the application wide Vulkan instance */
@@ -275,6 +249,13 @@ namespace genesis
 
 		/** @brief (Virtual) Called when the UI overlay is updating, can be used to add custom elements to the overlay */
 		virtual void OnUpdateUIOverlay(genesis::UIOverlay* overlay);
+
+		// called by glfw callback
+		virtual void onKeyboard(int key, int scancode, int action, int mods);
+		virtual void onMouseButton(int button, int action, int mods);
+		virtual void onMouseMotion(int x, int y);
+		virtual void onMouseWheel(int delta);
+		virtual void onFramebufferSize(int w, int h);
 	};
 
 	// OS specific macros for the example main entry points

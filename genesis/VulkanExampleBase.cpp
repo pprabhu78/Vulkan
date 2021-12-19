@@ -15,6 +15,14 @@
 #include "VulkanInitializers.h"
 #include "VulkanFunctions.h"
 
+#ifdef VK_USE_PLATFORM_GLFW
+#if _WIN32
+   #define GLFW_EXPOSE_NATIVE_WIN32
+#endif
+#include "../../../../external/glfw/include/GLFW/glfw3.h"
+#include "../../../../external/glfw/include/GLFW/glfw3native.h"
+#endif
+
 namespace genesis
 {
    std::vector<const char*> VulkanExampleBase::args;
@@ -164,7 +172,11 @@ namespace genesis
 #if defined(_WIN32)
          if (!settings.overlay) {
             std::string windowTitle = getWindowTitle();
+#if VK_USE_PLATFORM_GLFW
+            glfwSetWindowTitle(window, windowTitle.c_str());
+#else
             SetWindowText(window, windowTitle.c_str());
+#endif
          }
 #endif
          frameCounter = 0;
@@ -172,6 +184,14 @@ namespace genesis
       }
       // TODO: Cap UI overlay update rates
       updateOverlay();
+   }
+
+   static bool IsMinimized(GLFWwindow* window)
+   {
+      int w, h;
+      glfwGetWindowSize(window, &w, &h);
+      bool minimized = (w == 0 && h == 0);
+      return minimized;
    }
 
    void VulkanExampleBase::renderLoop()
@@ -189,18 +209,19 @@ namespace genesis
       destHeight = height;
       lastTimestamp = std::chrono::high_resolution_clock::now();
 
-      MSG msg;
       bool quitMessageReceived = false;
-      while (!quitMessageReceived) {
-         while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-            if (msg.message == WM_QUIT) {
-               quitMessageReceived = true;
-               break;
-            }
+      while (!glfwWindowShouldClose(window))
+      {
+         glfwPollEvents();
+#if 0
+         if (msg.message == WM_QUIT)
+         {
+            quitMessageReceived = true;
+            break;
          }
-         if (prepared && !IsIconic(window)) {
+#endif
+
+         if (prepared && !IsMinimized(window)) {
             nextFrame();
          }
       }
@@ -209,6 +230,9 @@ namespace genesis
       if (_device->vulkanDevice() != VK_NULL_HANDLE) {
          vkDeviceWaitIdle(_device->vulkanDevice());
       }
+
+      glfwDestroyWindow(window);
+      glfwTerminate();
    }
 
    void VulkanExampleBase::updateOverlay()
@@ -315,10 +339,8 @@ namespace genesis
 
       // Command line arguments
       commandLineParser.parse(args);
-      if (commandLineParser.isSet("help")) {
-#if defined(_WIN32)
-         setupConsole("Vulkan example");
-#endif
+      if (commandLineParser.isSet("help"))
+      {
          commandLineParser.printHelp();
          std::cin.get();
          exit(0);
@@ -366,16 +388,6 @@ namespace genesis
       if (commandLineParser.isSet("benchmarkframes")) {
          benchmark.outputFrames = commandLineParser.getValueAsInt("benchmarkframes", benchmark.outputFrames);
       }
-
-
-#if defined(_WIN32)
-      // Enable console if validation is active, debug message callback will output to it
-      if (this->settings.validation)
-      {
-         setupConsole("Vulkan example");
-      }
-      setupDPIAwareness();
-#endif
    }
 
    VulkanExampleBase::~VulkanExampleBase()
@@ -509,148 +521,212 @@ namespace genesis
       return true;
    }
 
-   // Win32 : Sets up a console window and redirects standard output to it
-   void VulkanExampleBase::setupConsole(std::string title)
+   // GLFW Callback functions
+   static void onErrorCallback(int error, const char* description)
    {
-      AllocConsole();
-      AttachConsole(GetCurrentProcessId());
-      FILE* stream;
-      freopen_s(&stream, "CONIN$", "r", stdin);
-      freopen_s(&stream, "CONOUT$", "w+", stdout);
-      freopen_s(&stream, "CONOUT$", "w+", stderr);
-      SetConsoleTitle(TEXT(title.c_str()));
+      fprintf(stderr, "GLFW Error %d: %s\n", error, description);
    }
 
-   void VulkanExampleBase::setupDPIAwareness()
+
+   static void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
    {
-      typedef HRESULT* (__stdcall* SetProcessDpiAwarenessFunc)(PROCESS_DPI_AWARENESS);
-
-      HMODULE shCore = LoadLibraryA("Shcore.dll");
-      if (shCore)
-      {
-         SetProcessDpiAwarenessFunc setProcessDpiAwareness =
-            (SetProcessDpiAwarenessFunc)GetProcAddress(shCore, "SetProcessDpiAwareness");
-
-         if (setProcessDpiAwareness != nullptr)
-         {
-            setProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
-         }
-
-         FreeLibrary(shCore);
-      }
+      auto app = reinterpret_cast<VulkanExampleBase*>(glfwGetWindowUserPointer(window));
+      app->onKeyboard(key, scancode, action, mods);
    }
 
-   HWND VulkanExampleBase::setupWindow(HINSTANCE hinstance, WNDPROC wndproc)
+   static void mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
    {
-      this->windowInstance = hinstance;
+      auto app = reinterpret_cast<VulkanExampleBase*>(glfwGetWindowUserPointer(window));
+      app->onMouseButton(button, action, mods);
+   }
 
-      WNDCLASSEX wndClass;
+   static void cursorpos_cb(GLFWwindow* window, double x, double y)
+   {
+      auto app = reinterpret_cast<VulkanExampleBase*>(glfwGetWindowUserPointer(window));
+      app->onMouseMotion(static_cast<int>(x), static_cast<int>(y));
+   }
 
-      wndClass.cbSize = sizeof(WNDCLASSEX);
-      wndClass.style = CS_HREDRAW | CS_VREDRAW;
-      wndClass.lpfnWndProc = wndproc;
-      wndClass.cbClsExtra = 0;
-      wndClass.cbWndExtra = 0;
-      wndClass.hInstance = hinstance;
-      wndClass.hIcon = LoadIcon(NULL, IDI_APPLICATION);
-      wndClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-      wndClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-      wndClass.lpszMenuName = NULL;
-      wndClass.lpszClassName = name.c_str();
-      wndClass.hIconSm = LoadIcon(NULL, IDI_WINLOGO);
+   static void scroll_cb(GLFWwindow* window, double x, double y)
+   {
+      auto app = reinterpret_cast<VulkanExampleBase*>(glfwGetWindowUserPointer(window));
+      app->onMouseWheel(static_cast<int>(y));
+   }
 
-      if (!RegisterClassEx(&wndClass))
+   static void framebuffersize_cb(GLFWwindow* window, int w, int h)
+   {
+      auto app = reinterpret_cast<VulkanExampleBase*>(glfwGetWindowUserPointer(window));
+      app->onFramebufferSize(w, h);
+   }
+
+   static void char_cb(GLFWwindow* window, unsigned int key)
+   {
+      
+   }
+
+   static void drop_cb(GLFWwindow* window, int count, const char** paths)
+   {
+
+   }
+
+   void VulkanExampleBase::onKeyboard(int key, int scancode, int action, int mods)
+   {
+      switch (action)
       {
-         std::cout << "Could not register window class!\n";
-         fflush(stdout);
-         exit(1);
-      }
-
-      int screenWidth = GetSystemMetrics(SM_CXSCREEN);
-      int screenHeight = GetSystemMetrics(SM_CYSCREEN);
-
-      if (settings.fullscreen)
-      {
-         if ((width != (uint32_t)screenWidth) && (height != (uint32_t)screenHeight))
+      case GLFW_PRESS:
+         switch (key)
          {
-            DEVMODE dmScreenSettings;
-            memset(&dmScreenSettings, 0, sizeof(dmScreenSettings));
-            dmScreenSettings.dmSize = sizeof(dmScreenSettings);
-            dmScreenSettings.dmPelsWidth = width;
-            dmScreenSettings.dmPelsHeight = height;
-            dmScreenSettings.dmBitsPerPel = 32;
-            dmScreenSettings.dmFields = DM_BITSPERPEL | DM_PELSWIDTH | DM_PELSHEIGHT;
-            if (ChangeDisplaySettings(&dmScreenSettings, CDS_FULLSCREEN) != DISP_CHANGE_SUCCESSFUL)
-            {
-               if (MessageBox(NULL, "Fullscreen Mode not supported!\n Switch to window mode?", "Error", MB_YESNO | MB_ICONEXCLAMATION) == IDYES)
-               {
-                  settings.fullscreen = false;
-               }
-               else
-               {
-                  return nullptr;
-               }
+         case GLFW_KEY_P:
+            paused = !paused;
+            break;
+         case GLFW_KEY_F1:
+            if (settings.overlay) {
+               UIOverlay.visible = !UIOverlay.visible;
             }
-            screenWidth = width;
-            screenHeight = height;
+            break;
+         case GLFW_KEY_ESCAPE:
+            glfwSetWindowShouldClose(window, 1);
+            break;
          }
 
+         if (camera.type == Camera::firstperson)
+         {
+            switch (key)
+            {
+            case GLFW_KEY_W:
+               camera.keys.up = true;
+               break;
+            case GLFW_KEY_S:
+               camera.keys.down = true;
+               break;
+            case GLFW_KEY_A:
+               camera.keys.left = true;
+               break;
+            case GLFW_KEY_D:
+               camera.keys.right = true;
+               break;
+            }
+         }
+
+         keyPressed(key);
+         break;
+
+      case GLFW_RELEASE:
+         if (camera.type == Camera::firstperson)
+         {
+            switch (key)
+            {
+            case GLFW_KEY_W:
+               camera.keys.up = false;
+               break;
+            case GLFW_KEY_S:
+               camera.keys.down = false;
+               break;
+            case GLFW_KEY_A:
+               camera.keys.left = false;
+               break;
+            case GLFW_KEY_D:
+               camera.keys.right = false;
+               break;
+            }
+         }
+         break;
+      default:
+         break;
       }
+   }
 
-      DWORD dwExStyle;
-      DWORD dwStyle;
+   void VulkanExampleBase::onMouseButton(int button, int action, int mods)
+   {
+      (void)mods;
 
-      if (settings.fullscreen)
+      double x, y;
+      glfwGetCursorPos(window, &x, &y);
+
+      if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
       {
-         dwExStyle = WS_EX_APPWINDOW;
-         dwStyle = WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
+         mousePos = glm::vec2((float)x, (float)y);
+         mouseButtons.left = true;
       }
-      else
+      if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS)
       {
-         dwExStyle = WS_EX_APPWINDOW | WS_EX_WINDOWEDGE;
-         dwStyle = WS_OVERLAPPEDWINDOW | WS_CLIPSIBLINGS | WS_CLIPCHILDREN;
+         mousePos = glm::vec2((float)x, (float)y);
+         mouseButtons.right = true;
       }
-
-      RECT windowRect;
-      windowRect.left = 0L;
-      windowRect.top = 0L;
-      windowRect.right = settings.fullscreen ? (long)screenWidth : (long)width;
-      windowRect.bottom = settings.fullscreen ? (long)screenHeight : (long)height;
-
-      AdjustWindowRectEx(&windowRect, dwStyle, FALSE, dwExStyle);
-
-      std::string windowTitle = getWindowTitle();
-      window = CreateWindowEx(0,
-         name.c_str(),
-         windowTitle.c_str(),
-         dwStyle | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
-         0,
-         0,
-         windowRect.right - windowRect.left,
-         windowRect.bottom - windowRect.top,
-         NULL,
-         NULL,
-         hinstance,
-         NULL);
-
-      if (!settings.fullscreen)
+      if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_PRESS)
       {
-         // Center on screen
-         uint32_t x = (GetSystemMetrics(SM_CXSCREEN) - windowRect.right) / 2;
-         uint32_t y = (GetSystemMetrics(SM_CYSCREEN) - windowRect.bottom) / 2;
-         SetWindowPos(window, 0, x, y, 0, 0, SWP_NOZORDER | SWP_NOSIZE);
+         mousePos = glm::vec2((float)x, (float)y);
+         mouseButtons.middle = true;
       }
 
-      if (!window)
+      if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
       {
-         printf("Could not create window!\n");
-         fflush(stdout);
-         return nullptr;
+         mouseButtons.left = false;
+      }
+      if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_RELEASE)
+      {
+         mouseButtons.right = false;
+      }
+      if (button == GLFW_MOUSE_BUTTON_MIDDLE && action == GLFW_RELEASE)
+      {
+         mouseButtons.middle = false;
+      }
+   }
+
+   void VulkanExampleBase::onMouseMotion(int x, int y)
+   {
+      handleMouseMove(x, y);
+   }
+
+   void VulkanExampleBase::onMouseWheel(int delta)
+   {
+      short wheelDelta = delta;
+      camera.translate(glm::vec3(0.0f, 0.0f, (float)wheelDelta * 0.005f));
+      viewUpdated = true;
+   }
+
+   void VulkanExampleBase::onFramebufferSize(int w, int h)
+   {
+      if ((prepared) )
+      {
+         destWidth = w;
+         destHeight = h;
+         windowResize();
+      }
+   }
+
+   static void setupGlfwCallbacks(GLFWwindow* window)
+   {  
+      glfwSetKeyCallback(window, &key_cb);
+      glfwSetMouseButtonCallback(window, &mousebutton_cb);
+      glfwSetCursorPosCallback(window, &cursorpos_cb);
+      glfwSetScrollCallback(window, &scroll_cb);
+
+      glfwSetCharCallback(window, &char_cb);
+      glfwSetFramebufferSizeCallback(window, &framebuffersize_cb);
+      glfwSetDropCallback(window, &drop_cb);
+   }
+
+   GLFWwindow* VulkanExampleBase::setupWindow()
+   {
+      //if (settings.fullscreen)
+
+     // Setup GLFW window
+      glfwSetErrorCallback(onErrorCallback);
+      if (!glfwInit())
+      {
+         return 0;
+      }
+      glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+      window = glfwCreateWindow(width, height, getWindowTitle().c_str(), nullptr, nullptr);
+
+      // Setup Vulkan
+      if (!glfwVulkanSupported())
+      {
+         printf("GLFW: Vulkan Not Supported\n");
       }
 
-      ShowWindow(window, SW_SHOW);
-      SetForegroundWindow(window);
-      SetFocus(window);
+      glfwSetWindowUserPointer(window, this);
+      setupGlfwCallbacks(window);
 
       return window;
    }
@@ -664,110 +740,7 @@ namespace genesis
          DestroyWindow(hWnd);
          PostQuitMessage(0);
          break;
-      case WM_PAINT:
-         ValidateRect(window, NULL);
-         break;
-      case WM_KEYDOWN:
-         switch (wParam)
-         {
-         case KEY_P:
-            paused = !paused;
-            break;
-         case KEY_F1:
-            if (settings.overlay) {
-               UIOverlay.visible = !UIOverlay.visible;
-            }
-            break;
-         case KEY_ESCAPE:
-            PostQuitMessage(0);
-            break;
-         }
 
-         if (camera.type == Camera::firstperson)
-         {
-            switch (wParam)
-            {
-            case KEY_W:
-               camera.keys.up = true;
-               break;
-            case KEY_S:
-               camera.keys.down = true;
-               break;
-            case KEY_A:
-               camera.keys.left = true;
-               break;
-            case KEY_D:
-               camera.keys.right = true;
-               break;
-            }
-         }
-
-         keyPressed((uint32_t)wParam);
-         break;
-      case WM_KEYUP:
-         if (camera.type == Camera::firstperson)
-         {
-            switch (wParam)
-            {
-            case KEY_W:
-               camera.keys.up = false;
-               break;
-            case KEY_S:
-               camera.keys.down = false;
-               break;
-            case KEY_A:
-               camera.keys.left = false;
-               break;
-            case KEY_D:
-               camera.keys.right = false;
-               break;
-            }
-         }
-         break;
-      case WM_LBUTTONDOWN:
-         mousePos = glm::vec2((float)LOWORD(lParam), (float)HIWORD(lParam));
-         mouseButtons.left = true;
-         break;
-      case WM_RBUTTONDOWN:
-         mousePos = glm::vec2((float)LOWORD(lParam), (float)HIWORD(lParam));
-         mouseButtons.right = true;
-         break;
-      case WM_MBUTTONDOWN:
-         mousePos = glm::vec2((float)LOWORD(lParam), (float)HIWORD(lParam));
-         mouseButtons.middle = true;
-         break;
-      case WM_LBUTTONUP:
-         mouseButtons.left = false;
-         break;
-      case WM_RBUTTONUP:
-         mouseButtons.right = false;
-         break;
-      case WM_MBUTTONUP:
-         mouseButtons.middle = false;
-         break;
-      case WM_MOUSEWHEEL:
-      {
-         short wheelDelta = GET_WHEEL_DELTA_WPARAM(wParam);
-         camera.translate(glm::vec3(0.0f, 0.0f, (float)wheelDelta * 0.005f));
-         viewUpdated = true;
-         break;
-      }
-      case WM_MOUSEMOVE:
-      {
-         handleMouseMove(LOWORD(lParam), HIWORD(lParam));
-         break;
-      }
-      case WM_SIZE:
-         if ((prepared) && (wParam != SIZE_MINIMIZED))
-         {
-            if ((resizing) || ((wParam == SIZE_MAXIMIZED) || (wParam == SIZE_RESTORED)))
-            {
-               destWidth = LOWORD(lParam);
-               destHeight = HIWORD(lParam);
-               windowResize();
-            }
-         }
-         break;
       case WM_GETMINMAXINFO:
       {
          LPMINMAXINFO minMaxInfo = (LPMINMAXINFO)lParam;
@@ -975,7 +948,9 @@ namespace genesis
 
    void VulkanExampleBase::initSwapchain()
    {
-#if defined(_WIN32)
+#if defined(VK_USE_PLATFORM_GLFW)
+      swapChain.initSurface(window);
+#elif defined(_WIN32)
       swapChain.initSurface(windowInstance, window);
 #elif defined(VK_USE_PLATFORM_ANDROID_KHR)
       swapChain.initSurface(androidApp->window);
