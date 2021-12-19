@@ -54,7 +54,7 @@ namespace genesis
       return memoryPropertyFlags;
    }
 
-   VulkanBuffer::VulkanBuffer(Device* _device, VkMemoryPropertyFlags memoryPropertyFlags, int sizeInBytes, VkBufferUsageFlags usageFlags)
+   VulkanBuffer::VulkanBuffer(Device* _device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, int sizeInBytes)
       : _buffer(0)
       , _deviceMemory(0)
       , _device(_device)
@@ -109,10 +109,10 @@ namespace genesis
       if (staging)
       {
          
-         _stagingBuffer = new VulkanBuffer(_device, getMemoryPropertyFlags(BT_STAGING), _sizeInBytes, getBufferUsageFlags(BT_STAGING, additionalFlags));
+         _stagingBuffer = new VulkanBuffer(_device, getBufferUsageFlags(BT_STAGING, additionalFlags), getMemoryPropertyFlags(BT_STAGING), _sizeInBytes);
       }
 
-      _buffer = new VulkanBuffer(_device, getMemoryPropertyFlags(bufferType), _sizeInBytes, getBufferUsageFlags(bufferType, additionalFlags));
+      _buffer = new VulkanBuffer(_device, getBufferUsageFlags(bufferType, additionalFlags), getMemoryPropertyFlags(bufferType), _sizeInBytes);
 
       if (!name.empty())
       {
