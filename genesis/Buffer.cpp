@@ -54,8 +54,32 @@ namespace genesis
       return memoryPropertyFlags;
    }
 
-   VulkanBuffer::VulkanBuffer(Device* _device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, int sizeInBytes)
-      : _buffer(0)
+   VkResult VulkanBuffer::map(VkDeviceSize size, VkDeviceSize offset)
+   {
+      return vkMapMemory(_device->vulkanDevice(), _deviceMemory, offset, size, 0, &_mapped);
+   }
+
+   void VulkanBuffer::unmap()
+   {
+      if (_mapped)
+      {
+         vkUnmapMemory(_device->vulkanDevice(), _deviceMemory);
+         _mapped = nullptr;
+      }
+   }
+
+   VkResult VulkanBuffer::flush(VkDeviceSize size, VkDeviceSize offset)
+   {
+      VkMappedMemoryRange mappedRange = {};
+      mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+      mappedRange.memory = _deviceMemory;
+      mappedRange.offset = offset;
+      mappedRange.size = size;
+      return vkFlushMappedMemoryRanges(_device->vulkanDevice(), 1, &mappedRange);
+   }
+
+   VulkanBuffer::VulkanBuffer(Device* _device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize sizeInBytes, void* data)
+      : _buffer(VK_NULL_HANDLE)
       , _deviceMemory(0)
       , _device(_device)
    {
@@ -70,7 +94,7 @@ namespace genesis
       memoryAllocateInfo.allocationSize = memoryRequirements.size;
 
       VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo = VulkanInitializers::memoryAllocateFlagsInfo();
-      if (bufferCreateInfo.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+      if (usageFlags & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
       {
          memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
          memoryAllocateInfo.pNext = &memoryAllocateFlagsInfo;
@@ -80,6 +104,18 @@ namespace genesis
          , memoryPropertyFlags);
 
       VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &_deviceMemory));
+
+      // If a pointer to the buffer data has been passed, map the buffer and copy over the data
+      if (data != nullptr)
+      {
+         VK_CHECK_RESULT(map());
+         memcpy(_mapped, data, sizeInBytes);
+         if ((memoryPropertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) == 0)
+            flush();
+
+         unmap();
+      }
+
       vkBindBufferMemory(_device->vulkanDevice(), _buffer, _deviceMemory, 0);
    }
 

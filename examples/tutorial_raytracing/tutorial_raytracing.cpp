@@ -104,11 +104,11 @@ TutorialRayTracing::~TutorialRayTracing()
 
    delete topLevelAS;
 
-   transformBuffer.destroy();
+   delete _transformBuffer;
    
-   _raygenShaderBindingTable.destroy();
-   _missShaderBindingTable.destroy();
-   _hitShaderBindingTable.destroy();
+   delete _raygenShaderBindingTable;
+   delete _missShaderBindingTable;
+   delete _hitShaderBindingTable;
    
    delete _gltfModel;
    delete _sceneUbo;
@@ -248,16 +248,15 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
    0.0f, 0.0f, 1.0f, 0.0f
    };
 
-   VK_CHECK_RESULT(_device->createBuffer(
-      VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      &transformBuffer,
-      sizeof(VkTransformMatrixKHR),
-      &transformMatrix));
+   _transformBuffer = new genesis::VulkanBuffer(_device
+      , VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
+      , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+      , sizeof(VkTransformMatrixKHR)
+      , &transformMatrix);
 
    VkDeviceOrHostAddressConstKHR transformBufferDeviceAddress{};
 
-   transformBufferDeviceAddress.deviceAddress = getBufferDeviceAddress(transformBuffer.buffer);
+   transformBufferDeviceAddress.deviceAddress = getBufferDeviceAddress(_transformBuffer->_buffer);
 }
 
 /*
@@ -279,16 +278,14 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
    instance.accelerationStructureReference = _gltfModel->blas()->deviceAddress();
 
    // Buffer for instance data
-   vks::Buffer instancesBuffer;
-   VK_CHECK_RESULT(_device->createBuffer(
-      VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR,
-      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-      &instancesBuffer,
-      sizeof(VkAccelerationStructureInstanceKHR),
-      &instance));
+   genesis::VulkanBuffer* instancesBuffer = new genesis::VulkanBuffer(_device
+      , VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
+      , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+      , sizeof(VkAccelerationStructureInstanceKHR)
+      , &instance);
 
    VkDeviceOrHostAddressConstKHR instanceDataDeviceAddress{};
-   instanceDataDeviceAddress.deviceAddress = getBufferDeviceAddress(instancesBuffer.buffer);
+   instanceDataDeviceAddress.deviceAddress = getBufferDeviceAddress(instancesBuffer->_buffer);
 
    VkAccelerationStructureGeometryKHR accelerationStructureGeometry{};
    accelerationStructureGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
@@ -357,7 +354,8 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
    accelerationDeviceAddressInfo.accelerationStructure = topLevelAS->handle();
 
    deleteScratchBuffer(scratchBuffer);
-   instancesBuffer.destroy();
+   
+   delete instancesBuffer;
 }
 
 /*
@@ -385,27 +383,28 @@ void TutorialRayTracing::createShaderBindingTable() {
 
    const VkBufferUsageFlags bufferUsageFlags = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
    const VkMemoryPropertyFlags memoryUsageFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-   VK_CHECK_RESULT(_device->createBuffer(bufferUsageFlags, memoryUsageFlags, &_raygenShaderBindingTable, handleSize));
-   VK_CHECK_RESULT(_device->createBuffer(bufferUsageFlags, memoryUsageFlags, &_missShaderBindingTable, handleSize));
-   VK_CHECK_RESULT(_device->createBuffer(bufferUsageFlags, memoryUsageFlags, &_hitShaderBindingTable, handleSize));
+
+   _raygenShaderBindingTable = new genesis::VulkanBuffer(_device, bufferUsageFlags, memoryUsageFlags, handleSize);
+   _missShaderBindingTable = new genesis::VulkanBuffer(_device, bufferUsageFlags, memoryUsageFlags, handleSize);
+   _hitShaderBindingTable = new genesis::VulkanBuffer(_device, bufferUsageFlags, memoryUsageFlags, handleSize);
 
    // Copy handles
-   _raygenShaderBindingTable.map();
-   _missShaderBindingTable.map();
-   _hitShaderBindingTable.map();
-   memcpy(_raygenShaderBindingTable.mapped, shaderHandleStorage.data(), handleSize);
-   memcpy(_missShaderBindingTable.mapped, shaderHandleStorage.data() + handleSizeAligned, handleSize);
-   memcpy(_hitShaderBindingTable.mapped, shaderHandleStorage.data() + handleSizeAligned * 2, handleSize);
+   _raygenShaderBindingTable->map();
+   _missShaderBindingTable->map();
+   _hitShaderBindingTable->map();
+   memcpy(_raygenShaderBindingTable->_mapped, shaderHandleStorage.data(), handleSize);
+   memcpy(_missShaderBindingTable->_mapped, shaderHandleStorage.data() + handleSizeAligned, handleSize);
+   memcpy(_hitShaderBindingTable->_mapped, shaderHandleStorage.data() + handleSizeAligned * 2, handleSize);
 
-   _raygenShaderSbtEntry.deviceAddress = getBufferDeviceAddress(_raygenShaderBindingTable.buffer);
+   _raygenShaderSbtEntry.deviceAddress = getBufferDeviceAddress(_raygenShaderBindingTable->_buffer);
    _raygenShaderSbtEntry.stride = handleSizeAligned;
    _raygenShaderSbtEntry.size = handleSizeAligned;
 
-   _missShaderSbtEntry.deviceAddress = getBufferDeviceAddress(_missShaderBindingTable.buffer);
+   _missShaderSbtEntry.deviceAddress = getBufferDeviceAddress(_missShaderBindingTable->_buffer);
    _missShaderSbtEntry.stride = handleSizeAligned;
    _missShaderSbtEntry.size = handleSizeAligned;
 
-   _hitShaderSbtEntry.deviceAddress = getBufferDeviceAddress(_hitShaderBindingTable.buffer);
+   _hitShaderSbtEntry.deviceAddress = getBufferDeviceAddress(_hitShaderBindingTable->_buffer);
    _hitShaderSbtEntry.stride = handleSizeAligned;
    _hitShaderSbtEntry.size = handleSizeAligned;
 

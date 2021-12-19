@@ -24,15 +24,21 @@ namespace genesis
    class VulkanBuffer
    {
    public:
-      VulkanBuffer(Device* device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, int sizeInBytes);
+      VulkanBuffer(Device* device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize sizeInBytes, void* data = 0);
       virtual ~VulkanBuffer();
    public:
       virtual VkBuffer vulkanBuffer(void) const;
+
+      virtual VkResult map(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
+      virtual void unmap();
+      virtual VkResult flush(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
    public:
       VkBuffer _buffer;
       VkDeviceMemory _deviceMemory;
 
       Device* _device;
+
+      void* _mapped = nullptr;
    };
 
    class Buffer

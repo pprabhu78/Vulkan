@@ -1,13 +1,13 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-
-#include "VulkanBuffer.h"
+#include <vector>
 
 namespace genesis
 {
    class Buffer;
    class PhysicalDevice;
+   class VulkanBuffer;
 
    class Device
    {
@@ -35,8 +35,6 @@ namespace genesis
       virtual VkCommandPool createCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
       virtual bool enableDebugMarkers(void) const;
-
-      virtual VkResult createBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, vks::Buffer* buffer, VkDeviceSize size, void* data = nullptr);
    protected:
       virtual void initQueueFamilyIndices(VkQueueFlags requestedQueueTypes);
    public:

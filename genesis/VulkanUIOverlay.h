@@ -20,9 +20,13 @@
 #include "VulkanAndroid.h"
 #endif
 
+#include <vector>
+
 namespace genesis 
 {
 	class Device;
+	class VulkanBuffer;
+
 	class UIOverlay 
 	{
 	public:
@@ -31,8 +35,8 @@ namespace genesis
 		VkSampleCountFlagBits rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 		uint32_t subpass = 0;
 
-		vks::Buffer vertexBuffer;
-		vks::Buffer indexBuffer;
+		VulkanBuffer* vertexBuffer = 0;
+		VulkanBuffer* indexBuffer = 0;
 		int32_t vertexCount = 0;
 		int32_t indexCount = 0;
 

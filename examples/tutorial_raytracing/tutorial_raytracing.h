@@ -14,6 +14,7 @@ namespace genesis
    class AccelerationStructure;
    class StorageImage;
    class RenderPass;
+   class VulkanBuffer;
 }
 
 // Holds data for a ray tracing scratch buffer that is used as a temporary storage
@@ -87,11 +88,11 @@ public:
    genesis::VulkanGltfModel* _gltfModel;
 
 
-   vks::Buffer transformBuffer;
+   genesis::VulkanBuffer* _transformBuffer;
    std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroups{};
-   vks::Buffer _raygenShaderBindingTable;
-   vks::Buffer _missShaderBindingTable;
-   vks::Buffer _hitShaderBindingTable;
+   genesis::VulkanBuffer* _raygenShaderBindingTable;
+   genesis::VulkanBuffer* _missShaderBindingTable;
+   genesis::VulkanBuffer* _hitShaderBindingTable;
 
    VkStridedDeviceAddressRegionKHR _raygenShaderSbtEntry{};
    VkStridedDeviceAddressRegionKHR _missShaderSbtEntry{};

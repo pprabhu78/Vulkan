@@ -10,6 +10,7 @@
 #include "VulkanUIOverlay.h"
 #include "Device.h"
 #include "PhysicalDevice.h"
+#include "Buffer.h"
 
 namespace genesis
 {
@@ -104,17 +105,14 @@ namespace genesis
       VK_CHECK_RESULT(vkCreateImageView(device->vulkanDevice(), &viewInfo, nullptr, &fontView));
 
       // Staging buffers for font data upload
-      vks::Buffer stagingBuffer;
+      VulkanBuffer* stagingBuffer = new VulkanBuffer(device
+         , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
+         , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+         , uploadSize);
 
-      VK_CHECK_RESULT(device->createBuffer(
-         VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-         VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-         &stagingBuffer,
-         uploadSize));
-
-      stagingBuffer.map();
-      memcpy(stagingBuffer.mapped, fontData, uploadSize);
-      stagingBuffer.unmap();
+      stagingBuffer->map();
+      memcpy(stagingBuffer->_mapped, fontData, uploadSize);
+      stagingBuffer->unmap();
 
       // Copy buffer data to font image
       VkCommandBuffer copyCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
@@ -139,7 +137,7 @@ namespace genesis
 
       vkCmdCopyBufferToImage(
          copyCmd,
-         stagingBuffer.buffer,
+         stagingBuffer->_buffer,
          fontImage,
          VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
          1,
@@ -158,7 +156,7 @@ namespace genesis
 
       device->flushCommandBuffer(copyCmd);
 
-      stagingBuffer.destroy();
+      delete stagingBuffer;
 
       // Font texture Sampler
       VkSamplerCreateInfo samplerInfo = vks::initializers::samplerCreateInfo();
@@ -298,30 +296,38 @@ namespace genesis
       }
 
       // Vertex buffer
-      if ((vertexBuffer.buffer == VK_NULL_HANDLE) || (vertexCount != imDrawData->TotalVtxCount)) {
-         vertexBuffer.unmap();
-         vertexBuffer.destroy();
-         VK_CHECK_RESULT(device->createBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &vertexBuffer, vertexBufferSize));
+      if ((vertexBuffer == VK_NULL_HANDLE) || (vertexCount != imDrawData->TotalVtxCount)) {
+         if (vertexBuffer)
+         {
+            vertexBuffer->unmap();
+            delete vertexBuffer;
+            vertexBuffer = nullptr;
+         }
+        
+         vertexBuffer = new VulkanBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, vertexBufferSize);
          vertexCount = imDrawData->TotalVtxCount;
-         vertexBuffer.unmap();
-         vertexBuffer.map();
+         vertexBuffer->map();
          updateCmdBuffers = true;
       }
 
       // Index buffer
       VkDeviceSize indexSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
-      if ((indexBuffer.buffer == VK_NULL_HANDLE) || (indexCount < imDrawData->TotalIdxCount)) {
-         indexBuffer.unmap();
-         indexBuffer.destroy();
-         VK_CHECK_RESULT(device->createBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, &indexBuffer, indexBufferSize));
+      if ((indexBuffer == VK_NULL_HANDLE) || (indexCount < imDrawData->TotalIdxCount)) {
+         if (indexBuffer)
+         {
+            indexBuffer->unmap();
+            delete indexBuffer;
+            indexBuffer = nullptr;
+         }
+         indexBuffer = new VulkanBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, indexBufferSize);
          indexCount = imDrawData->TotalIdxCount;
-         indexBuffer.map();
+         indexBuffer->map();
          updateCmdBuffers = true;
       }
 
       // Upload data
-      ImDrawVert* vtxDst = (ImDrawVert*)vertexBuffer.mapped;
-      ImDrawIdx* idxDst = (ImDrawIdx*)indexBuffer.mapped;
+      ImDrawVert* vtxDst = (ImDrawVert*)vertexBuffer->_mapped;
+      ImDrawIdx* idxDst = (ImDrawIdx*)indexBuffer->_mapped;
 
       for (int n = 0; n < imDrawData->CmdListsCount; n++) {
          const ImDrawList* cmd_list = imDrawData->CmdLists[n];
@@ -332,8 +338,8 @@ namespace genesis
       }
 
       // Flush to make writes visible to GPU
-      vertexBuffer.flush();
-      indexBuffer.flush();
+      vertexBuffer->flush();
+      indexBuffer->flush();
 
       return updateCmdBuffers;
    }
@@ -358,8 +364,8 @@ namespace genesis
       vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstBlock), &pushConstBlock);
 
       VkDeviceSize offsets[1] = { 0 };
-      vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer.buffer, offsets);
-      vkCmdBindIndexBuffer(commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+      vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer->_buffer, offsets);
+      vkCmdBindIndexBuffer(commandBuffer, indexBuffer->_buffer, 0, VK_INDEX_TYPE_UINT16);
 
       for (int32_t i = 0; i < imDrawData->CmdListsCount; i++)
       {
@@ -389,8 +395,8 @@ namespace genesis
    void UIOverlay::freeResources()
    {
       ImGui::DestroyContext();
-      vertexBuffer.destroy();
-      indexBuffer.destroy();
+      delete vertexBuffer; vertexBuffer = nullptr;
+      delete indexBuffer; indexBuffer = nullptr;
       vkDestroyImageView(device->vulkanDevice(), fontView, nullptr);
       vkDestroyImage(device->vulkanDevice(), fontImage, nullptr);
       vkFreeMemory(device->vulkanDevice(), fontMemory, nullptr);
