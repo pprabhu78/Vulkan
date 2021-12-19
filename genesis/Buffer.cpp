@@ -39,7 +39,22 @@ namespace genesis
       return usageFlags;
    }
 
-   VulkanBuffer::VulkanBuffer(Device* _device, BufferType bufferType, int sizeInBytes, VkBufferUsageFlags usageFlags)
+   static VkMemoryPropertyFlags getMemoryPropertyFlags(BufferType bufferType)
+   {
+      VkMemoryPropertyFlags memoryPropertyFlags;
+      switch (bufferType)
+      {
+      case BT_STAGING:
+         memoryPropertyFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+         break;
+      default:
+         memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+         break;
+      }
+      return memoryPropertyFlags;
+   }
+
+   VulkanBuffer::VulkanBuffer(Device* _device, VkMemoryPropertyFlags memoryPropertyFlags, int sizeInBytes, VkBufferUsageFlags usageFlags)
       : _buffer(0)
       , _deviceMemory(0)
       , _device(_device)
@@ -61,19 +76,8 @@ namespace genesis
          memoryAllocateInfo.pNext = &memoryAllocateFlagsInfo;
       }
 
-      VkMemoryPropertyFlags memoryProperties;
-      switch (bufferType)
-      {
-      case BT_STAGING:
-         memoryProperties = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-         break;
-      default:
-         memoryProperties = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-         break;
-      }
-
       memoryAllocateInfo.memoryTypeIndex = _device->physicalDevice()->getMemoryTypeIndex(memoryRequirements.memoryTypeBits
-         , memoryProperties);
+         , memoryPropertyFlags);
 
       VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &_deviceMemory));
       vkBindBufferMemory(_device->vulkanDevice(), _buffer, _deviceMemory, 0);
@@ -104,10 +108,11 @@ namespace genesis
    {
       if (staging)
       {
-         _stagingBuffer = new VulkanBuffer(_device, BT_STAGING, _sizeInBytes, getBufferUsageFlags(BT_STAGING, additionalFlags));
+         
+         _stagingBuffer = new VulkanBuffer(_device, getMemoryPropertyFlags(BT_STAGING), _sizeInBytes, getBufferUsageFlags(BT_STAGING, additionalFlags));
       }
 
-      _buffer = new VulkanBuffer(_device, bufferType, _sizeInBytes, getBufferUsageFlags(bufferType, additionalFlags));
+      _buffer = new VulkanBuffer(_device, getMemoryPropertyFlags(bufferType), _sizeInBytes, getBufferUsageFlags(bufferType, additionalFlags));
 
       if (!name.empty())
       {

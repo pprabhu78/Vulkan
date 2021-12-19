@@ -59,7 +59,8 @@ namespace genesis
 
    bool Image::copyFromRawDataIntoImage(void* pSrcData, VkDeviceSize pSrcDataSize, const std::vector<int>& mipMapDataOffsets)
    {
-      VulkanBuffer* stagingBuffer = new VulkanBuffer(_device, BT_STAGING, (int)pSrcDataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
+      VulkanBuffer* stagingBuffer = new VulkanBuffer(_device, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+         , (int)pSrcDataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT);
       uint8_t* pDstData = 0;
       VK_CHECK_RESULT(vkMapMemory(_device->vulkanDevice(), stagingBuffer->_deviceMemory, 0, pSrcDataSize, 0, (void**)&pDstData));
       memcpy(pDstData, pSrcData, pSrcDataSize);
