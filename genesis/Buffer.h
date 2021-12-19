@@ -18,22 +18,13 @@ namespace genesis
       BT_INDIRECT_BUFFER
    };
 
-   class BufferProperties
-   {
-   public:
-      bool _deviceAddressing = false;
-      bool _inputToAccelerationStructure = false;
-      bool _vertexOrIndexBoundAsSsbo = false;
-   };
-
-
    //! internal structure for buffer and memory
    //! associated with it.
    //! can be a staging buffer or a device local buffer
    class VulkanBuffer
    {
    public:
-      VulkanBuffer(Device* device, BufferType bufferType, int sizeInBytes, const BufferProperties& bufferProperties = {});
+      VulkanBuffer(Device* device, BufferType bufferType, int sizeInBytes, VkBufferUsageFlags additionalFlags = 0);
       virtual ~VulkanBuffer();
    public:
       virtual VkBuffer vulkanBuffer(void) const;
@@ -50,7 +41,7 @@ namespace genesis
       //! constructor
       //! staging means create a staging buffer
       //! stagingOnly means create only the staging buffer
-      Buffer(Device* device, BufferType bufferType, int sizeInBytes, bool staging, const BufferProperties& bufferProperties = {}, const std::string& name = "");
+      Buffer(Device* device, BufferType bufferType, int sizeInBytes, bool staging, VkBufferUsageFlags additionalFlags = 0, const std::string& name = "");
 
       //! destructor
       virtual ~Buffer(void);

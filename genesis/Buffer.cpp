@@ -9,7 +9,7 @@
 namespace genesis
 {
 
-   VulkanBuffer::VulkanBuffer(Device* _device, BufferType bufferType, int sizeInBytes, const BufferProperties& bufferProperties)
+   VulkanBuffer::VulkanBuffer(Device* _device, BufferType bufferType, int sizeInBytes, VkBufferUsageFlags additionalFlags)
       : _buffer(0)
       , _deviceMemory(0)
       , _device(_device)
@@ -40,20 +40,7 @@ namespace genesis
          break;
       }
 
-      if (bufferProperties._deviceAddressing)
-      {
-         bufferCreateInfo.usage |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-      }
-
-      if (bufferProperties._inputToAccelerationStructure)
-      {
-         bufferCreateInfo.usage |= VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR;
-      }
-
-      if ((bufferType == BT_VERTEX_BUFFER || bufferType == BT_INDEX_BUFFER) && bufferProperties._vertexOrIndexBoundAsSsbo)
-      {
-         bufferCreateInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-      }
+      bufferCreateInfo.usage |= additionalFlags;
 
       VK_CHECK_RESULT(vkCreateBuffer(_device->vulkanDevice(), &bufferCreateInfo, nullptr, &_buffer));
 
@@ -64,7 +51,7 @@ namespace genesis
       memoryAllocateInfo.allocationSize = memoryRequirements.size;
 
       VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo = VulkanInitializers::memoryAllocateFlagsInfo();
-      if (bufferProperties._deviceAddressing)
+      if (bufferCreateInfo.usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
       {
          memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
          memoryAllocateInfo.pNext = &memoryAllocateFlagsInfo;
@@ -105,7 +92,7 @@ namespace genesis
       return _buffer;
    }
 
-   Buffer::Buffer(Device* device, BufferType bufferType, int sizeInBytes, bool staging, const BufferProperties& bufferProperties, const std::string& name)
+   Buffer::Buffer(Device* device, BufferType bufferType, int sizeInBytes, bool staging, VkBufferUsageFlags additionalFlags, const std::string& name)
       : _device(device)
       , _sizeInBytes(sizeInBytes)
       , _stagingBuffer(nullptr)
@@ -116,7 +103,7 @@ namespace genesis
          _stagingBuffer = new VulkanBuffer(_device, BT_STAGING, _sizeInBytes);
       }
 
-      _buffer = new VulkanBuffer(_device, bufferType, _sizeInBytes, bufferProperties);
+      _buffer = new VulkanBuffer(_device, bufferType, _sizeInBytes, additionalFlags);
 
       if (!name.empty())
       {

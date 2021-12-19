@@ -208,7 +208,7 @@ namespace genesis
          return;
       }
       const int sizeInBytesLightInstances = (int)(_materials.size() * sizeof(LightInstance));
-      _lightInstancesGpu = new Buffer(_device, BT_SBO, sizeInBytesLightInstances, true, BufferProperties(), "LightInstancesGpu");
+      _lightInstancesGpu = new Buffer(_device, BT_SBO, sizeInBytesLightInstances, true, 0, "LightInstancesGpu");
       void* pDstMaterials = _lightInstancesGpu->stagingBuffer();
       memcpy(pDstMaterials, _lightInstances.data(), sizeInBytesLightInstances);
       _lightInstancesGpu->syncToGpu(true);
@@ -502,7 +502,7 @@ namespace genesis
       _indexIndicesGpu->syncToGpu(true);
 
       const int sizeInBytesMaterials = (int)(_materials.size() * sizeof(Material));
-      _materialsGpu = new Buffer(_device, BT_SBO, sizeInBytesMaterials, true, BufferProperties(), "MaterialsGpu");
+      _materialsGpu = new Buffer(_device, BT_SBO, sizeInBytesMaterials, true, 0, "MaterialsGpu");
       void* pDstMaterials = _materialsGpu->stagingBuffer();
       memcpy(pDstMaterials, _materials.data(), sizeInBytesMaterials);
       _materialsGpu->syncToGpu(true);
@@ -620,18 +620,18 @@ namespace genesis
       
       bakeAttributes(glTfModel, fileLoadingFlags);
 
-      BufferProperties props;
+      VkBufferUsageFlags additionalFlags = 0;
       if (_rayTracing)
       {
-         props._deviceAddressing = true;
-         props._inputToAccelerationStructure = true;
-         props._vertexOrIndexBoundAsSsbo = true;
+         additionalFlags = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT 
+            | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR 
+            | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
       }
 
       {
          const int sizeOfVertexBuffer = (int)(_vertexBuffer.size() * sizeof(Vertex));
 
-         _vertexBufferGpu = new Buffer(_device, BT_VERTEX_BUFFER, sizeOfVertexBuffer, true, props, "VulkanGltfModel::_vertexBufferGpu");
+         _vertexBufferGpu = new Buffer(_device, BT_VERTEX_BUFFER, sizeOfVertexBuffer, true, additionalFlags, "VulkanGltfModel::_vertexBufferGpu");
 
          uint8_t* pDstData = (uint8_t*)_vertexBufferGpu->stagingBuffer();
          memcpy(pDstData, _vertexBuffer.data(), sizeOfVertexBuffer);
@@ -641,7 +641,7 @@ namespace genesis
       {
          const int sizeOfIndexBuffer = (int)(_indexBuffer.size() * sizeof(uint32_t));
 
-         _indexBufferGpu = new Buffer(_device, BT_INDEX_BUFFER, sizeOfIndexBuffer, true, props, "VulkanGltfModel::_indexBufferGpu");
+         _indexBufferGpu = new Buffer(_device, BT_INDEX_BUFFER, sizeOfIndexBuffer, true, additionalFlags, "VulkanGltfModel::_indexBufferGpu");
 
          uint8_t* pDstData = (uint8_t*)_indexBufferGpu->stagingBuffer();
          memcpy(pDstData, _indexBuffer.data(), sizeOfIndexBuffer);
@@ -884,10 +884,9 @@ namespace genesis
 
       _blas = new AccelerationStructure(_device, BLAS, accelerationStructureBuildSizesInfo.accelerationStructureSize);
 
-      BufferProperties props;
-      props._deviceAddressing = true;
+      VkBufferUsageFlags flags = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
-      Buffer* scratchBuffer = new Buffer(_device, BT_SBO, (int)accelerationStructureBuildSizesInfo.buildScratchSize, false, props);
+      Buffer* scratchBuffer = new Buffer(_device, BT_SBO, (int)accelerationStructureBuildSizesInfo.buildScratchSize, false, flags);
 
       VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo = VulkanInitializers::accelerationStructureBuildGeometryInfoKHR();
       accelerationBuildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
