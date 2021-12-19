@@ -113,8 +113,8 @@ namespace genesis
 
       UIOverlay.device = _device;
       UIOverlay.shaders = {
-      loadShader(getShadersPath() + "base/uioverlay.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
-      loadShader(getShadersPath() + "base/uioverlay.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
+      loadShader(getShadersPath() + "genesis/uioverlay.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
+      loadShader(getShadersPath() + "genesis/uioverlay.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
       };
       UIOverlay.prepareResources();
       UIOverlay.preparePipeline(pipelineCache, _renderPass->vulkanRenderPass());
