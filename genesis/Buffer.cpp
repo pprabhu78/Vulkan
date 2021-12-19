@@ -3,6 +3,7 @@
 #include "PhysicalDevice.h"
 #include "VulkanFunctions.h"
 #include "VulkanDebug.h"
+#include "VulkanInitializers.h"
 #include "GenAssert.h"
 
 namespace genesis
@@ -59,16 +60,13 @@ namespace genesis
       VkMemoryRequirements memoryRequirements;
       vkGetBufferMemoryRequirements(_device->vulkanDevice(), _buffer, &memoryRequirements);
 
-      VkMemoryAllocateInfo memoryAllocateInfo = {};
-      memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+      VkMemoryAllocateInfo memoryAllocateInfo = VulkanInitializers::memoryAllocateInfo();
       memoryAllocateInfo.allocationSize = memoryRequirements.size;
 
-      VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{};
       if (bufferProperties._deviceAddressing)
       {
-         memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
+         VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo = VulkanInitializers::memoryAllocateFlagsInfo();
          memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
-
          memoryAllocateInfo.pNext = &memoryAllocateFlagsInfo;
       }
 
