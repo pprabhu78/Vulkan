@@ -134,4 +134,21 @@ namespace genesis
          0, nullptr,
          1, &imageMemoryBarrier);
    }
+
+   void ImageTransitions::setImageLayout(
+      VkCommandBuffer cmdbuffer,
+      VkImage image,
+      VkImageAspectFlags aspectMask,
+      VkImageLayout oldImageLayout,
+      VkImageLayout newImageLayout,
+      VkPipelineStageFlags srcStageMask,
+      VkPipelineStageFlags dstStageMask)
+   {
+      VkImageSubresourceRange subresourceRange = {};
+      subresourceRange.aspectMask = aspectMask;
+      subresourceRange.baseMipLevel = 0;
+      subresourceRange.levelCount = 1;
+      subresourceRange.layerCount = 1;
+      setImageLayout(cmdbuffer, image, oldImageLayout, newImageLayout, subresourceRange, srcStageMask, dstStageMask);
+   }
 }

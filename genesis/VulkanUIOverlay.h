@@ -14,12 +14,6 @@
 
 #include "../external/imgui/imgui.h"
 
-#include "VulkanBuffer.h"
-
-#if defined(__ANDROID__)
-#include "VulkanAndroid.h"
-#endif
-
 #include <vector>
 
 namespace genesis 

@@ -12,6 +12,8 @@
 #include "PhysicalDevice.h"
 #include "VulkanInitializers.h"
 #include "Buffer.h"
+#include "ImageTransitions.h"
+#include "VulkanDebug.h"
 
 namespace genesis
 {
@@ -32,6 +34,11 @@ namespace genesis
    }
 
    UIOverlay::~UIOverlay() { }
+
+   const std::string getAssetPath()
+   {
+      return VK_EXAMPLE_DATA_DIR;
+   }
 
    /** Prepare all vulkan resources required to render the UI overlay */
    void UIOverlay::prepareResources()
@@ -95,7 +102,8 @@ namespace genesis
       VkCommandBuffer copyCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
       // Prepare for transfer
-      vks::tools::setImageLayout(
+      ImageTransitions transitions;
+      transitions.setImageLayout(
          copyCmd,
          fontImage,
          VK_IMAGE_ASPECT_COLOR_BIT,
@@ -122,7 +130,7 @@ namespace genesis
       );
 
       // Prepare for shader read
-      vks::tools::setImageLayout(
+      transitions.setImageLayout(
          copyCmd,
          fontImage,
          VK_IMAGE_ASPECT_COLOR_BIT,
