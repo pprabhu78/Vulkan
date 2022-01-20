@@ -91,11 +91,11 @@ namespace genesis
       return _valid;
    }
 
-   VkShaderModuleCreateInfo Shader::shaderModuleInfo(void) const
+   VkShaderModuleCreateInfo Shader::shaderModuleCreateInfo(void) const
    {
       return _shaderModuleInfo;
    }
-   VkPipelineShaderStageCreateInfo Shader::shaderStageInfo(void) const
+   VkPipelineShaderStageCreateInfo Shader::pipelineShaderStageCreateInfo(void) const
    {
       return _shaderStageInfo;
    }

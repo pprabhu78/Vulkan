@@ -14,6 +14,7 @@
 #include "Buffer.h"
 #include "ImageTransitions.h"
 #include "VulkanDebug.h"
+#include "Shader.h"
 
 namespace genesis
 {
@@ -239,8 +240,15 @@ namespace genesis
       pipelineCreateInfo.pViewportState = &viewportState;
       pipelineCreateInfo.pDepthStencilState = &depthStencilState;
       pipelineCreateInfo.pDynamicState = &dynamicState;
-      pipelineCreateInfo.stageCount = static_cast<uint32_t>(shaders.size());
-      pipelineCreateInfo.pStages = shaders.data();
+      pipelineCreateInfo.stageCount = static_cast<uint32_t>(_shaders.size());
+
+      std::vector<VkPipelineShaderStageCreateInfo> shaderInfos;
+      for (auto& shader : _shaders)
+      {
+         shaderInfos.push_back(shader->pipelineShaderStageCreateInfo());
+      }
+      pipelineCreateInfo.pStages = shaderInfos.data();
+      
       pipelineCreateInfo.subpass = subpass;
 
       // Vertex bindings an attributes based on ImGui vertex definition

@@ -2,6 +2,7 @@
 
 #include "../genesis/VulkanExampleBase.h"
 #include "GenMath.h"
+#include "Camera.h"
 
 namespace genesis
 {

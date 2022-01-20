@@ -13,6 +13,7 @@
 #include "keycodes.hpp"
 #include "VulkanUIOverlay.h"
 #include "VulkanSwapChain.h"
+#include "Benchmark.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -42,8 +43,9 @@
 
 #include "vulkan/vulkan.h"
 
-#include "camera.hpp"
-#include "benchmark.hpp"
+#include "Camera.h"
+#include "Shader.h"
+
 
 struct GLFWwindow;
 
@@ -53,7 +55,6 @@ namespace genesis
 	class Instance;
 	class PhysicalDevice;
 	class Device;
-
 
 	class VulkanExampleBase
 	{
@@ -83,6 +84,8 @@ namespace genesis
 		// Returns the path to the root of the glsl or hlsl shader directory.
 		std::string getShadersPath() const;
 
+		std::string getAssetsPath(void) const;
+
 		// Frame counter to display fps
 		uint32_t frameCounter = 0;
 		uint32_t lastFPS = 0;
@@ -103,7 +106,7 @@ namespace genesis
 		void* deviceCreatepNextChain = nullptr;
 		
 		// Depth buffer format (selected during Vulkan initialization)
-		VkFormat depthFormat;
+		VkFormat _depthFormat;
 		// Command buffer pool
 		VkCommandPool cmdPool;
 		/** @brief Pipeline stages used to wait at for graphics queue submissions */
@@ -121,7 +124,7 @@ namespace genesis
 		// Descriptor set pool
 		VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
 		// List of shader modules created (stored for cleanup)
-		std::vector<VkShaderModule> shaderModules;
+		std::vector<Shader*> _shaders;
 		// Pipeline cache object
 		VkPipelineCache pipelineCache;
 		// Wraps the swap chain to present images (framebuffers) to the windowing system
@@ -146,7 +149,7 @@ namespace genesis
 		/** @brief Last frame time measured using a high performance timer (if available) */
 		float frameTimer = 1.0f;
 
-		vks::Benchmark benchmark;
+		Benchmark benchmark;
 
 		/** @brief Example settings that can be changed e.g. by command line arguments */
 		struct Settings {
@@ -232,7 +235,7 @@ namespace genesis
 		virtual void prepare();
 
 		/** @brief Loads a SPIR-V shader file for the given shader stage */
-		VkPipelineShaderStageCreateInfo loadShader(std::string fileName, VkShaderStageFlagBits stage);
+		genesis::Shader* loadShader(std::string fileName, genesis::ShaderType stage);
 
 		/** @brief Entry point for the main render loop */
 		void renderLoop();

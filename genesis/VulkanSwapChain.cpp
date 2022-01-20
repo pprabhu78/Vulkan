@@ -9,6 +9,7 @@
 */
 
 #include "VulkanSwapChain.h"
+#include "VulkanDebug.h"
 
 namespace genesis
 {
@@ -99,7 +100,7 @@ namespace genesis
 #endif
 
       if (err != VK_SUCCESS) {
-         vks::tools::exitFatal("Could not create surface!", err);
+         tools::exitFatal("Could not create surface!", err);
       }
 
       // Get available queue family properties
@@ -157,13 +158,13 @@ namespace genesis
       // Exit if either a graphics or a presenting queue hasn't been found
       if (graphicsQueueNodeIndex == UINT32_MAX || presentQueueNodeIndex == UINT32_MAX)
       {
-         vks::tools::exitFatal("Could not find a graphics and/or presenting queue!", -1);
+         tools::exitFatal("Could not find a graphics and/or presenting queue!", -1);
       }
 
       // todo : Add support for separate graphics and presenting queue
       if (graphicsQueueNodeIndex != presentQueueNodeIndex)
       {
-         vks::tools::exitFatal("Separate graphics and presenting queues are not supported yet!", -1);
+         tools::exitFatal("Separate graphics and presenting queues are not supported yet!", -1);
       }
 
       queueNodeIndex = graphicsQueueNodeIndex;

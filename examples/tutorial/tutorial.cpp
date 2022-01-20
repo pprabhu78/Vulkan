@@ -15,12 +15,15 @@
 
 #include "VulkanInitializers.h"
 #include "VulkanGltf.h"
+#include "VulkanDebug.h"
 
 #include "GenAssert.h"
 
-
 #define VENUS 0
 #define SPONZA 1
+
+using namespace genesis;
+using namespace genesis::tools;
 
 Tutorial::Tutorial()
 {
@@ -33,7 +36,7 @@ Tutorial::Tutorial()
 #endif
 
 #if SPONZA
-   camera.type = Camera::CameraType::firstperson;
+   camera.type = genesis::Camera::CameraType::firstperson;
    camera.rotationSpeed = 0.2f;
    camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
    camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
@@ -290,7 +293,7 @@ void Tutorial::preparePipelines()
       shader->loadFromFile(shaderToLoad.first, shaderToLoad.second);
       if (shader->valid())
       {
-         shaderStageInfos.push_back(shader->shaderStageInfo());
+         shaderStageInfos.push_back(shader->pipelineShaderStageCreateInfo());
       }
       _shaders.push_back(shader);
    }
@@ -333,7 +336,7 @@ void Tutorial::loadAssets(void)
 {
    _gltfModel = new genesis::VulkanGltfModel(_device, true, false);
 #if SPONZA
-   _gltfModel->loadFromFile(getAssetPath() + "models/sponza/sponza.gltf"
+   _gltfModel->loadFromFile(getAssetsPath() + "models/sponza/sponza.gltf"
       , genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors);
 #endif
 

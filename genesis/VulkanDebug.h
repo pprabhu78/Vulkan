@@ -11,6 +11,16 @@
 // Default fence timeout in nanoseconds
 #define DEFAULT_FENCE_TIMEOUT 100000000000
 
+#define VK_CHECK_RESULT(f)																				\
+{																										\
+	VkResult res = (f);																					\
+	if (res != VK_SUCCESS)																				\
+	{																									\
+		std::cout << "Fatal : VkResult is \"" << tools::errorString(res) << "\" in " << __FILE__ << " at line " << __LINE__ << "\n"; \
+		assert(res == VK_SUCCESS);																		\
+	}																									\
+}
+
 namespace genesis
 {
 	class VulkanErrorToString
@@ -63,19 +73,14 @@ namespace genesis
       void setEventName(VkDevice device, VkEvent _event, const char* name);
    };
 
-#ifdef VK_CHECK_RESULT
-#undef VK_CHECK_RESULT
-#endif
+   namespace tools
+   {
+      void exitFatal(const std::string& message, int32_t exitCode);
+      void exitFatal(const std::string& message, VkResult resultCode);
 
-#define VK_CHECK_RESULT(f)																		\
-{																										\
-	VkResult res = (f);																			\
-	if (res != VK_SUCCESS)																		\
-	{																									\
-		std::cout << "Fatal : VkResult is \""												\
-					<< genesis::VulkanErrorToString::toString(res) << "\" in "		\
-					<< __FILE__ << " at line " << __LINE__ << "\n";						\
-		assert(res == VK_SUCCESS);																\
-	}																									\
-}
+      /** @brief Returns an error code as a string */
+      std::string errorString(VkResult errorCode);
+
+      uint32_t alignedSize(uint32_t value, uint32_t alignment);
+   }
 }

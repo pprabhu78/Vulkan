@@ -29,8 +29,8 @@ namespace genesis
       virtual void loadFromFile(const std::string& fileName, ShaderType shaderType);
       virtual bool valid(void) const;
 
-      virtual VkShaderModuleCreateInfo shaderModuleInfo(void) const;
-      virtual VkPipelineShaderStageCreateInfo shaderStageInfo(void) const;
+      virtual VkShaderModuleCreateInfo shaderModuleCreateInfo(void) const;
+      virtual VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(void) const;
    protected:
       VkShaderModuleCreateInfo _shaderModuleInfo;
       VkPipelineShaderStageCreateInfo _shaderStageInfo;

@@ -21,6 +21,7 @@
 #include "ScreenShotUtility.h"
 #include "VulkanInitializers.h"
 #include "PhysicalDevice.h"
+#include "VulkanDebug.h"
 
 #include <chrono>
 #include <sstream>
@@ -28,6 +29,10 @@
 #define VENUS 0
 #define SPONZA 1
 #define CORNELL 0
+
+using namespace genesis;
+using namespace genesis::tools;
+
 
 void TutorialRayTracing::resetCamera()
 {
@@ -47,7 +52,7 @@ void TutorialRayTracing::resetCamera()
 #endif
 
 #if SPONZA
-   camera.type = Camera::CameraType::firstperson;
+   camera.type = genesis::Camera::CameraType::firstperson;
    camera.rotationSpeed = 0.2f;
    camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
    camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
@@ -63,7 +68,7 @@ TutorialRayTracing::TutorialRayTracing()
    _pushConstants.frameIndex = -1;
    title = "genesis: path tracer";
    settings.overlay = false;
-   camera.type = Camera::CameraType::lookat;
+   camera.type = genesis::Camera::CameraType::lookat;
    camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
    camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
    camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.5f));
@@ -225,7 +230,7 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
 
    _gltfModel = new genesis::VulkanGltfModel(_device, true, true);
 #if SPONZA
-   _gltfModel->loadFromFile(getAssetPath() + "models/sponza/sponza.gltf"
+   _gltfModel->loadFromFile(getAssetsPath() + "models/sponza/sponza.gltf"
       , genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors);
 #endif
 
@@ -374,7 +379,7 @@ SBT Layout used in this sample:
 */
 void TutorialRayTracing::createShaderBindingTable() {
    const uint32_t handleSize = _rayTracingPipelineProperties.shaderGroupHandleSize;
-   const uint32_t handleSizeAligned = vks::tools::alignedSize(_rayTracingPipelineProperties.shaderGroupHandleSize, _rayTracingPipelineProperties.shaderGroupHandleAlignment);
+   const uint32_t handleSizeAligned = genesis::tools::alignedSize(_rayTracingPipelineProperties.shaderGroupHandleSize, _rayTracingPipelineProperties.shaderGroupHandleAlignment);
    const uint32_t groupCount = static_cast<uint32_t>(shaderGroups.size());
    const uint32_t sbtSize = groupCount * handleSizeAligned;
 
@@ -497,7 +502,8 @@ void TutorialRayTracing::createRayTracingPipeline()
 
    // Ray generation group
    {
-      shaderStages.push_back(loadShader(getShadersPath() + "tutorial_raytracing/raygen.rgen.spv", VK_SHADER_STAGE_RAYGEN_BIT_KHR));
+      Shader* shader = loadShader(getShadersPath() + "tutorial_raytracing/raygen.rgen.spv", genesis::ST_RT_RAYGEN);
+      shaderStages.push_back(shader->pipelineShaderStageCreateInfo());
       VkRayTracingShaderGroupCreateInfoKHR shaderGroup{};
       shaderGroup.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
       shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
@@ -510,7 +516,9 @@ void TutorialRayTracing::createRayTracingPipeline()
 
    // Miss group
    {
-      shaderStages.push_back(loadShader(getShadersPath() + "tutorial_raytracing/miss.rmiss.spv", VK_SHADER_STAGE_MISS_BIT_KHR));
+      Shader* shader = loadShader(getShadersPath() + "tutorial_raytracing/raygen.rmiss.spv", genesis::ST_RT_MISS);
+      shaderStages.push_back(shader->pipelineShaderStageCreateInfo());
+
       VkRayTracingShaderGroupCreateInfoKHR shaderGroup{};
       shaderGroup.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
       shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
@@ -523,7 +531,9 @@ void TutorialRayTracing::createRayTracingPipeline()
 
    // Closest hit group
    {
-      shaderStages.push_back(loadShader(getShadersPath() + "tutorial_raytracing/closesthit.rchit.spv", VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR));
+      Shader* shader = loadShader(getShadersPath() + "tutorial_raytracing/raygen.rchit.spv", genesis::ST_RT_CLOSEST_HIT);
+      shaderStages.push_back(shader->pipelineShaderStageCreateInfo());
+
       VkRayTracingShaderGroupCreateInfoKHR shaderGroup{};
       shaderGroup.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
       shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
@@ -801,7 +811,7 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
 
 void TutorialRayTracing::setupRenderPass()
 {
-   _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
+   _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
 }
 
 void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer)
@@ -810,7 +820,7 @@ void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer 
    clearValues[0].color = defaultClearColor;
    clearValues[1].depthStencil = { 1.0f, 0 };
 
-   VkRenderPassBeginInfo renderPassBeginInfo = vks::initializers::renderPassBeginInfo();
+   VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
    renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
    renderPassBeginInfo.renderArea.offset = { 0, 0 };
    renderPassBeginInfo.renderArea.extent = { width, height };

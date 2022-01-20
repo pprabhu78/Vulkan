@@ -15,6 +15,7 @@
 #include "VulkanInitializers.h"
 #include "VulkanFunctions.h"
 
+
 #ifdef VK_USE_PLATFORM_GLFW
 #if _WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -83,9 +84,20 @@ namespace genesis
       vkFreeCommandBuffers(_device->vulkanDevice(), cmdPool, static_cast<uint32_t>(drawCmdBuffers.size()), drawCmdBuffers.data());
    }
 
+   std::string VulkanExampleBase::getAssetsPath() const
+   {
+#if defined(VK_USE_PLATFORM_ANDROID_KHR)
+      return "";
+#elif defined(VK_EXAMPLE_DATA_DIR)
+      return VK_EXAMPLE_DATA_DIR;
+#else
+      return "./../data/";
+#endif
+   }
+
    std::string VulkanExampleBase::getShadersPath() const
    {
-      return getAssetPath() + "shaders/" + shaderDir + "/";
+      return getAssetsPath() + "shaders/" + shaderDir + "/";
    }
 
    void VulkanExampleBase::createPipelineCache()
@@ -112,28 +124,18 @@ namespace genesis
       settings.overlay = settings.overlay && (!benchmark.active);
 
       UIOverlay.device = _device;
-      UIOverlay.shaders = {
-      loadShader(getShadersPath() + "genesis/uioverlay.vert.spv", VK_SHADER_STAGE_VERTEX_BIT),
-      loadShader(getShadersPath() + "genesis/uioverlay.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT),
-      };
+      UIOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.vert.spv", genesis::ST_VERTEX_SHADER));
+      UIOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.frag.spv", genesis::ST_FRAGMENT_SHADER));
       UIOverlay.prepareResources();
       UIOverlay.preparePipeline(pipelineCache, _renderPass->vulkanRenderPass());
    }
 
-   VkPipelineShaderStageCreateInfo VulkanExampleBase::loadShader(std::string fileName, VkShaderStageFlagBits stage)
+   genesis::Shader* VulkanExampleBase::loadShader(std::string fileName, genesis::ShaderType stage)
    {
-      VkPipelineShaderStageCreateInfo shaderStage = {};
-      shaderStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-      shaderStage.stage = stage;
-#if defined(VK_USE_PLATFORM_ANDROID_KHR)
-      shaderStage.module = vks::tools::loadShader(androidApp->activity->assetManager, fileName.c_str(), device);
-#else
-      shaderStage.module = vks::tools::loadShader(fileName.c_str(), _device->vulkanDevice());
-#endif
-      shaderStage.pName = "main";
-      assert(shaderStage.module != VK_NULL_HANDLE);
-      shaderModules.push_back(shaderStage.module);
-      return shaderStage;
+      genesis::Shader* shader = new genesis::Shader(_device);
+      shader->loadFromFile(fileName, stage);
+      _shaders.push_back(shader);
+      return shader;
    }
 
    void VulkanExampleBase::nextFrame()
@@ -322,10 +324,10 @@ namespace genesis
 #if !defined(VK_USE_PLATFORM_ANDROID_KHR)
       // Check for a valid asset path
       struct stat info;
-      if (stat(getAssetPath().c_str(), &info) != 0)
+      if (stat(getAssetsPath().c_str(), &info) != 0)
       {
 #if defined(_WIN32)
-         std::string msg = "Could not locate asset path in \"" + getAssetPath() + "\" !";
+         std::string msg = "Could not locate asset path in \"" + getAssetsPath() + "\" !";
          MessageBox(NULL, msg.c_str(), "Fatal error", MB_OK | MB_ICONERROR);
 #else
          std::cerr << "Error: Could not find asset path in " << getAssetPath() << "\n";
@@ -370,7 +372,6 @@ namespace genesis
       }
       if (commandLineParser.isSet("benchmark")) {
          benchmark.active = true;
-         vks::tools::errorModeSilent = true;
       }
       if (commandLineParser.isSet("benchmarkwarmup")) {
          benchmark.warmup = commandLineParser.getValueAsInt("benchmarkwarmup", benchmark.warmup);
@@ -404,9 +405,9 @@ namespace genesis
          vkDestroyFramebuffer(_device->vulkanDevice(), frameBuffers[i], nullptr);
       }
 
-      for (auto& shaderModule : shaderModules)
+      for (Shader* shader : _shaders)
       {
-         vkDestroyShaderModule(_device->vulkanDevice(), shaderModule, nullptr);
+         delete shader;
       }
       vkDestroyImageView(_device->vulkanDevice(), depthStencil.view, nullptr);
       vkDestroyImage(_device->vulkanDevice(), depthStencil.image, nullptr);
@@ -437,7 +438,7 @@ namespace genesis
       // Vulkan instance
       err = createInstance(settings.validation);
       if (err) {
-         vks::tools::exitFatal("Could not create Vulkan instance : \n" + vks::tools::errorString(err), err);
+         tools::exitFatal("Could not create Vulkan instance : \n" + tools::errorString(err), err);
          return false;
       }
 
@@ -491,7 +492,7 @@ namespace genesis
 
 
       // Find a suitable depth format
-      VkBool32 validDepthFormat = vks::tools::getSupportedDepthFormat(_physicalDevice->vulkanPhysicalDevice(), &depthFormat);
+      VkBool32 validDepthFormat = _physicalDevice->getSupportedDepthFormat(_depthFormat);
       assert(validDepthFormat);
 
       swapChain.connect(_instance->vulkanInstance(), _physicalDevice->vulkanPhysicalDevice(), _device->vulkanDevice());
@@ -787,7 +788,7 @@ namespace genesis
       VkImageCreateInfo imageCI{};
       imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       imageCI.imageType = VK_IMAGE_TYPE_2D;
-      imageCI.format = depthFormat;
+      imageCI.format = _depthFormat;
       imageCI.extent = { width, height, 1 };
       imageCI.mipLevels = 1;
       imageCI.arrayLayers = 1;
@@ -810,14 +811,14 @@ namespace genesis
       imageViewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
       imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
       imageViewCI.image = depthStencil.image;
-      imageViewCI.format = depthFormat;
+      imageViewCI.format = _depthFormat;
       imageViewCI.subresourceRange.baseMipLevel = 0;
       imageViewCI.subresourceRange.levelCount = 1;
       imageViewCI.subresourceRange.baseArrayLayer = 0;
       imageViewCI.subresourceRange.layerCount = 1;
       imageViewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
       // Stencil aspect should only be set on depth + stencil formats (VK_FORMAT_D16_UNORM_S8_UINT..VK_FORMAT_D32_SFLOAT_S8_UINT
-      if (depthFormat >= VK_FORMAT_D16_UNORM_S8_UINT) {
+      if (_depthFormat >= VK_FORMAT_D16_UNORM_S8_UINT) {
          imageViewCI.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
       }
       VK_CHECK_RESULT(vkCreateImageView(_device->vulkanDevice(), &imageViewCI, nullptr, &depthStencil.view));
@@ -851,7 +852,7 @@ namespace genesis
 
    void VulkanExampleBase::setupRenderPass()
    {
-      _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
+      _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, _depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
    }
 
    void VulkanExampleBase::getEnabledFeatures() {}

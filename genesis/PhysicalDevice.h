@@ -41,6 +41,8 @@ namespace genesis
       virtual uint32_t getQueueFamilyIndex(VkQueueFlagBits queueFlags) const;
 
       virtual bool extensionSupported(const std::string& extension) const;
+
+      virtual bool getSupportedDepthFormat(VkFormat& depthFormat) const;
       
    protected:
       // Stores physical device properties (for e.g. checking device limits)

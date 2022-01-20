@@ -20,6 +20,7 @@ namespace genesis
 {
 	class Device;
 	class VulkanBuffer;
+	class Shader;
 
 	class UIOverlay 
 	{
@@ -34,7 +35,7 @@ namespace genesis
 		int32_t vertexCount = 0;
 		int32_t indexCount = 0;
 
-		std::vector<VkPipelineShaderStageCreateInfo> shaders;
+		std::vector<Shader*> _shaders;
 
 		VkDescriptorPool descriptorPool;
 		VkDescriptorSetLayout descriptorSetLayout;

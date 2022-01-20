@@ -17,7 +17,6 @@
 #include <vector>
 
 #include <vulkan/vulkan.h>
-#include "VulkanTools.h"
 
 #if VK_USE_PLATFORM_GLFW
    #ifdef _WIN32
