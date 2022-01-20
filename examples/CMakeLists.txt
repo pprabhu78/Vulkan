@@ -6,9 +6,9 @@ function(add_shader TARGET SHADER)
 	find_program(GLSLANGVALIDATOR glslangValidator)
 	
 	# All shaders for a sample are found here.
-	set(current-shader-path "../../data/shaders/glsl/${TARGET}/${SHADER}")
+	set(current-shader-path "../data/shaders/glsl/${TARGET}/${SHADER}")
 
-	set(current-output-path  "../../data/shaders/glsl/${TARGET}/${SHADER}.spv")
+	set(current-output-path  "../data/shaders/glsl/${TARGET}/${SHADER}.spv")
 
 	# Add a custom command to compile GLSL to SPIR-V.
 	get_filename_component(current-output-dir ${current-output-path} DIRECTORY)

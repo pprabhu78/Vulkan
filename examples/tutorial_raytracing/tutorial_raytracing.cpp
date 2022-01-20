@@ -516,7 +516,7 @@ void TutorialRayTracing::createRayTracingPipeline()
 
    // Miss group
    {
-      Shader* shader = loadShader(getShadersPath() + "tutorial_raytracing/raygen.rmiss.spv", genesis::ST_RT_MISS);
+      Shader* shader = loadShader(getShadersPath() + "tutorial_raytracing/miss.rmiss.spv", genesis::ST_RT_MISS);
       shaderStages.push_back(shader->pipelineShaderStageCreateInfo());
 
       VkRayTracingShaderGroupCreateInfoKHR shaderGroup{};
@@ -531,7 +531,7 @@ void TutorialRayTracing::createRayTracingPipeline()
 
    // Closest hit group
    {
-      Shader* shader = loadShader(getShadersPath() + "tutorial_raytracing/raygen.rchit.spv", genesis::ST_RT_CLOSEST_HIT);
+      Shader* shader = loadShader(getShadersPath() + "tutorial_raytracing/closesthit.rchit.spv", genesis::ST_RT_CLOSEST_HIT);
       shaderStages.push_back(shader->pipelineShaderStageCreateInfo());
 
       VkRayTracingShaderGroupCreateInfoKHR shaderGroup{};
