@@ -155,6 +155,7 @@ set(EXAMPLES
 	descriptorsets
 	displacement
 	distancefieldfonts
+	dynamicrendering
 	dynamicuniformbuffer
 	gears
 	geometryshader
