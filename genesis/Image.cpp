@@ -8,9 +8,11 @@
 
 #include "GenAssert.h"
 
-#include <fstream>
 #include <ktx.h>
 #include <ktxvulkan.h>
+
+#include <algorithm>
+#include <fstream>
 
 namespace genesis
 {
@@ -68,13 +70,21 @@ namespace genesis
       memcpy(pDstData, pSrcData, pSrcDataSize);
       vkUnmapMemory(_device->vulkanDevice(), stagingBuffer->_deviceMemory);
 
-      allocateImageAndMemory(VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+      const bool generatingMipMaps = (mipMapDataOffsets.size() != _numMipMapLevels);
+      
+      VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+      if (generatingMipMaps)
+      {
+         imageUsageFlags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+      }
+
+      allocateImageAndMemory(imageUsageFlags
          , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT // on the gpu
          , VK_IMAGE_TILING_OPTIMAL);
 
       std::vector<VkBufferImageCopy> bufferCopyRegions;
 
-      for (uint32_t i = 0; i < (uint32_t)_numMipMapLevels; ++i)
+      for (uint32_t i = 0; i < (uint32_t)mipMapDataOffsets.size(); ++i)
       {
          VkBufferImageCopy bufferImageCopy = {};
 
@@ -97,7 +107,7 @@ namespace genesis
 
       VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-      VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT , 0, (uint32_t)_numMipMapLevels, 0, 1 };
+      VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT , 0, (uint32_t)mipMapDataOffsets.size(), 0, 1 };
       ImageTransitions transition;
       transition.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
@@ -109,7 +119,10 @@ namespace genesis
          , bufferCopyRegions.data()
       );
 
-      transition.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange);
+      VkImageLayout newImageLayout = (generatingMipMaps) ? VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+         : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+      transition.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, newImageLayout, subresourceRange);
 
       _device->flushCommandBuffer(commandBuffer);
 
@@ -167,6 +180,58 @@ namespace genesis
       return true;
    }
 
+   void Image::generateMipMaps(void)
+   {
+      genesis::ImageTransitions transitions;
+
+      // Generate the mip chain (glTF uses jpg and png, so we need to create this manually)
+      VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+
+      for (uint32_t i = 1; i < _numMipMapLevels; i++) {
+         VkImageBlit imageBlit{};
+
+         // This is the previous level, which is the source for the next level
+         imageBlit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+         imageBlit.srcSubresource.layerCount = 1;
+         imageBlit.srcSubresource.mipLevel = i - 1;
+         imageBlit.srcOffsets[1].x = int32_t(_width >> (i - 1));
+         imageBlit.srcOffsets[1].y = int32_t(_height >> (i - 1));
+         imageBlit.srcOffsets[1].z = 1;
+
+         // This is the destination level
+         imageBlit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+         imageBlit.dstSubresource.layerCount = 1;
+         imageBlit.dstSubresource.mipLevel = i;
+         imageBlit.dstOffsets[1].x = int32_t(_width >> i);
+         imageBlit.dstOffsets[1].y = int32_t(_height >> i);
+         imageBlit.dstOffsets[1].z = 1;
+
+         VkImageSubresourceRange mipSubRange = {};
+         mipSubRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+         mipSubRange.baseMipLevel = i;
+         mipSubRange.levelCount = 1;
+         mipSubRange.layerCount = 1;
+
+         // the next level is in undefined state, because only one level was filled, and it was set as VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+         transitions.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipSubRange);
+
+         // the source level is in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL state, because only one level was filled, and it was set as VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+         vkCmdBlitImage(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageBlit, VK_FILTER_LINEAR);
+
+         // set this to be the source for the next blit
+         transitions.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipSubRange);
+      }
+
+      VkImageSubresourceRange subresourceRange = {};
+      subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      subresourceRange.levelCount = _numMipMapLevels;
+      subresourceRange.layerCount = 1;
+
+      // transfer the whole image
+      transitions.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange);
+
+      _device->flushCommandBuffer(commandBuffer);
+   }
 
    bool Image::loadFromBuffer(void* buffer, VkDeviceSize bufferSize, VkFormat format, int width, int height, const std::vector<int>& mipMapDataOffsets)
    {
@@ -176,7 +241,7 @@ namespace genesis
          std::cout << __FUNCTION__ << "(buffer==nullptr)" << std::endl;
          return false;
       }
-      _numMipMapLevels = (int)mipMapDataOffsets.size();
+      _numMipMapLevels = static_cast<uint32_t>(floor(log2(std::max(width, height))) + 1.0);
       _width = width;
       _height = height;
       _format = format;
@@ -185,6 +250,12 @@ namespace genesis
       if (!ok)
       {
          return false;
+      }
+
+      if (_numMipMapLevels != mipMapDataOffsets.size())
+      {
+         std::cout << "_numMipMapLevels != mipMapDataOffsets.size(), will generate mip maps" << std::endl;
+         generateMipMaps();
       }
 
       return ok;

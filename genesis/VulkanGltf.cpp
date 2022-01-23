@@ -477,9 +477,9 @@ namespace genesis
             }
          }
 
-         for (const auto& child : node->_children)
+         for (const Node* child : node->_children)
          {
-            nodesToProcess.push_back(node);
+            nodesToProcess.push_back(child);
          }
       }
 

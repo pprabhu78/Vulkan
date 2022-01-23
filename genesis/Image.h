@@ -39,6 +39,9 @@ namespace genesis
          , VkMemoryPropertyFlags memoryPropertyFlags
          , VkImageTiling imageTiling);
 
+      //! internal
+      virtual void generateMipMaps(void);
+
    protected:
       Device* _device;
 
