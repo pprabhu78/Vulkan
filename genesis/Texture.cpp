@@ -13,6 +13,8 @@ namespace genesis
    {
       createSampler();
       createImageView();
+
+      _descriptor = VkDescriptorImageInfo{ sampler, imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
    }
 
    Texture::~Texture()
@@ -28,9 +30,9 @@ namespace genesis
       samplerInfo.magFilter = VK_FILTER_LINEAR;
       samplerInfo.minFilter = VK_FILTER_LINEAR;
       samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-      samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-      samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-      samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+      samplerInfo.addressModeU = (!_image->isCubeMap())? VK_SAMPLER_ADDRESS_MODE_REPEAT: VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+      samplerInfo.addressModeV = samplerInfo.addressModeU;
+      samplerInfo.addressModeW = samplerInfo.addressModeV;
       samplerInfo.mipLodBias = 0.0f;
       samplerInfo.compareOp = VK_COMPARE_OP_NEVER;
       samplerInfo.minLod = 0.0f;
@@ -47,7 +49,7 @@ namespace genesis
    void Texture::createImageView()
    {
       VkImageViewCreateInfo imageViewInfo = VulkanInitializers::imageViewCreateInfo();
-      imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      imageViewInfo.viewType = (!_image->isCubeMap()) ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_CUBE;
       imageViewInfo.format = _image->vulkanFormat();
       imageViewInfo.components = { VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A };
       // The subresource range describes the set of mip levels (and array layers) that can be accessed through this image view
@@ -55,7 +57,7 @@ namespace genesis
       imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
       imageViewInfo.subresourceRange.baseMipLevel = 0;
       imageViewInfo.subresourceRange.baseArrayLayer = 0;
-      imageViewInfo.subresourceRange.layerCount = 1;
+      imageViewInfo.subresourceRange.layerCount = (!_image->isCubeMap()) ? 1 : 6;
 
       imageViewInfo.subresourceRange.levelCount = _image->numMipMapLevels();
       // The view will be based on the texture's image
@@ -63,8 +65,13 @@ namespace genesis
       VK_CHECK_RESULT(vkCreateImageView(_image->device()->vulkanDevice(), &imageViewInfo, nullptr, &imageView));
    }
 
-   VkDescriptorImageInfo Texture::descriptor() const
+   const VkDescriptorImageInfo& Texture::descriptor(void) const
    {
-      return VkDescriptorImageInfo{ sampler, imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL };
+      return _descriptor;
+   }
+
+   const VkDescriptorImageInfo* Texture::descriptorPtr(void) const
+   {
+      return &_descriptor;
    }
 }

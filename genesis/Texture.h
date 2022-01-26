@@ -17,7 +17,9 @@ namespace genesis
       virtual ~Texture();
 
    public:
-      virtual VkDescriptorImageInfo descriptor(void) const;
+      virtual const VkDescriptorImageInfo& descriptor(void) const;
+
+      virtual const VkDescriptorImageInfo* descriptorPtr(void) const;
 
    protected:
       virtual void createSampler(void);
@@ -27,5 +29,6 @@ namespace genesis
       const Image* _image;
       VkSampler sampler;
       VkImageView imageView;
+      VkDescriptorImageInfo _descriptor;
    };
 }
