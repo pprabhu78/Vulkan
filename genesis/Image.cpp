@@ -32,18 +32,23 @@ namespace genesis
 
    void Image::allocateImageAndMemory(VkImageUsageFlags usageFlags
       , VkMemoryPropertyFlags memoryPropertyFlags
-      , VkImageTiling imageTiling)
+      , VkImageTiling imageTiling
+      , int numFaces)
    {
       VkImageCreateInfo imageCreateInfo = VulkanInitializers::imageCreateInfo();
       imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
       imageCreateInfo.format = _format;
       imageCreateInfo.extent = { static_cast<uint32_t>(_width), static_cast<uint32_t>(_height), 1 };
       imageCreateInfo.mipLevels = _numMipMapLevels;
-      imageCreateInfo.arrayLayers = 1;
+      imageCreateInfo.arrayLayers = numFaces;
       imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
       imageCreateInfo.tiling = imageTiling;
       imageCreateInfo.usage = usageFlags;
       imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      if (numFaces == 6)
+      {
+         imageCreateInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+      }
 
       VK_CHECK_RESULT(vkCreateImage(_device->vulkanDevice(), &imageCreateInfo, nullptr, &_image));
 
@@ -59,7 +64,7 @@ namespace genesis
       VK_CHECK_RESULT(vkBindImageMemory(_device->vulkanDevice(), _image, _deviceMemory, 0));
    }
 
-   bool Image::copyFromRawDataIntoImage(void* pSrcData, VkDeviceSize pSrcDataSize, const std::vector<int>& mipMapDataOffsets)
+   bool Image::copyFromRawDataIntoImage(void* pSrcData, VkDeviceSize pSrcDataSize, const std::vector<int>& mipMapDataOffsetsAllFaces, uint32_t numFaces)
    {
       VulkanBuffer* stagingBuffer = new VulkanBuffer(_device
          , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
@@ -70,7 +75,7 @@ namespace genesis
       memcpy(pDstData, pSrcData, pSrcDataSize);
       vkUnmapMemory(_device->vulkanDevice(), stagingBuffer->_deviceMemory);
 
-      const bool generatingMipMaps = (mipMapDataOffsets.size() != _numMipMapLevels);
+      const bool generatingMipMaps = (mipMapDataOffsetsAllFaces.size()/numFaces != _numMipMapLevels);
       
       VkImageUsageFlags imageUsageFlags = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
       if (generatingMipMaps)
@@ -80,34 +85,41 @@ namespace genesis
 
       allocateImageAndMemory(imageUsageFlags
          , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT // on the gpu
-         , VK_IMAGE_TILING_OPTIMAL);
+         , VK_IMAGE_TILING_OPTIMAL, numFaces);
 
       std::vector<VkBufferImageCopy> bufferCopyRegions;
 
-      for (uint32_t i = 0; i < (uint32_t)mipMapDataOffsets.size(); ++i)
+      const uint32_t numMipMaps = (uint32_t)mipMapDataOffsetsAllFaces.size() / numFaces;
+
+      for (uint32_t face = 0; face < numFaces; ++face)
       {
-         VkBufferImageCopy bufferImageCopy = {};
+         for (uint32_t mipLevel = 0; mipLevel < numMipMaps; ++mipLevel)
+         {
+            VkBufferImageCopy bufferImageCopy = {};
 
-         bufferImageCopy.bufferOffset = mipMapDataOffsets[i];
-         bufferImageCopy.bufferRowLength = 0;
-         bufferImageCopy.bufferImageHeight = 0;
+            const uint32_t offsetIntoMipData = (numMipMaps * face) + mipLevel;
+            bufferImageCopy.bufferOffset = mipMapDataOffsetsAllFaces[offsetIntoMipData];
+            bufferImageCopy.bufferRowLength = 0;
+            bufferImageCopy.bufferImageHeight = 0;
 
-         bufferImageCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-         bufferImageCopy.imageSubresource.mipLevel = i;
-         bufferImageCopy.imageSubresource.baseArrayLayer = 0;
-         bufferImageCopy.imageSubresource.layerCount = 1;
+            bufferImageCopy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            bufferImageCopy.imageSubresource.mipLevel = mipLevel;
+            bufferImageCopy.imageSubresource.baseArrayLayer = face;
+            bufferImageCopy.imageSubresource.layerCount = 1;
 
-         bufferImageCopy.imageOffset = { 0,0,0 };
-         bufferImageCopy.imageExtent.width = _width >> i;
-         bufferImageCopy.imageExtent.height = _height >> i;
-         bufferImageCopy.imageExtent.depth = 1;
+            bufferImageCopy.imageOffset = { 0,0,0 };
+            bufferImageCopy.imageExtent.width = _width >> mipLevel;
+            bufferImageCopy.imageExtent.height = _height >> mipLevel;
+            bufferImageCopy.imageExtent.depth = 1;
 
-         bufferCopyRegions.push_back(bufferImageCopy);
-      };
+            bufferCopyRegions.push_back(bufferImageCopy);
+         };
+      }
 
       VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-      VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT , 0, (uint32_t)mipMapDataOffsets.size(), 0, 1 };
+      VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT , 0, numMipMaps, 0, numFaces };
+
       ImageTransitions transition;
       transition.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
@@ -128,10 +140,30 @@ namespace genesis
 
       delete stagingBuffer;
 
+      _isCubeMap = (numFaces == 6);
+
       return true;
    }
 
-   bool Image::copyFromFileIntoImage(const std::string& fileName)
+   VkFormat toVulkanFormat(uint32_t glInternalFormat)
+   {
+      // This is GL_RGBA8
+      if (glInternalFormat == 32856)
+      {
+         return VK_FORMAT_R8G8B8A8_UNORM;
+      }
+
+      // This is GL_RGBA16F_ARB
+      if (glInternalFormat == 34842)
+      {
+         return VK_FORMAT_R16G16B16A16_SFLOAT;
+      }
+     
+      std::cout << __FUNCTION__ << ": unknown format!" << std::endl;
+      return VK_FORMAT_UNDEFINED;
+   }
+
+   bool Image::copyFromFileIntoImage(const std::string& fileName, uint32_t numFaces)
    {
       std::ifstream ifs(fileName.c_str());
       if (ifs.fail())
@@ -154,26 +186,30 @@ namespace genesis
       _numMipMapLevels = ktxTexture->numLevels;
       _width = ktxTexture->baseWidth;
       _height = ktxTexture->baseHeight;
-      _format = VK_FORMAT_R8G8B8A8_UNORM;
+      _format = toVulkanFormat(ktxTexture->glInternalformat);
 
       std::vector<int> dataOffsets;
-      for (uint32_t i = 0; i < (uint32_t)_numMipMapLevels; ++i)
+      for (uint32_t face = 0; face < numFaces; ++face)
       {
-         ktx_size_t offset = 0;
-         KTX_error_code ret = ktxTexture_GetImageOffset(ktxTexture, i, 0, 0, &offset);
-         if (ret != KTX_SUCCESS)
+         for (uint32_t i = 0; i < (uint32_t)_numMipMapLevels; ++i)
          {
-            std::cout << __FUNCTION__ << "ret != KTX_SUCCESS" << std::endl;
+            ktx_size_t offset = 0;
+            KTX_error_code ret = ktxTexture_GetImageOffset(ktxTexture, i, 0, face, &offset);
+            if (ret != KTX_SUCCESS)
+            {
+               std::cout << __FUNCTION__ << "ret != KTX_SUCCESS" << std::endl;
+            }
+            dataOffsets.push_back((int)offset);
          }
-         dataOffsets.push_back((int)offset);
-      }
-      GEN_ASSERT(_numMipMapLevels == dataOffsets.size());
-      if (_numMipMapLevels != dataOffsets.size())
-      {
-         std::cout << __FUNCTION__ << "numMipMapLevels != dataOffsets.size()" << std::endl;
       }
 
-      copyFromRawDataIntoImage(ktxTextureData, ktxTextureSize, dataOffsets);
+      GEN_ASSERT(_numMipMapLevels == dataOffsets.size()/numFaces);
+      if (_numMipMapLevels != dataOffsets.size() / numFaces)
+      {
+         std::cout << __FUNCTION__ << "numMipMapLevels != dataOffsets.size()/numFaces" << std::endl;
+      }
+
+      copyFromRawDataIntoImage(ktxTextureData, ktxTextureSize, dataOffsets, numFaces);
 
       ktxTexture_Destroy(ktxTexture);
 
@@ -187,7 +223,7 @@ namespace genesis
       // Generate the mip chain (glTF uses jpg and png, so we need to create this manually)
       VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-      for (uint32_t i = 1; i < _numMipMapLevels; i++) {
+      for (uint32_t i = 1; i < (uint32_t)_numMipMapLevels; i++) {
          VkImageBlit imageBlit{};
 
          // This is the previous level, which is the source for the next level
@@ -246,7 +282,7 @@ namespace genesis
       _height = height;
       _format = format;
 
-      bool ok = copyFromRawDataIntoImage(buffer, bufferSize, mipMapDataOffsets);
+      bool ok = copyFromRawDataIntoImage(buffer, bufferSize, mipMapDataOffsets, 1);
       if (!ok)
       {
          return false;
@@ -263,7 +299,17 @@ namespace genesis
 
    bool Image::loadFromFile(const std::string& fileName)
    {
-      bool ok = copyFromFileIntoImage(fileName);
+      bool ok = copyFromFileIntoImage(fileName, 1);
+      if (!ok)
+      {
+         return false;
+      }
+      return ok;
+   }
+
+   bool Image::loadFromFileCubeMap(const std::string& fileName)
+   {
+      bool ok = copyFromFileIntoImage(fileName, 6);
       if (!ok)
       {
          return false;
@@ -284,6 +330,11 @@ namespace genesis
    int Image::height(void) const
    {
       return _height;
+   }
+
+   bool Image::isCubeMap(void) const
+   {
+      return _isCubeMap;
    }
 
    VkFormat Image::vulkanFormat(void) const

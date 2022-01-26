@@ -13,31 +13,43 @@ namespace genesis
    {
    public:
       Image(Device* device);
+
       virtual ~Image();
 
    public:
+      //! load from file
       virtual bool loadFromFile(const std::string& fileName);
 
+      //! load from file. cube map
+      virtual bool loadFromFileCubeMap(const std::string& fileName);
+
+      //! load from buffer
       virtual bool loadFromBuffer(void* buffer, VkDeviceSize bufferSize, VkFormat format, int width, int height, const std::vector<int>& mipMapDataOffsets);
 
       virtual const Device* device(void) const;
 
+      //! query parameters
       virtual int numMipMapLevels(void) const;
       virtual int width(void) const;
       virtual int height(void) const;
+      virtual bool isCubeMap(void) const;
 
+      //! get vulkan internal
       virtual VkFormat vulkanFormat(void) const;
       virtual VkImage vulkanImage(void) const;
       virtual VkDeviceMemory vulkanDeviceMemory(void) const;
    protected:
-      virtual bool copyFromFileIntoImage(const std::string& fileName);
+      //! internal
+      virtual bool copyFromFileIntoImage(const std::string& fileName, uint32_t numFaces);
 
-      virtual bool copyFromRawDataIntoImage(void* buffer, VkDeviceSize bufferSize, const std::vector<int>& mipMapDataOffsets);
+      //! internal
+      virtual bool copyFromRawDataIntoImage(void* buffer, VkDeviceSize bufferSize, const std::vector<int>& mipMapDataOffsets, uint32_t numFaces);
 
       //! internal
       virtual void allocateImageAndMemory(VkImageUsageFlags usageFlags
          , VkMemoryPropertyFlags memoryPropertyFlags
-         , VkImageTiling imageTiling);
+         , VkImageTiling imageTiling
+         , int numFaces);
 
       //! internal
       virtual void generateMipMaps(void);
@@ -53,6 +65,6 @@ namespace genesis
       int _width;
       int _height;
       int _numMipMapLevels;
-
+      bool _isCubeMap = false;
    };
 }
