@@ -19,26 +19,35 @@ namespace genesis
       std::string prefix("");
 
       if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT) {
-         prefix = "VERBOSE: ";
+         std::cout << "VERBOSE: " << std::endl;
       }
       else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT) {
-         prefix = "INFO: ";
+         std::cout << "INFO: " << std::endl;
       }
       else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-         prefix = "WARNING: ";
+         std::cout << "WARNING: " << std::endl;
       }
       else if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-         prefix = "ERROR: ";
+         std::cout << "ERROR: " << std::endl;
       }
 
-      // Display message to default output (console/logcat)
-      std::stringstream debugMessage;
+      std::cout << "\t message id num : " << pCallbackData->messageIdNumber << std::endl;
+      std::cout << "\t message id name: " << std::string(pCallbackData->pMessageIdName) << std::endl;
+      std::cout << "\t message:" << std::string(pCallbackData->pMessageIdName) << std::endl;
+      std::cout << "\t" << pCallbackData->pMessage << std::endl << std::endl;
 
-      debugMessage << "messageIdNumber: " << pCallbackData->messageIdNumber << std::endl;
-      debugMessage << "pMessageIdName: " << std::string(pCallbackData->pMessageIdName) << std::endl;
-      debugMessage << "message: " << std::endl;
-      debugMessage << pCallbackData->pMessage << std::endl;
-
+      for (uint32_t i = 0; i < pCallbackData->objectCount; ++i)
+      {
+         VkDebugUtilsObjectNameInfoEXT object = pCallbackData->pObjects[i];
+         if (object.pObjectName)
+         {
+            std::cout << "object[" << i << "]: " << object.pObjectName << std::endl;
+         }
+         else
+         {
+            std::cout << "object[" << i << "]: " << "unnamed" << std::endl;
+         }  
+      }
 
 #if defined(__ANDROID__)
       if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
@@ -48,12 +57,7 @@ namespace genesis
          LOGD("%s", debugMessage.str().c_str());
       }
 #else
-      if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-         std::cout << debugMessage.str() << "\n";
-      }
-      else {
-         std::cout << debugMessage.str() << "\n";
-      }
+
       fflush(stdout);
 #endif
 

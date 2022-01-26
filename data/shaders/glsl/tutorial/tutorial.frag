@@ -6,6 +6,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../common/gltfMaterial.h"
+#include "input_output.h"
 
 #if INDIRECT
 

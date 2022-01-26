@@ -40,10 +40,10 @@ namespace genesis
       // Sets the debug name of an object
       // All Objects in Vulkan are represented by their 64-bit handles which are passed into this function
       // along with the object type
-      void setObjectName(VkDevice device, uint64_t object, VkDebugReportObjectTypeEXT objectType, const char* name);
+      void setObjectName(VkDevice device, uint64_t object, VkObjectType objectType, const char* name);
 
       // Set the tag for an object
-      void setObjectTag(VkDevice device, uint64_t object, VkDebugReportObjectTypeEXT objectType, uint64_t name, size_t tagSize, const void* tag);
+      void setObjectTag(VkDevice device, uint64_t object, VkObjectType objectType, uint64_t name, size_t tagSize, const void* tag);
 
       // Start a new debug marker region
       void beginRegion(VkCommandBuffer cmdbuffer, const char* pMarkerName, glm::vec4 color);

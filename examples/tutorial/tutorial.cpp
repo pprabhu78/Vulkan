@@ -19,23 +19,34 @@
 
 #include "GenAssert.h"
 
-#define VENUS 0
+//#define VENUS 1
 #define SPONZA 1
+//#define SPHERE 0
+
+//#define SKYBOX_PISA 1
+#define SKYBOX_YOKOHOMA 1
 
 using namespace genesis;
 using namespace genesis::tools;
 
 Tutorial::Tutorial()
 {
-   title = "Vulkan Example - Basic indexed triangle";
-#if VENUS
+   title = "genesis: tutorial";
+#if (defined VENUS)
    camera.type = Camera::CameraType::lookat;
-   camera.setPosition(glm::vec3(0.0f, 0.0f, -8.5f));
+   camera.setPosition(glm::vec3(0.0f, 0.0f, -2.5f));
    camera.setRotation(glm::vec3(0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
 #endif
 
-#if SPONZA
+#if (defined SPHERE)
+   camera.type = Camera::CameraType::lookat;
+   camera.setPosition(glm::vec3(0.0f, 0.0f, -10.5f));
+   camera.setRotation(glm::vec3(0.0f));
+   camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+#endif
+
+#if (defined SPONZA)
    camera.type = genesis::Camera::CameraType::firstperson;
    camera.rotationSpeed = 0.2f;
    camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
@@ -64,11 +75,19 @@ Tutorial::~Tutorial()
       delete shader;
    }
    vkDestroyPipeline(_device->vulkanDevice(), _pipeline, nullptr);
+   vkDestroyPipeline(_device->vulkanDevice(), _pipelineWireframe, nullptr);
+
+   vkDestroyPipeline(_device->vulkanDevice(), _skyBoxPipeline, nullptr);
+   vkDestroyPipeline(_device->vulkanDevice(), _skyBoxPipelineWireframe, nullptr);
 
    vkDestroyPipelineLayout(_device->vulkanDevice(), _pipelineLayout, nullptr);
 
    delete _gltfModel;
    delete _sceneUbo;
+
+   delete _gltfSkyboxModel;
+   delete _skyCubeMapTexture;
+   delete _skyCubeMapImage;
 
    vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _setLayout0, nullptr);
 }
@@ -113,14 +132,36 @@ void Tutorial::buildCommandBuffers()
       // Update dynamic scissor state
       vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
 
-      // Bind the rendering pipeline
-      // The pipeline (state object) contains all states of the rendering pipeline, binding it will set all the states specified at pipeline creation time
-      vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
-
       vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSet0, 0, nullptr);
 
+      vkCmdPushConstants(drawCmdBuffers[i], _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
+
+      // draw the sky box
+      if (!_wireframe)
+      {
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxPipeline);
+      }
+      else
+      {
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxPipelineWireframe);
+      }
+      _gltfSkyboxModel->draw(drawCmdBuffers[i], _pipelineLayout);
+
+
+      // draw the model
+      if (!_wireframe)
+      {
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
+      }
+      else
+      {
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineWireframe);
+      }
+      
       _gltfModel->draw(drawCmdBuffers[i], _pipelineLayout);
 
+
+      // draw the UI
       drawUI(drawCmdBuffers[i]);
 
       vkCmdEndRenderPass(drawCmdBuffers[i]);
@@ -171,7 +212,8 @@ void Tutorial::setupDescriptorPool()
 {
    std::vector<VkDescriptorPoolSize> poolSizes =
    {
-      genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1),
+      genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)
+   ,  genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
    };
 
    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::VulkanInitializers::descriptorPoolCreateInfo(poolSizes, 1);
@@ -180,9 +222,11 @@ void Tutorial::setupDescriptorPool()
 
 void Tutorial::setupDescriptorSetLayout(void)
 {
+   int bindingIndex = 0;
    std::vector<VkDescriptorSetLayoutBinding> set0Bindings =
    {
-      genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0)
+      genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, bindingIndex++)
+   ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
    };
    VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set0LayoutInfo, nullptr, &_setLayout0));
@@ -190,6 +234,10 @@ void Tutorial::setupDescriptorSetLayout(void)
    std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _setLayout0, _gltfModel->vulkanDescriptorSetLayout() };
 
    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::VulkanInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
+
+   VkPushConstantRange pushConstant{ VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants) };
+   pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+   pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 
    VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout));
 }
@@ -200,8 +248,10 @@ void Tutorial::updateDescriptorSet(void)
    VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::VulkanInitializers::descriptorSetAllocateInfo(descriptorPool, &_setLayout0, 1);
    vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &_descriptorSet0);
 
+   int bindingIndex = 0;
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-   genesis::VulkanInitializers::writeDescriptorSet(_descriptorSet0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,0,&_sceneUbo->descriptor())
+   genesis::VulkanInitializers::writeDescriptorSet(_descriptorSet0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++,&_sceneUbo->descriptor())
+,  genesis::VulkanInitializers::writeDescriptorSet(_descriptorSet0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, bindingIndex++,&_skyCubeMapTexture->descriptor())
    };
 
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
@@ -211,9 +261,9 @@ void Tutorial::updateDescriptorSet(void)
 void Tutorial::preparePipelines()
 {
    // bindings
-   std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions 
+   std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions
       = { genesis::VulkanInitializers::vertexInputBindingDescription(0, sizeof(genesis::Vertex), VK_VERTEX_INPUT_RATE_VERTEX) };
-   
+
    // input descriptions
    std::vector<VkVertexInputAttributeDescription> vertexInputAttributeDescriptions = {
         genesis::VulkanInitializers::vertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, position))
@@ -223,11 +273,11 @@ void Tutorial::preparePipelines()
    };
 
    // input state
-   VkPipelineVertexInputStateCreateInfo vertexInputState 
+   VkPipelineVertexInputStateCreateInfo vertexInputState
       = genesis::VulkanInitializers::pipelineVertexInputStateCreateInfo(vertexInputBindingDescriptions, vertexInputAttributeDescriptions);
 
    // input assembly
-   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState 
+   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState
       = genesis::VulkanInitializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
          , 0
          , VK_FALSE);
@@ -282,26 +332,30 @@ void Tutorial::preparePipelines()
    // shader stages
    std::vector<std::pair<std::string, genesis::ShaderType>> shadersToLoad =
    {
-      {getShadersPath() + "tutorial/tutorial.vert.spv", genesis::ST_VERTEX_SHADER}
-    , {getShadersPath() + "tutorial/tutorial.frag.spv", genesis::ST_FRAGMENT_SHADER}
+        {getShadersPath() + "tutorial/tutorial.vert.spv", genesis::ST_VERTEX_SHADER}
+      , {getShadersPath() + "tutorial/tutorial.frag.spv", genesis::ST_FRAGMENT_SHADER}
+      , {getShadersPath() + "tutorial/skybox.vert.spv", genesis::ST_VERTEX_SHADER}
+      , {getShadersPath() + "tutorial/skybox.frag.spv", genesis::ST_FRAGMENT_SHADER}
    };
-   std::vector<genesis::Shader*> shaders;
-   std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos;
    for (auto shaderToLoad : shadersToLoad)
    {
       genesis::Shader* shader = new genesis::Shader(_device);
       shader->loadFromFile(shaderToLoad.first, shaderToLoad.second);
-      if (shader->valid())
+      if (shader->valid() == false)
       {
-         shaderStageInfos.push_back(shader->pipelineShaderStageCreateInfo());
+         std::cout << "error loading shader" << std::endl;
       }
       _shaders.push_back(shader);
    }
    VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::VulkanInitializers::graphicsPipelineCreateInfo(_pipelineLayout, _renderPass->vulkanRenderPass());
 
-   graphicsPipelineCreateInfo.stageCount = static_cast<uint32_t>(shaderStageInfos.size());
+   std::array<VkPipelineShaderStageCreateInfo, 2> shaderStageInfos;
+   graphicsPipelineCreateInfo.stageCount = 2;
    graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();
 
+   // first 2 are the model
+   shaderStageInfos[0] = _shaders[0]->pipelineShaderStageCreateInfo();
+   shaderStageInfos[1] = _shaders[1]->pipelineShaderStageCreateInfo();
    graphicsPipelineCreateInfo.pVertexInputState = &vertexInputState;
    graphicsPipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
    graphicsPipelineCreateInfo.pViewportState = &viewportState;
@@ -313,11 +367,25 @@ void Tutorial::preparePipelines()
 
    VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_pipeline));
 
-   for (auto shader : shaders)
-   {
-      delete shader;
-   }
+   rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_pipelineWireframe));
+   rasterizationState.polygonMode = VK_POLYGON_MODE_FILL; // reset
+
+   // next 2 are the skybox
+   shaderStageInfos[0] = _shaders[2]->pipelineShaderStageCreateInfo();
+   shaderStageInfos[1] = _shaders[3]->pipelineShaderStageCreateInfo();
+
+   rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT; // cull the front facing polygons
+   depthStencilState.depthWriteEnable = VK_FALSE;
+   depthStencilState.depthTestEnable = VK_FALSE;
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxPipeline));
+   debugmarker::setPipelineName(_device->vulkanDevice(), _skyBoxPipeline, "_skyBoxPipeline");
+
+   rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxPipelineWireframe));
+   debugmarker::setPipelineName(_device->vulkanDevice(), _skyBoxPipelineWireframe, "_skyBoxPipelineWireframe");
 }
+   
 
 void Tutorial::render()
 {
@@ -334,16 +402,35 @@ void Tutorial::viewChanged()
 
 void Tutorial::loadAssets(void)
 {
+   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
+
    _gltfModel = new genesis::VulkanGltfModel(_device, true, false);
-#if SPONZA
-   _gltfModel->loadFromFile(getAssetsPath() + "models/sponza/sponza.gltf"
-      , genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors);
+#if defined SPONZA
+   _gltfModel->loadFromFile(getAssetsPath() + "models/sponza/sponza.gltf", glTFLoadingFlags);
 #endif
 
-#if VENUS
-   _gltfModel->loadFromFile(getAssetPath() + "models/venus.gltf"
-      , genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors);
+#if defined VENUS
+   _gltfModel->loadFromFile(getAssetsPath() + "models/venus.gltf", glTFLoadingFlags);
 #endif
+
+#if defined SPHERE
+   _gltfModel->loadFromFile(getAssetsPath() + "models/sphere.gltf", glTFLoadingFlags);
+#endif
+
+   _gltfSkyboxModel = new genesis::VulkanGltfModel(_device, true, false);
+   _gltfSkyboxModel->loadFromFile(getAssetsPath() + "models/cube.gltf", glTFLoadingFlags);
+
+   _skyCubeMapImage = new genesis::Image(_device);
+#if (defined SKYBOX_YOKOHOMA)
+   _pushConstants.environmentMapCoordTransform.x = -1;
+   _pushConstants.environmentMapCoordTransform.y = -1;
+   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/cubemap_yokohama_rgba.ktx");
+#endif
+
+#if (defined SKYBOX_PISA)
+   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
+#endif
+   _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
 }
 
 void Tutorial::prepare()
@@ -361,7 +448,7 @@ void Tutorial::prepare()
    prepared = true;
 }
 
-void Tutorial::getEnabledFeatures()
+void Tutorial::enableFeatures()
 {
    // Example uses multi draw indirect if available
    if (_physicalDevice->physicalDeviceFeatures().multiDrawIndirect) {
@@ -371,4 +458,18 @@ void Tutorial::getEnabledFeatures()
    if (_physicalDevice->physicalDeviceFeatures().samplerAnisotropy) {
       _physicalDevice->enabledPhysicalDeviceFeatures().samplerAnisotropy = VK_TRUE;
    }
-};
+
+   // This is required for wireframe display
+   if (_physicalDevice->physicalDeviceFeatures().fillModeNonSolid)
+   {
+      _physicalDevice->enabledPhysicalDeviceFeatures().fillModeNonSolid = VK_TRUE;
+   }
+}
+
+void Tutorial::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
+{
+   if (overlay->header("Settings")) {
+      if (overlay->checkBox("wireframe", &_wireframe)) {
+      }
+   }
+}

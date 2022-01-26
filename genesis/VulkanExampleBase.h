@@ -229,7 +229,7 @@ namespace genesis
 		/** @brief (Virtual) Setup a default renderpass */
 		virtual void setupRenderPass();
 		/** @brief (Virtual) Called after the physical device features have been read, can be used to set features to enable on the device */
-		virtual void getEnabledFeatures();
+		virtual void enableFeatures();
 
 		/** @brief Prepares all Vulkan resources and functions required to run the sample */
 		virtual void prepare();

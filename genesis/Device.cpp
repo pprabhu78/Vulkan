@@ -102,9 +102,9 @@ namespace genesis
       }
 
       // Enable the debug marker extension if it is present (likely meaning a debugging tool is present)
-      if (_physicalDevice->extensionSupported(VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
+      // PPP: why does this not work? It does not seem to work for the original samples either
+      //if (_physicalDevice->extensionSupported(VK_EXT_DEBUG_MARKER_EXTENSION_NAME))
       {
-         deviceExtensions.push_back(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
          _enableDebugMarkers = true;
       }
 

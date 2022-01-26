@@ -16,7 +16,7 @@ namespace genesis
       _height = height;
       _numMipMapLevels = 1;
 
-      allocateImageAndMemory(usageFlags, memoryPropertyFlags, imageTiling);
+      allocateImageAndMemory(usageFlags, memoryPropertyFlags, imageTiling, 1);
    }
 
    StorageImage::~StorageImage()

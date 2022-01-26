@@ -481,7 +481,7 @@ namespace genesis
       _physicalDevice = new PhysicalDevice(_instance, selectedDevice, _enabledPhysicalDeviceExtensions);
 
       // Derived examples can override this to set actual features (based on above readings) to enable for logical device creation
-      getEnabledFeatures();
+      enableFeatures();
 
       // Vulkan device creation
       // This is handled by a separate class that gets a logical device representation
@@ -489,7 +489,6 @@ namespace genesis
       _device = new Device(_physicalDevice, deviceCreatepNextChain);
 
       VulkanFunctionsInitializer::initialize(_device);
-
 
       // Find a suitable depth format
       VkBool32 validDepthFormat = _physicalDevice->getSupportedDepthFormat(_depthFormat);
@@ -855,7 +854,10 @@ namespace genesis
       _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, _depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
    }
 
-   void VulkanExampleBase::getEnabledFeatures() {}
+   void VulkanExampleBase::enableFeatures() 
+   {
+      // no op
+   }
 
    void VulkanExampleBase::windowResize()
    {
