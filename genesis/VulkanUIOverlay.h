@@ -15,6 +15,7 @@
 #include "../external/imgui/imgui.h"
 
 #include <vector>
+#include <string>
 
 namespace genesis 
 {

@@ -206,5 +206,7 @@ namespace genesis
       AccelerationStructure* _tlas;
 
       const bool _rayTracing;
+
+      static const int s_maxBindlessTextures;
    };
 }

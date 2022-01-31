@@ -64,6 +64,7 @@ Tutorial::Tutorial()
    _physicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
+   _physicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
 
    deviceCreatepNextChain = &_physicalDeviceDescriptorIndexingFeatures;
 }

@@ -672,6 +672,8 @@ namespace genesis
       return _indexBufferGpu;
    }
 
+   const int VulkanGltfModel::s_maxBindlessTextures = 100;
+
    void VulkanGltfModel::setupDescriptorPool()
    {
       std::vector<VkDescriptorPoolSize> poolSizes = {};
@@ -680,7 +682,7 @@ namespace genesis
       if (_indirect)
       {
          poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3));
-         poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (uint32_t)_textures.size()));
+         poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, s_maxBindlessTextures));
 
          maxSets = 1;
       }
@@ -707,7 +709,7 @@ namespace genesis
          setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
          setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
          setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
-         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, static_cast<uint32_t>(_textures.size())));
+         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, s_maxBindlessTextures));
 
          descriptorSetLayoutCreateInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
 
@@ -715,12 +717,10 @@ namespace genesis
          VkDescriptorSetLayoutBindingFlagsCreateInfo setLayoutBindingFlags{};
          setLayoutBindingFlags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
          setLayoutBindingFlags.bindingCount = (uint32_t)setBindings.size();
-         std::vector<VkDescriptorBindingFlags> descriptorBindingFlags = { 0, 0, 0, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT };
+         std::vector<VkDescriptorBindingFlags> descriptorBindingFlags = { 0, 0, 0, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT };
          setLayoutBindingFlags.pBindingFlags = descriptorBindingFlags.data();
 
          descriptorSetLayoutCreateInfo.pNext = &setLayoutBindingFlags;
-
-         descriptorSetLayoutCreateInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
 
       }
       else
@@ -736,7 +736,7 @@ namespace genesis
    {
       if (_indirect)
       {
-         uint32_t variableDescCounts[] = { static_cast<uint32_t>(_textures.size()) };
+         uint32_t variableDescCounts[] = { s_maxBindlessTextures };
          VkDescriptorSetVariableDescriptorCountAllocateInfo variableDescriptorCountAllocInfo = {};
          variableDescriptorCountAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
          variableDescriptorCountAllocInfo.descriptorSetCount = 1;
