@@ -19,6 +19,8 @@ void main()
     }
     payLoad.depth = 100;              // Ending trace
 #else
-    payLoad.hitValue = vec3(0.0f,0.0f,0.2f);
+    vec3 sampleCoords = normalize(payLoad.rayDirection);
+    sampleCoords.xy *= pushConstants.environmentMapCoordTransform.xy;
+    payLoad.hitValue = texture(environmentMap, sampleCoords).xyz;
 #endif
 }

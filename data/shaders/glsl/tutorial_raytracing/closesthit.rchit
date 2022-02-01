@@ -88,6 +88,20 @@ void main()
 
 	vec3 lit = vec3(dot(normalize(normalViewSpace), normalize(-vertexViewSpace)));
 
-	payLoad.hitValue = decal*lit;
+	vec3 final = decal*lit;
+	if(pushConstants.reflectivity>0)
+	{
+		vec3 incidentVector = normalize(vertexViewSpace);
+		vec3 reflectedVector = reflect(incidentVector, normalViewSpace);
+		vec3 reflectedVectorWorldSpace = normalize(vec3(sceneUbo.viewInverse * vec4(reflectedVector, 0)));
+
+		// use the lod to sample an lod to simulate roughness
+		float maxLod = floor(log2(textureSize(environmentMap, 0))).x;
+		float lod = pushConstants.textureLodBias * maxLod;
+		vec3 reflectedColor = textureLod(environmentMap, reflectedVectorWorldSpace.xyz*vec3(pushConstants.environmentMapCoordTransform.xy,1), lod).xyz;
+		final = mix(final, reflectedColor, pushConstants.reflectivity);
+	}
+
+	payLoad.hitValue = final;
 #endif
 }

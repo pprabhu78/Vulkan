@@ -1,6 +1,8 @@
 #pragma once
 
 #include "../genesis/VulkanExampleBase.h"
+#define CPU_SIDE_COMPILATION 1
+#include "../data/shaders/glsl/tutorial/input_output.h"
 
 namespace genesis
 {
@@ -66,17 +68,6 @@ protected:
    std::vector<genesis::Shader*> _shaders;
 
    bool _wireframe = false;
-
-   struct PushConstants
-   {
-      glm::vec4 clearColor = glm::vec4(0,0,0,0);
-      glm::vec4 environmentMapCoordTransform = glm::vec4(1, 1, 1, 1);
-
-      int frameIndex = 0;
-      float textureLodBias = 0;
-      float contributionFromEnvironment = 0;
-      float pad = 0;
-   };
 
    PushConstants _pushConstants;
 };

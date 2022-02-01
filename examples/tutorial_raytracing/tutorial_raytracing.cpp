@@ -22,17 +22,21 @@
 #include "VulkanInitializers.h"
 #include "PhysicalDevice.h"
 #include "VulkanDebug.h"
+#include "Texture.h"
 
 #include <chrono>
 #include <sstream>
 
-#define VENUS 0
+//#define VENUS 1
 #define SPONZA 1
-#define CORNELL 0
+//#define CORNELL 1
+//#define SPHERE
+
+//#define SKYBOX_PISA 1
+#define SKYBOX_YOKOHOMA 1
 
 using namespace genesis;
 using namespace genesis::tools;
-
 
 void TutorialRayTracing::resetCamera()
 {
@@ -51,7 +55,14 @@ void TutorialRayTracing::resetCamera()
    _pushConstants.contributionFromEnvironment = 0.01f;
 #endif
 
-#if SPONZA
+#if (defined SPHERE)
+   camera.type = Camera::CameraType::lookat;
+   camera.setPosition(glm::vec3(0.0f, 0.0f, -10.5f));
+   camera.setRotation(glm::vec3(0.0f));
+   camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+#endif
+
+#if (defined SPONZA)
    camera.type = genesis::Camera::CameraType::firstperson;
    camera.rotationSpeed = 0.2f;
    camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
@@ -96,7 +107,37 @@ TutorialRayTracing::TutorialRayTracing()
    _enabledPhysicalDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
 
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SHADER_CLOCK_EXTENSION_NAME);
+}
 
+void TutorialRayTracing::enableFeatures()
+{
+   _physicalDevice->enabledPhysicalDeviceFeatures().shaderInt64 = true;
+
+   // Enable features required for ray tracing using feature chaining via pNext		
+   _enabledBufferDeviceAddresFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+   _enabledBufferDeviceAddresFeatures.bufferDeviceAddress = VK_TRUE;
+
+   _enabledRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+   _enabledRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
+   _enabledRayTracingPipelineFeatures.pNext = &_enabledBufferDeviceAddresFeatures;
+
+   _enabledAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+   _enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
+   _enabledAccelerationStructureFeatures.pNext = &_enabledRayTracingPipelineFeatures;
+
+   _physicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
+   _physicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+   _physicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
+   _physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
+   _physicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
+   _physicalDeviceDescriptorIndexingFeatures.pNext = &_enabledAccelerationStructureFeatures;
+
+   _physicalDeviceShaderClockFeaturesKHR.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR;
+   _physicalDeviceShaderClockFeaturesKHR.shaderDeviceClock = true;
+   _physicalDeviceShaderClockFeaturesKHR.shaderSubgroupClock = true;
+   _physicalDeviceShaderClockFeaturesKHR.pNext = &_physicalDeviceDescriptorIndexingFeatures;
+   
+   deviceCreatepNextChain = &_physicalDeviceShaderClockFeaturesKHR;
 }
 
 TutorialRayTracing::~TutorialRayTracing()
@@ -118,6 +159,8 @@ TutorialRayTracing::~TutorialRayTracing()
    delete _gltfModel;
    delete _sceneUbo;
 
+   delete _skyCubeMapTexture;
+   delete _skyCubeMapImage;
 }
 
 /*
@@ -227,21 +270,24 @@ Create the bottom level acceleration structure contains the scene's actual geome
 */
 void TutorialRayTracing::createBottomLevelAccelerationStructure()
 {
-
    _gltfModel = new genesis::VulkanGltfModel(_device, true, true);
-#if SPONZA
-   _gltfModel->loadFromFile(getAssetsPath() + "models/sponza/sponza.gltf"
-      , genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors);
+
+   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
+
+#if (defined SPONZA)
+   _gltfModel->loadFromFile(getAssetsPath() + "models/sponza/sponza.gltf", glTFLoadingFlags);
 #endif
 
-#if VENUS
-   _gltfModel->loadFromFile(getAssetPath() + "models/venus.gltf"
-      , genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors);
+#if defined VENUS
+   _gltfModel->loadFromFile(getAssetPath() + "models/venus.gltf", glTFLoadingFlags);
 #endif
 
-#if CORNELL
-   _gltfModel->loadFromFile(getAssetPath() + "models/cornellBox.gltf"
-      , genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors);
+#if defined CORNELL
+   _gltfModel->loadFromFile(getAssetPath() + "models/cornellBox.gltf", glTFLoadingFlags);
+#endif
+
+#if defined SPHERE
+   _gltfModel->loadFromFile(getAssetsPath() + "models/sphere.gltf", glTFLoadingFlags);
 #endif
 
    _gltfModel->buildBlas();
@@ -262,6 +308,18 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
    VkDeviceOrHostAddressConstKHR transformBufferDeviceAddress{};
 
    transformBufferDeviceAddress.deviceAddress = getBufferDeviceAddress(_transformBuffer->_buffer);
+
+   _skyCubeMapImage = new genesis::Image(_device);
+#if (defined SKYBOX_YOKOHOMA)
+   _pushConstants.environmentMapCoordTransform.x = -1;
+   _pushConstants.environmentMapCoordTransform.y = -1;
+   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/cubemap_yokohama_rgba.ktx");
+#endif
+
+#if (defined SKYBOX_PISA)
+   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
+#endif
+   _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
 }
 
 /*
@@ -426,6 +484,7 @@ void TutorialRayTracing::createDescriptorSets()
    { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 2 },
    { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1 },
    { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2 },
+   { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 },
    };
    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::VulkanInitializers::descriptorPoolCreateInfo(poolSizes, 1);
    VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &descriptorPool));
@@ -458,6 +517,7 @@ void TutorialRayTracing::createDescriptorSets()
       , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++, _sceneUbo->descriptorPtr())
       , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, _gltfModel->vertexBuffer()->descriptorPtr())
       , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, _gltfModel->indexBuffer()->descriptorPtr())
+      , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, bindingIndex++, _skyCubeMapTexture->descriptorPtr())
    };
 
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
@@ -477,6 +537,7 @@ void TutorialRayTracing::createRayTracingPipeline()
    ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR| VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++)
    ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++)
    ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++)
+   ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR, bindingIndex++)
    };
 
    VkDescriptorSetLayoutCreateInfo descriptorSetlayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(descriptorSetLayoutBindings);
@@ -561,14 +622,6 @@ void TutorialRayTracing::createRayTracingPipeline()
 /*
 Create the uniform buffer used to pass matrices to the ray tracing ray generation shader
 */
-
-struct SceneUbo
-{
-   glm::mat4 viewMatrix;
-   glm::mat4 viewInverse;
-   glm::mat4 projInverse;
-   int vertexSizeInBytes;
-};
 
 void TutorialRayTracing::updateSceneUbo()
 {
@@ -712,36 +765,6 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[commandBufferIndex]));
 }
 
-void TutorialRayTracing::getEnabledFeatures()
-{
-   _physicalDevice->enabledPhysicalDeviceFeatures().shaderInt64 = true;
-
-   // Enable features required for ray tracing using feature chaining via pNext		
-   _enabledBufferDeviceAddresFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
-   _enabledBufferDeviceAddresFeatures.bufferDeviceAddress = VK_TRUE;
-
-   _enabledRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
-   _enabledRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
-   _enabledRayTracingPipelineFeatures.pNext = &_enabledBufferDeviceAddresFeatures;
-
-   _enabledAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
-   _enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
-   _enabledAccelerationStructureFeatures.pNext = &_enabledRayTracingPipelineFeatures;
-
-   _physicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
-   _physicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-   _physicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
-   _physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
-   _physicalDeviceDescriptorIndexingFeatures.pNext = &_enabledAccelerationStructureFeatures;
-
-   _physicalDeviceShaderClockFeaturesKHR.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR;
-   _physicalDeviceShaderClockFeaturesKHR.shaderDeviceClock = true;
-   _physicalDeviceShaderClockFeaturesKHR.shaderSubgroupClock = true;
-   _physicalDeviceShaderClockFeaturesKHR.pNext = &_physicalDeviceDescriptorIndexingFeatures;
-   
-   deviceCreatepNextChain = &_physicalDeviceShaderClockFeaturesKHR;
-}
-
 void TutorialRayTracing::prepare()
 {
    VulkanExampleBase::prepare();
@@ -805,6 +828,8 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
       if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f)) \
       {
          _pushConstants.frameIndex = -1;
+      }
+      if (overlay->sliderFloat("reflectivity", &_pushConstants.reflectivity, 0, 1)) {
       }
    }
 }

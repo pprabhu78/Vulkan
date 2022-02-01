@@ -4,11 +4,15 @@
 #include "GenMath.h"
 #include "Camera.h"
 
+#define CPU_SIDE_COMPILATION 1
+#include "../data/shaders/glsl/tutorial_raytracing/rayTracingInputOutput.h"
+
 namespace genesis
 {
    class Device;
    class Buffer;
    class Image;
+   class Texture;
    class VulkanGltfModel;
    class Texture;
    class Shader;
@@ -24,15 +28,6 @@ struct RayTracingScratchBuffer
    uint64_t deviceAddress = 0;
    VkBuffer handle = VK_NULL_HANDLE;
    VkDeviceMemory memory = VK_NULL_HANDLE;
-};
-
-struct PushConstants
-{
-   genesis::Vector4_32 clearColor;
-   int frameIndex;
-   float textureLodBias;
-   float contributionFromEnvironment;
-   float pad;
 };
 
 class TutorialRayTracing : public genesis::VulkanExampleBase
@@ -61,7 +56,7 @@ public:
 
    virtual void rayTrace(int commandBufferIndex);
    virtual void updateSceneUbo();
-   virtual void getEnabledFeatures();
+   virtual void enableFeatures() override;
    virtual void prepare();
    virtual void draw();
    virtual void render();
@@ -87,6 +82,9 @@ public:
    genesis::AccelerationStructure* topLevelAS = nullptr;
 
    genesis::VulkanGltfModel* _gltfModel;
+
+   genesis::Image* _skyCubeMapImage = nullptr;
+   genesis::Texture* _skyCubeMapTexture = nullptr;
 
 
    genesis::VulkanBuffer* _transformBuffer;

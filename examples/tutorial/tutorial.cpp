@@ -21,7 +21,7 @@
 
 //#define VENUS 1
 #define SPONZA 1
-//#define SPHERE 0
+//#define SPHERE 1
 
 //#define SKYBOX_PISA 1
 #define SKYBOX_YOKOHOMA 1
@@ -59,6 +59,26 @@ Tutorial::Tutorial()
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
    _enabledPhysicalDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME);
+
+}
+
+void Tutorial::enableFeatures()
+{
+   // Example uses multi draw indirect if available-
+   if (_physicalDevice->physicalDeviceFeatures().multiDrawIndirect) {
+      _physicalDevice->enabledPhysicalDeviceFeatures().multiDrawIndirect = VK_TRUE;
+   }
+
+   // Enable anisotropic filtering if supported
+   if (_physicalDevice->physicalDeviceFeatures().samplerAnisotropy) {
+      _physicalDevice->enabledPhysicalDeviceFeatures().samplerAnisotropy = VK_TRUE;
+   }
+
+   // This is required for wireframe display
+   if (_physicalDevice->physicalDeviceFeatures().fillModeNonSolid)
+   {
+      _physicalDevice->enabledPhysicalDeviceFeatures().fillModeNonSolid = VK_TRUE;
+   }
 
    _physicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
    _physicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
@@ -185,13 +205,6 @@ void Tutorial::draw()
    VulkanExampleBase::submitFrame();
 }
 
-struct SceneUbo
-{
-public:
-   glm::mat4 viewMatrix;
-   glm::mat4 projectionMatrix;
-};
-
 void Tutorial::prepareSceneUbo()
 {
    _sceneUbo = new genesis::Buffer(_device, genesis::BT_UBO, sizeof(SceneUbo), true);
@@ -203,6 +216,9 @@ void Tutorial::updateSceneUbo(void)
    SceneUbo ubo;
    ubo.viewMatrix = camera.matrices.view;
    ubo.projectionMatrix = camera.matrices.perspective;
+
+   ubo.viewMatrixInverse = glm::inverse(camera.matrices.view);
+   ubo.projectionMatrixInverse = glm::inverse(camera.matrices.perspective);
 
    uint8_t* data = (uint8_t*)_sceneUbo->stagingBuffer();
    memcpy(data, &ubo, sizeof(SceneUbo));
@@ -226,8 +242,8 @@ void Tutorial::setupDescriptorSetLayout(void)
    int bindingIndex = 0;
    std::vector<VkDescriptorSetLayoutBinding> set0Bindings =
    {
-      genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, bindingIndex++)
-   ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+      genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+   ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
    };
    VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set0LayoutInfo, nullptr, &_setLayout0));
@@ -241,6 +257,7 @@ void Tutorial::setupDescriptorSetLayout(void)
    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 
    VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout));
+   debugmarker::setPipelineLayoutName(_device->vulkanDevice(), _pipelineLayout, "_pipelineLayout");
 }
 
 
@@ -291,7 +308,7 @@ void Tutorial::preparePipelines()
    VkPipelineRasterizationStateCreateInfo rasterizationState =
       genesis::VulkanInitializers::pipelineRasterizationStateCreateInfo(
          VK_POLYGON_MODE_FILL,
-         VK_CULL_MODE_NONE,
+         VK_CULL_MODE_BACK_BIT,
          VK_FRONT_FACE_COUNTER_CLOCKWISE,
          0);
 
@@ -398,7 +415,7 @@ void Tutorial::render()
 void Tutorial::viewChanged()
 {
    // This function is called by the base example class each time the view is changed by user input
-   Tutorial::updateSceneUbo();
+   updateSceneUbo();
 }
 
 void Tutorial::loadAssets(void)
@@ -448,29 +465,14 @@ void Tutorial::prepare()
    
    prepared = true;
 }
-
-void Tutorial::enableFeatures()
-{
-   // Example uses multi draw indirect if available
-   if (_physicalDevice->physicalDeviceFeatures().multiDrawIndirect) {
-      _physicalDevice->enabledPhysicalDeviceFeatures().multiDrawIndirect = VK_TRUE;
-   }
-   // Enable anisotropic filtering if supported
-   if (_physicalDevice->physicalDeviceFeatures().samplerAnisotropy) {
-      _physicalDevice->enabledPhysicalDeviceFeatures().samplerAnisotropy = VK_TRUE;
-   }
-
-   // This is required for wireframe display
-   if (_physicalDevice->physicalDeviceFeatures().fillModeNonSolid)
-   {
-      _physicalDevice->enabledPhysicalDeviceFeatures().fillModeNonSolid = VK_TRUE;
-   }
-}
-
 void Tutorial::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
 {
    if (overlay->header("Settings")) {
       if (overlay->checkBox("wireframe", &_wireframe)) {
       }
+      if (overlay->sliderFloat("reflectivity", &_pushConstants.reflectivity, 0, 1)) {
+      }
+      if (overlay->sliderFloat("roughness", &_pushConstants.textureLodBias, 0, 1)) {
+      }     
    }
 }
