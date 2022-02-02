@@ -78,7 +78,7 @@ namespace genesis
       return vkFlushMappedMemoryRanges(_device->vulkanDevice(), 1, &mappedRange);
    }
 
-   uint64_t VulkanBuffer::bufferAddress() const
+   uint64_t VulkanBuffer::deviceAddress() const
    {
       VkBufferDeviceAddressInfoKHR info{};
       info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
@@ -238,6 +238,6 @@ namespace genesis
 
    uint64_t Buffer::bufferAddress() const
    {
-      return _buffer->bufferAddress();
+      return _buffer->deviceAddress();
    }
 }

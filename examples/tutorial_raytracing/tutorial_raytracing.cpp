@@ -359,7 +359,7 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
    accelerationBuildGeometryInfo.dstAccelerationStructure = topLevelAS->handle();
    accelerationBuildGeometryInfo.geometryCount = 1;
    accelerationBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
-   accelerationBuildGeometryInfo.scratchData.deviceAddress = scratchBuffer->bufferAddress();
+   accelerationBuildGeometryInfo.scratchData.deviceAddress = scratchBuffer->deviceAddress();
 
    VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo{};
    accelerationStructureBuildRangeInfo.primitiveCount = 1;
