@@ -22,14 +22,6 @@ namespace genesis
    class VulkanBuffer;
 }
 
-// Holds data for a ray tracing scratch buffer that is used as a temporary storage
-struct RayTracingScratchBuffer
-{
-   uint64_t deviceAddress = 0;
-   VkBuffer handle = VK_NULL_HANDLE;
-   VkDeviceMemory memory = VK_NULL_HANDLE;
-};
-
 class TutorialRayTracing : public genesis::VulkanExampleBase
 {
 public:
