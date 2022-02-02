@@ -353,10 +353,6 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
       accelerationBuildStructureRangeInfos.data());
    _device->flushCommandBuffer(commandBuffer);
 
-   VkAccelerationStructureDeviceAddressInfoKHR accelerationDeviceAddressInfo{};
-   accelerationDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
-   accelerationDeviceAddressInfo.accelerationStructure = topLevelAS->handle();
-
    delete scratchBuffer;
    
    delete instancesBuffer;
