@@ -32,6 +32,8 @@ namespace genesis
       virtual VkResult map(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
       virtual void unmap();
       virtual VkResult flush(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
+
+      virtual uint64_t bufferAddress() const;
    public:
       VkBuffer _buffer;
       VkDeviceMemory _deviceMemory;

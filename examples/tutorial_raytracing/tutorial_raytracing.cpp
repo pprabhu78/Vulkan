@@ -163,42 +163,6 @@ TutorialRayTracing::~TutorialRayTracing()
    delete _skyCubeMapImage;
 }
 
-/*
-Create a scratch buffer to hold temporary data for a ray tracing acceleration structure
-*/
-RayTracingScratchBuffer TutorialRayTracing::createScratchBuffer(VkDeviceSize size)
-{
-   RayTracingScratchBuffer scratchBuffer{};
-
-   VkBufferCreateInfo bufferCreateInfo{};
-   bufferCreateInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-   bufferCreateInfo.size = size;
-   bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-   VK_CHECK_RESULT(vkCreateBuffer(_device->vulkanDevice(), &bufferCreateInfo, nullptr, &scratchBuffer.handle));
-
-   VkMemoryRequirements memoryRequirements{};
-   vkGetBufferMemoryRequirements(_device->vulkanDevice(), scratchBuffer.handle, &memoryRequirements);
-
-   VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo{};
-   memoryAllocateFlagsInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO;
-   memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
-
-   VkMemoryAllocateInfo memoryAllocateInfo = {};
-   memoryAllocateInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-   memoryAllocateInfo.pNext = &memoryAllocateFlagsInfo;
-   memoryAllocateInfo.allocationSize = memoryRequirements.size;
-   memoryAllocateInfo.memoryTypeIndex = _device->physicalDevice()->getMemoryTypeIndex(memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-   VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &scratchBuffer.memory));
-   VK_CHECK_RESULT(vkBindBufferMemory(_device->vulkanDevice(), scratchBuffer.handle, scratchBuffer.memory, 0));
-
-   VkBufferDeviceAddressInfoKHR bufferDeviceAddressInfo{};
-   bufferDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-   bufferDeviceAddressInfo.buffer = scratchBuffer.handle;
-   scratchBuffer.deviceAddress = genesis::vkGetBufferDeviceAddressKHR(_device->vulkanDevice(), &bufferDeviceAddressInfo);
-
-   return scratchBuffer;
-}
-
 void TutorialRayTracing::deleteScratchBuffer(RayTracingScratchBuffer& scratchBuffer)
 {
    if (scratchBuffer.memory != VK_NULL_HANDLE) {
@@ -383,7 +347,9 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
    topLevelAS = new genesis::AccelerationStructure(_device, genesis::TLAS, accelerationStructureBuildSizesInfo.accelerationStructureSize);
 
    // Create a small scratch buffer used during build of the top level acceleration structure
-   RayTracingScratchBuffer scratchBuffer = createScratchBuffer(accelerationStructureBuildSizesInfo.buildScratchSize);
+   VulkanBuffer* scratchBuffer = new VulkanBuffer(_device
+      , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
+      , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, accelerationStructureBuildSizesInfo.buildScratchSize);;
 
    VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo{};
    accelerationBuildGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
@@ -393,7 +359,7 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
    accelerationBuildGeometryInfo.dstAccelerationStructure = topLevelAS->handle();
    accelerationBuildGeometryInfo.geometryCount = 1;
    accelerationBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
-   accelerationBuildGeometryInfo.scratchData.deviceAddress = scratchBuffer.deviceAddress;
+   accelerationBuildGeometryInfo.scratchData.deviceAddress = scratchBuffer->bufferAddress();
 
    VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo{};
    accelerationStructureBuildRangeInfo.primitiveCount = 1;
@@ -416,7 +382,7 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
    accelerationDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
    accelerationDeviceAddressInfo.accelerationStructure = topLevelAS->handle();
 
-   deleteScratchBuffer(scratchBuffer);
+   delete scratchBuffer;
    
    delete instancesBuffer;
 }

@@ -78,6 +78,14 @@ namespace genesis
       return vkFlushMappedMemoryRanges(_device->vulkanDevice(), 1, &mappedRange);
    }
 
+   uint64_t VulkanBuffer::bufferAddress() const
+   {
+      VkBufferDeviceAddressInfoKHR info{};
+      info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
+      info.buffer = _buffer;
+      return vkGetBufferDeviceAddressKHR(_device->vulkanDevice(), &info);
+   }
+
    VulkanBuffer::VulkanBuffer(Device* _device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize sizeInBytes, void* data)
       : _buffer(VK_NULL_HANDLE)
       , _deviceMemory(0)
@@ -230,9 +238,6 @@ namespace genesis
 
    uint64_t Buffer::bufferAddress() const
    {
-      VkBufferDeviceAddressInfoKHR bufferDeviceAI{};
-      bufferDeviceAI.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-      bufferDeviceAI.buffer = _buffer->vulkanBuffer();
-      return vkGetBufferDeviceAddressKHR(_device->vulkanDevice(), &bufferDeviceAI);
+      return _buffer->bufferAddress();
    }
 }

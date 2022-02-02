@@ -40,7 +40,6 @@ public:
    virtual void windowResized() override;
    virtual void keyPressed(uint32_t key) override;
 public:
-   virtual RayTracingScratchBuffer createScratchBuffer(VkDeviceSize size);
    virtual void deleteScratchBuffer(RayTracingScratchBuffer& scratchBuffer);
    virtual uint64_t getBufferDeviceAddress(VkBuffer buffer);
 
