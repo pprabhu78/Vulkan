@@ -433,22 +433,12 @@ void TutorialRayTracing::createDescriptorSets()
    descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
    descriptorAccelerationStructureInfo.pAccelerationStructures = &(topLevelAS->handle());
 
-   int bindingIndex = 0;
-
-   VkWriteDescriptorSet accelerationStructureWrite{};
-   accelerationStructureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-   // The specialized acceleration structure descriptor has to be chained
-   accelerationStructureWrite.pNext = &descriptorAccelerationStructureInfo;
-   accelerationStructureWrite.dstSet = _rayTracingDescriptorSet;
-   accelerationStructureWrite.dstBinding = bindingIndex++;
-   accelerationStructureWrite.descriptorCount = 1;
-   accelerationStructureWrite.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-
    VkDescriptorImageInfo intermediateImageDescriptor{ VK_NULL_HANDLE, _intermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
    VkDescriptorImageInfo finalImageDescriptor{ VK_NULL_HANDLE, _finalImageToPresent->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
 
+   int bindingIndex = 0;
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = { 
-        accelerationStructureWrite
+        genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, bindingIndex++, &descriptorAccelerationStructureInfo)
       , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &intermediateImageDescriptor)
       , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &finalImageDescriptor)
       , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++, _sceneUbo->descriptorPtr())

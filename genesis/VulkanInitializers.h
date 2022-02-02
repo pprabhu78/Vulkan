@@ -356,6 +356,24 @@ namespace genesis
          return writeDescriptorSet;
       }
 
+      static inline VkWriteDescriptorSet writeDescriptorSet(
+         VkDescriptorSet dstSet
+         , uint32_t binding
+         , const VkWriteDescriptorSetAccelerationStructureKHR* info
+         , uint32_t descriptorCount = 1)
+      {
+         VkWriteDescriptorSet writeDescriptorSet{};
+         writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+         // The specialized acceleration structure descriptor has to be chained
+         writeDescriptorSet.pNext = info;
+         writeDescriptorSet.dstSet = dstSet;
+         writeDescriptorSet.dstBinding = binding;
+         writeDescriptorSet.descriptorCount = descriptorCount;
+         writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
+
+         return writeDescriptorSet;
+      }
+
       static inline VkVertexInputBindingDescription vertexInputBindingDescription(
          uint32_t binding,
          uint32_t stride,
