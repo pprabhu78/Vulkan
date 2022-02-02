@@ -248,10 +248,6 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
       , sizeof(VkTransformMatrixKHR)
       , &transformMatrix);
 
-   VkDeviceOrHostAddressConstKHR transformBufferDeviceAddress{};
-
-   transformBufferDeviceAddress.deviceAddress = _transformBuffer->deviceAddress();
-
    _skyCubeMapImage = new genesis::Image(_device);
 #if (defined SKYBOX_YOKOHOMA)
    _pushConstants.environmentMapCoordTransform.x = -1;
