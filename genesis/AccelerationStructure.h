@@ -5,6 +5,7 @@
 namespace genesis
 {
    class Device;
+   class VulkanBuffer;
 
    enum AccelerationStructureType
    {
@@ -16,18 +17,17 @@ namespace genesis
    class AccelerationStructure
    {
    public:
-      AccelerationStructure(Device* device, AccelerationStructureType type, uint64_t sizeInBytes);
+      AccelerationStructure(Device* device, VkAccelerationStructureTypeKHR type, uint64_t sizeInBytes);
       virtual ~AccelerationStructure();
    public:
       virtual const VkAccelerationStructureKHR& handle(void) const;
       virtual uint64_t deviceAddress(void) const;
    protected:
+      VulkanBuffer* _buffer = nullptr;
+
       VkAccelerationStructureKHR _handle = 0;
-      uint64_t _deviceAddress = 0;
-      VkDeviceMemory _memory = 0;
-      VkBuffer _buffer = 0;
+      VkAccelerationStructureTypeKHR _type;
 
       Device* _device;
-      AccelerationStructureType _type;
    };
 }

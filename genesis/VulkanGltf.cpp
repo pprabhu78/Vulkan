@@ -882,7 +882,7 @@ namespace genesis
          primitiveCounts.data(),
          &accelerationStructureBuildSizesInfo);
 
-      _blas = new AccelerationStructure(_device, BLAS, accelerationStructureBuildSizesInfo.accelerationStructureSize);
+      _blas = new AccelerationStructure(_device, VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR, accelerationStructureBuildSizesInfo.accelerationStructureSize);
 
       VkBufferUsageFlags flags = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 

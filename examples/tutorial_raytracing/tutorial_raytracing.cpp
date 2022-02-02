@@ -323,7 +323,7 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
       &primitive_count,
       &accelerationStructureBuildSizesInfo);
 
-   topLevelAS = new genesis::AccelerationStructure(_device, genesis::TLAS, accelerationStructureBuildSizesInfo.accelerationStructureSize);
+   topLevelAS = new genesis::AccelerationStructure(_device, VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR, accelerationStructureBuildSizesInfo.accelerationStructureSize);
 
    // Create a small scratch buffer used during build of the top level acceleration structure
    VulkanBuffer* scratchBuffer = new VulkanBuffer(_device
