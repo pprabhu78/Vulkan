@@ -11,7 +11,6 @@
 #include "tutorial_raytracing.h"
 
 #include "VulkanInitializers.h"
-#include "VulkanFunctions.h"
 #include "VulkanGltf.h"
 #include "AccelerationStructure.h"
 #include "Buffer.h"
@@ -23,6 +22,7 @@
 #include "PhysicalDevice.h"
 #include "VulkanDebug.h"
 #include "Texture.h"
+#include "VulkanFunctions.h"
 
 #include <chrono>
 #include <sstream>
@@ -173,17 +173,6 @@ void TutorialRayTracing::deleteScratchBuffer(RayTracingScratchBuffer& scratchBuf
    }
 }
 
-/*
-Gets the device address from a buffer that's required for some of the buffers used for ray tracing
-*/
-uint64_t TutorialRayTracing::getBufferDeviceAddress(VkBuffer buffer)
-{
-   VkBufferDeviceAddressInfoKHR bufferDeviceAI{};
-   bufferDeviceAI.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
-   bufferDeviceAI.buffer = buffer;
-   return genesis::vkGetBufferDeviceAddressKHR(_device->vulkanDevice(), &bufferDeviceAI);
-}
-
 void TutorialRayTracing::writeStorageImageDescriptors()
 {
    VkDescriptorImageInfo intermediateImageDescriptor{ VK_NULL_HANDLE, _intermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
@@ -271,7 +260,7 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
 
    VkDeviceOrHostAddressConstKHR transformBufferDeviceAddress{};
 
-   transformBufferDeviceAddress.deviceAddress = getBufferDeviceAddress(_transformBuffer->_buffer);
+   transformBufferDeviceAddress.deviceAddress = _transformBuffer->deviceAddress();
 
    _skyCubeMapImage = new genesis::Image(_device);
 #if (defined SKYBOX_YOKOHOMA)
@@ -312,7 +301,7 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
       , &instance);
 
    VkDeviceOrHostAddressConstKHR instanceDataDeviceAddress{};
-   instanceDataDeviceAddress.deviceAddress = getBufferDeviceAddress(instancesBuffer->_buffer);
+   instanceDataDeviceAddress.deviceAddress = instancesBuffer->deviceAddress();
 
    VkAccelerationStructureGeometryKHR accelerationStructureGeometry{};
    accelerationStructureGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
@@ -425,15 +414,15 @@ void TutorialRayTracing::createShaderBindingTable() {
    memcpy(_missShaderBindingTable->_mapped, shaderHandleStorage.data() + handleSizeAligned, handleSize);
    memcpy(_hitShaderBindingTable->_mapped, shaderHandleStorage.data() + handleSizeAligned * 2, handleSize);
 
-   _raygenShaderSbtEntry.deviceAddress = getBufferDeviceAddress(_raygenShaderBindingTable->_buffer);
+   _raygenShaderSbtEntry.deviceAddress = _raygenShaderBindingTable->deviceAddress();
    _raygenShaderSbtEntry.stride = handleSizeAligned;
    _raygenShaderSbtEntry.size = handleSizeAligned;
 
-   _missShaderSbtEntry.deviceAddress = getBufferDeviceAddress(_missShaderBindingTable->_buffer);
+   _missShaderSbtEntry.deviceAddress = _missShaderBindingTable->deviceAddress();
    _missShaderSbtEntry.stride = handleSizeAligned;
    _missShaderSbtEntry.size = handleSizeAligned;
 
-   _hitShaderSbtEntry.deviceAddress = getBufferDeviceAddress(_hitShaderBindingTable->_buffer);
+   _hitShaderSbtEntry.deviceAddress = _hitShaderBindingTable->deviceAddress();
    _hitShaderSbtEntry.stride = handleSizeAligned;
    _hitShaderSbtEntry.size = handleSizeAligned;
 

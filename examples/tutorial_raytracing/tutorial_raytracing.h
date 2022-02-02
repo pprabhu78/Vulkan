@@ -41,7 +41,7 @@ public:
    virtual void keyPressed(uint32_t key) override;
 public:
    virtual void deleteScratchBuffer(RayTracingScratchBuffer& scratchBuffer);
-   virtual uint64_t getBufferDeviceAddress(VkBuffer buffer);
+
 
    virtual void deleteStorageImages(void);
    virtual void createStorageImages(void);
