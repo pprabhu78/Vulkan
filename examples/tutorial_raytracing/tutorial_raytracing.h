@@ -40,8 +40,6 @@ public:
    virtual void windowResized() override;
    virtual void keyPressed(uint32_t key) override;
 public:
-   virtual void deleteScratchBuffer(RayTracingScratchBuffer& scratchBuffer);
-
 
    virtual void deleteStorageImages(void);
    virtual void createStorageImages(void);

@@ -163,16 +163,6 @@ TutorialRayTracing::~TutorialRayTracing()
    delete _skyCubeMapImage;
 }
 
-void TutorialRayTracing::deleteScratchBuffer(RayTracingScratchBuffer& scratchBuffer)
-{
-   if (scratchBuffer.memory != VK_NULL_HANDLE) {
-      vkFreeMemory(_device->vulkanDevice(), scratchBuffer.memory, nullptr);
-   }
-   if (scratchBuffer.handle != VK_NULL_HANDLE) {
-      vkDestroyBuffer(_device->vulkanDevice(), scratchBuffer.handle, nullptr);
-   }
-}
-
 void TutorialRayTracing::writeStorageImageDescriptors()
 {
    VkDescriptorImageInfo intermediateImageDescriptor{ VK_NULL_HANDLE, _intermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
