@@ -6,8 +6,11 @@
 #include "VulkanInitializers.h"
 #include "GenAssert.h"
 
+#include <sstream>
+
 namespace genesis
 {
+   std::atomic<int> VulkanBuffer::s_totalCount = 0;
 
    static VkBufferUsageFlags getBufferUsageFlags(BufferType bufferType, VkBufferUsageFlags additionalFlags)
    {
@@ -86,14 +89,28 @@ namespace genesis
       return vkGetBufferDeviceAddressKHR(_device->vulkanDevice(), &info);
    }
 
-   VulkanBuffer::VulkanBuffer(Device* _device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize sizeInBytes, void* data)
+   VulkanBuffer::VulkanBuffer(Device* _device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize sizeInBytes, void* data, const std::string& incomingName)
       : _buffer(VK_NULL_HANDLE)
       , _deviceMemory(0)
       , _device(_device)
    {
+      std::string actualName;
+      if (actualName.empty())
+      {
+         std::stringstream ss;
+         ss << "VulkanBuffer[" << s_totalCount << "]";
+         actualName = ss.str();
+      }
+      else
+      {
+         actualName = incomingName;
+      }
+
       VkBufferCreateInfo bufferCreateInfo = VulkanInitializers::bufferCreateInfo(usageFlags, sizeInBytes);
       
       VK_CHECK_RESULT(vkCreateBuffer(_device->vulkanDevice(), &bufferCreateInfo, nullptr, &_buffer));
+
+      debugmarker::setName(_device->vulkanDevice(), _buffer, actualName.c_str());
 
       VkMemoryRequirements memoryRequirements;
       vkGetBufferMemoryRequirements(_device->vulkanDevice(), _buffer, &memoryRequirements);
@@ -125,6 +142,8 @@ namespace genesis
       }
 
       vkBindBufferMemory(_device->vulkanDevice(), _buffer, _deviceMemory, 0);
+
+      ++s_totalCount;
    }
 
    VulkanBuffer::~VulkanBuffer()
@@ -137,6 +156,7 @@ namespace genesis
       {
          vkFreeMemory(_device->vulkanDevice(), _deviceMemory, nullptr);
       }
+      --s_totalCount;
    }
 
    VkBuffer VulkanBuffer::vulkanBuffer(void) const

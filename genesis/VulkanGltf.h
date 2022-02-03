@@ -112,16 +112,14 @@ namespace genesis
 
       virtual VkDescriptorSetLayout vulkanDescriptorSetLayout(void) const;
 
-      virtual void buildBlas(void);
-      const AccelerationStructure* blas(void) const;
-
-      virtual void buildTlas(void);
-      const AccelerationStructure* tlas(void) const;
-
       virtual const Buffer* vertexBuffer(void) const;
       virtual const Buffer* indexBuffer(void) const;
 
       virtual const std::vector<VkDescriptorSet>& descriptorSets(void) const;
+
+      virtual int numVertices() const;
+
+      virtual const std::vector<Node*>& linearNodes(void) const;
 
    protected:
       virtual void loadImages(tinygltf::Model& gltfModel);
@@ -137,7 +135,6 @@ namespace genesis
       virtual void updateDescriptorSets(void);
 
       virtual const std::vector<Image*>& images(void) const;
-
 
       virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const Node* node) const;
 
@@ -202,8 +199,6 @@ namespace genesis
 
       const bool _indirect;
 
-      AccelerationStructure* _blas;
-      AccelerationStructure* _tlas;
 
       const bool _rayTracing;
 

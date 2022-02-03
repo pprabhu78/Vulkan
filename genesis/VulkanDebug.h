@@ -55,22 +55,26 @@ namespace genesis
       void endRegion(VkCommandBuffer cmdBuffer);
 
       // Object specific naming functions
-      void setCommandBufferName(VkDevice device, VkCommandBuffer cmdBuffer, const char* name);
-      void setQueueName(VkDevice device, VkQueue queue, const char* name);
-      void setImageName(VkDevice device, VkImage image, const char* name);
-      void setSamplerName(VkDevice device, VkSampler sampler, const char* name);
-      void setBufferName(VkDevice device, VkBuffer buffer, const char* name);
-      void setDeviceMemoryName(VkDevice device, VkDeviceMemory memory, const char* name);
-      void setShaderModuleName(VkDevice device, VkShaderModule shaderModule, const char* name);
-      void setPipelineName(VkDevice device, VkPipeline pipeline, const char* name);
-      void setPipelineLayoutName(VkDevice device, VkPipelineLayout pipelineLayout, const char* name);
-      void setRenderPassName(VkDevice device, VkRenderPass renderPass, const char* name);
-      void setFramebufferName(VkDevice device, VkFramebuffer framebuffer, const char* name);
-      void setDescriptorSetLayoutName(VkDevice device, VkDescriptorSetLayout descriptorSetLayout, const char* name);
-      void setDescriptorSetName(VkDevice device, VkDescriptorSet descriptorSet, const char* name);
-      void setSemaphoreName(VkDevice device, VkSemaphore semaphore, const char* name);
-      void setFenceName(VkDevice device, VkFence fence, const char* name);
-      void setEventName(VkDevice device, VkEvent _event, const char* name);
+      void setName(VkDevice device, VkCommandBuffer cmdBuffer, const char* name);
+      void setName(VkDevice device, VkQueue queue, const char* name);
+
+      void setName(VkDevice device, VkImage image, const char* name);
+      void setName(VkDevice device, VkSampler sampler, const char* name);
+      void setName(VkDevice device, VkBuffer buffer, const char* name);
+      void setName(VkDevice device, VkDeviceMemory memory, const char* name);
+
+      void setName(VkDevice device, VkShaderModule shaderModule, const char* name);
+      void setName(VkDevice device, VkPipeline pipeline, const char* name);
+      void setName(VkDevice device, VkPipelineLayout pipelineLayout, const char* name);
+      void setName(VkDevice device, VkRenderPass renderPass, const char* name);
+      void setName(VkDevice device, VkFramebuffer framebuffer, const char* name);
+
+      void setName(VkDevice device, VkDescriptorSetLayout descriptorSetLayout, const char* name);
+      void setName(VkDevice device, VkDescriptorSet descriptorSet, const char* name);
+
+      void setName(VkDevice device, VkSemaphore semaphore, const char* name);
+      void setName(VkDevice device, VkFence fence, const char* name);
+      void setName(VkDevice device, VkEvent _event, const char* name);
    };
 
    namespace tools

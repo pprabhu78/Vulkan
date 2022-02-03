@@ -23,6 +23,7 @@
 #include "VulkanDebug.h"
 #include "Texture.h"
 #include "VulkanFunctions.h"
+#include "Blas.h"
 
 #include <chrono>
 #include <sstream>
@@ -151,6 +152,8 @@ TutorialRayTracing::~TutorialRayTracing()
    delete topLevelAS;
 
    delete _transformBuffer;
+
+   delete _blas;
    
    delete _raygenShaderBindingTable;
    delete _missShaderBindingTable;
@@ -233,7 +236,7 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
    _gltfModel->loadFromFile(getAssetsPath() + "models/sphere.gltf", glTFLoadingFlags);
 #endif
 
-   _gltfModel->buildBlas();
+   _blas = new genesis::Blas(_device, _gltfModel);
 
    // Setup identity transform matrix
    VkTransformMatrixKHR transformMatrix = {
@@ -277,7 +280,7 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
    instance.mask = 0xFF;
    instance.instanceShaderBindingTableRecordOffset = 0;
    instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-   instance.accelerationStructureReference = _gltfModel->blas()->deviceAddress();
+   instance.accelerationStructureReference = _blas->deviceAddress();
 
    // Buffer for instance data
    genesis::VulkanBuffer* instancesBuffer = new genesis::VulkanBuffer(_device

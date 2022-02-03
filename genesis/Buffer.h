@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include <string>
+#include <atomic>
 
 namespace genesis
 {
@@ -24,7 +25,7 @@ namespace genesis
    class VulkanBuffer
    {
    public:
-      VulkanBuffer(Device* device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize sizeInBytes, void* data = 0);
+      VulkanBuffer(Device* device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize sizeInBytes, void* data = 0, const std::string& name = "");
       virtual ~VulkanBuffer();
    public:
       virtual VkBuffer vulkanBuffer(void) const;
@@ -41,6 +42,8 @@ namespace genesis
       Device* _device;
 
       void* _mapped = nullptr;
+
+      static std::atomic<int> s_totalCount;
    };
 
    class Buffer
@@ -83,6 +86,8 @@ namespace genesis
       Device* _device;
 
       int _sizeInBytes;
+
+
    };
 
 }

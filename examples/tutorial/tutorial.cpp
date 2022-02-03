@@ -257,7 +257,7 @@ void Tutorial::setupDescriptorSetLayout(void)
    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 
    VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout));
-   debugmarker::setPipelineLayoutName(_device->vulkanDevice(), _pipelineLayout, "_pipelineLayout");
+   debugmarker::setName(_device->vulkanDevice(), _pipelineLayout, "_pipelineLayout");
 }
 
 
@@ -397,11 +397,11 @@ void Tutorial::preparePipelines()
    depthStencilState.depthWriteEnable = VK_FALSE;
    depthStencilState.depthTestEnable = VK_FALSE;
    VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxPipeline));
-   debugmarker::setPipelineName(_device->vulkanDevice(), _skyBoxPipeline, "_skyBoxPipeline");
+   debugmarker::setName(_device->vulkanDevice(), _skyBoxPipeline, "_skyBoxPipeline");
 
    rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
    VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxPipelineWireframe));
-   debugmarker::setPipelineName(_device->vulkanDevice(), _skyBoxPipelineWireframe, "_skyBoxPipelineWireframe");
+   debugmarker::setName(_device->vulkanDevice(), _skyBoxPipelineWireframe, "_skyBoxPipelineWireframe");
 }
    
 

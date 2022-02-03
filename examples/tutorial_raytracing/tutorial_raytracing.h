@@ -20,6 +20,7 @@ namespace genesis
    class StorageImage;
    class RenderPass;
    class VulkanBuffer;
+   class Blas;
 }
 
 class TutorialRayTracing : public genesis::VulkanExampleBase
@@ -71,6 +72,8 @@ public:
    genesis::AccelerationStructure* topLevelAS = nullptr;
 
    genesis::VulkanGltfModel* _gltfModel;
+
+   genesis::Blas* _blas;
 
    genesis::Image* _skyCubeMapImage = nullptr;
    genesis::Texture* _skyCubeMapTexture = nullptr;

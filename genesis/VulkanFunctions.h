@@ -3,8 +3,7 @@
 #include <vulkan/vulkan.h>
 
 namespace genesis
-{
-   
+{  
    extern PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR;
    extern PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR;
    extern PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR;

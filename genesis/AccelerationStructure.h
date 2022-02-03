@@ -1,6 +1,8 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+#include <string>
+#include <atomic>
 
 namespace genesis
 {
@@ -17,7 +19,7 @@ namespace genesis
    class AccelerationStructure
    {
    public:
-      AccelerationStructure(Device* device, VkAccelerationStructureTypeKHR type, uint64_t sizeInBytes);
+      AccelerationStructure(Device* device, VkAccelerationStructureTypeKHR type, uint64_t sizeInBytes, const std::string& name = "");
       virtual ~AccelerationStructure();
    public:
       virtual const VkAccelerationStructureKHR& handle(void) const;
@@ -29,5 +31,7 @@ namespace genesis
       VkAccelerationStructureTypeKHR _type;
 
       Device* _device;
+
+      static std::atomic<int> s_totalCount;
    };
 }

@@ -134,82 +134,82 @@ namespace genesis
          }
       }
 
-      void setCommandBufferName(VkDevice device, VkCommandBuffer cmdBuffer, const char* name)
+      void setName(VkDevice device, VkCommandBuffer cmdBuffer, const char* name)
       {
          setObjectName(device, (uint64_t)cmdBuffer, VK_OBJECT_TYPE_COMMAND_BUFFER, name);
       }
 
-      void setQueueName(VkDevice device, VkQueue queue, const char* name)
+      void setName(VkDevice device, VkQueue queue, const char* name)
       {
          setObjectName(device, (uint64_t)queue, VK_OBJECT_TYPE_QUEUE, name);
       }
 
-      void setImageName(VkDevice device, VkImage image, const char* name)
+      void setName(VkDevice device, VkImage image, const char* name)
       {
          setObjectName(device, (uint64_t)image, VK_OBJECT_TYPE_IMAGE, name);
       }
 
-      void setSamplerName(VkDevice device, VkSampler sampler, const char* name)
+      void setName(VkDevice device, VkSampler sampler, const char* name)
       {
          setObjectName(device, (uint64_t)sampler, VK_OBJECT_TYPE_SAMPLER, name);
       }
 
-      void setBufferName(VkDevice device, VkBuffer buffer, const char* name)
+      void setName(VkDevice device, VkBuffer buffer, const char* name)
       {
          setObjectName(device, (uint64_t)buffer, VK_OBJECT_TYPE_BUFFER, name);
       }
 
-      void setDeviceMemoryName(VkDevice device, VkDeviceMemory memory, const char* name)
+      void setName(VkDevice device, VkDeviceMemory memory, const char* name)
       {
          setObjectName(device, (uint64_t)memory, VK_OBJECT_TYPE_DEVICE_MEMORY, name);
       }
 
-      void setShaderModuleName(VkDevice device, VkShaderModule shaderModule, const char* name)
+      void setName(VkDevice device, VkShaderModule shaderModule, const char* name)
       {
          setObjectName(device, (uint64_t)shaderModule, VK_OBJECT_TYPE_SHADER_MODULE, name);
       }
 
-      void setPipelineName(VkDevice device, VkPipeline pipeline, const char* name)
+      void setName(VkDevice device, VkPipeline pipeline, const char* name)
       {
          setObjectName(device, (uint64_t)pipeline, VK_OBJECT_TYPE_PIPELINE, name);
       }
 
-      void setPipelineLayoutName(VkDevice device, VkPipelineLayout pipelineLayout, const char* name)
+      void setName(VkDevice device, VkPipelineLayout pipelineLayout, const char* name)
       {
          setObjectName(device, (uint64_t)pipelineLayout, VK_OBJECT_TYPE_PIPELINE_LAYOUT, name);
       }
 
-      void setRenderPassName(VkDevice device, VkRenderPass renderPass, const char* name)
+      void setName(VkDevice device, VkRenderPass renderPass, const char* name)
       {
          setObjectName(device, (uint64_t)renderPass, VK_OBJECT_TYPE_RENDER_PASS, name);
       }
 
-      void setFramebufferName(VkDevice device, VkFramebuffer framebuffer, const char* name)
+      void setName(VkDevice device, VkFramebuffer framebuffer, const char* name)
       {
          setObjectName(device, (uint64_t)framebuffer, VK_OBJECT_TYPE_FRAMEBUFFER, name);
       }
 
-      void setDescriptorSetLayoutName(VkDevice device, VkDescriptorSetLayout descriptorSetLayout, const char* name)
+      void setName(VkDevice device, VkDescriptorSetLayout descriptorSetLayout, const char* name)
       {
          setObjectName(device, (uint64_t)descriptorSetLayout, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, name);
       }
 
-      void setDescriptorSetName(VkDevice device, VkDescriptorSet descriptorSet, const char* name)
+      void setName(VkDevice device, VkDescriptorSet descriptorSet, const char* name)
       {
          setObjectName(device, (uint64_t)descriptorSet, VK_OBJECT_TYPE_DESCRIPTOR_SET, name);
       }
 
-      void setSemaphoreName(VkDevice device, VkSemaphore semaphore, const char* name)
+      void setName(VkDevice device, VkSemaphore semaphore, const char* name)
       {
          setObjectName(device, (uint64_t)semaphore, VK_OBJECT_TYPE_SEMAPHORE, name);
       }
 
-      void setFenceName(VkDevice device, VkFence fence, const char* name)
+      void setName(VkDevice device, VkFence fence, const char* name)
       {
          setObjectName(device, (uint64_t)fence, VK_OBJECT_TYPE_FENCE, name);
       }
 
-      void setEventName(VkDevice device, VkEvent _event, const char* name)
+      void setName(VkDevice device, VkEvent _event, const char* name)
       {
          setObjectName(device, (uint64_t)_event, VK_OBJECT_TYPE_EVENT, name);
       }

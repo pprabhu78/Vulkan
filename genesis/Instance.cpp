@@ -9,6 +9,45 @@ namespace genesis
    PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT;
    VkDebugUtilsMessengerEXT debugUtilsMessenger;
 
+   static const std::string toString(VkObjectType type)
+   {
+      if (type == VK_OBJECT_TYPE_UNKNOWN)      return "VK_OBJECT_TYPE_UNKNOWN";
+      if (type == VK_OBJECT_TYPE_INSTANCE)      return "VK_OBJECT_TYPE_INSTANCE";
+      if (type == VK_OBJECT_TYPE_PHYSICAL_DEVICE)      return "VK_OBJECT_TYPE_PHYSICAL_DEVICE";
+      if (type == VK_OBJECT_TYPE_DEVICE)      return "VK_OBJECT_TYPE_DEVICE";
+      if (type == VK_OBJECT_TYPE_QUEUE)      return "VK_OBJECT_TYPE_QUEUE";
+      if (type == VK_OBJECT_TYPE_SEMAPHORE)      return "VK_OBJECT_TYPE_SEMAPHORE";
+      if (type == VK_OBJECT_TYPE_COMMAND_BUFFER)      return "VK_OBJECT_TYPE_COMMAND_BUFFER";
+      if (type == VK_OBJECT_TYPE_FENCE)      return "VK_OBJECT_TYPE_FENCE";
+      if (type == VK_OBJECT_TYPE_DEVICE_MEMORY)      return "VK_OBJECT_TYPE_DEVICE_MEMORY";
+      if (type == VK_OBJECT_TYPE_BUFFER)      return "VK_OBJECT_TYPE_BUFFER";
+      if (type == VK_OBJECT_TYPE_IMAGE)      return "VK_OBJECT_TYPE_IMAGE";
+      if (type == VK_OBJECT_TYPE_EVENT)      return "VK_OBJECT_TYPE_EVENT";
+      if (type == VK_OBJECT_TYPE_QUERY_POOL)      return "VK_OBJECT_TYPE_QUERY_POOL";
+      if (type == VK_OBJECT_TYPE_BUFFER_VIEW)      return "VK_OBJECT_TYPE_BUFFER_VIEW";
+      if (type == VK_OBJECT_TYPE_IMAGE_VIEW)      return "VK_OBJECT_TYPE_IMAGE_VIEW";
+      if (type == VK_OBJECT_TYPE_SHADER_MODULE)      return "VK_OBJECT_TYPE_SHADER_MODULE";
+      if (type == VK_OBJECT_TYPE_PIPELINE_CACHE)      return "VK_OBJECT_TYPE_PIPELINE_CACHE";
+      if (type == VK_OBJECT_TYPE_PIPELINE_LAYOUT)      return "VK_OBJECT_TYPE_PIPELINE_LAYOUT";
+      if (type == VK_OBJECT_TYPE_RENDER_PASS)      return "VK_OBJECT_TYPE_RENDER_PASS";
+      if (type == VK_OBJECT_TYPE_PIPELINE)      return "VK_OBJECT_TYPE_PIPELINE";
+      if (type == VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT)      return "VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT";
+      if (type == VK_OBJECT_TYPE_SAMPLER)      return "VK_OBJECT_TYPE_SAMPLER";
+      if (type == VK_OBJECT_TYPE_DESCRIPTOR_POOL)      return "VK_OBJECT_TYPE_DESCRIPTOR_POOL";
+      if (type == VK_OBJECT_TYPE_DESCRIPTOR_SET)      return "VK_OBJECT_TYPE_DESCRIPTOR_SET";
+      if (type == VK_OBJECT_TYPE_FRAMEBUFFER)      return "VK_OBJECT_TYPE_FRAMEBUFFER";
+      if (type == VK_OBJECT_TYPE_COMMAND_POOL)      return "VK_OBJECT_TYPE_COMMAND_POOL";
+      if (type == VK_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION)      return "VK_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION";
+      if (type == VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE)      return "VK_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE";
+      if (type == VK_OBJECT_TYPE_SURFACE_KHR)      return "VK_OBJECT_TYPE_SURFACE_KHR";
+      if (type == VK_OBJECT_TYPE_SWAPCHAIN_KHR)      return "VK_OBJECT_TYPE_SWAPCHAIN_KHR";
+      if (type == VK_OBJECT_TYPE_DISPLAY_KHR)      return "VK_OBJECT_TYPE_DISPLAY_KHR";
+      if (type == VK_OBJECT_TYPE_DISPLAY_MODE_KHR)      return "VK_OBJECT_TYPE_DISPLAY_MODE_KHR";
+      if (type == VK_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT)      return "VK_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT";
+
+      return "VK_OBJECT_TYPE_UNKNOWN";
+   }
+  
    VKAPI_ATTR VkBool32 VKAPI_CALL debugUtilsMessengerCallback(
       VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
       VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -41,11 +80,11 @@ namespace genesis
          VkDebugUtilsObjectNameInfoEXT object = pCallbackData->pObjects[i];
          if (object.pObjectName)
          {
-            std::cout << "object[" << i << "]: " << object.pObjectName << std::endl;
+            std::cout << "object[" << i << "]: " << object.pObjectName <<", " << toString(object.objectType) << std::endl;
          }
          else
          {
-            std::cout << "object[" << i << "]: " << "unnamed" << std::endl;
+            std::cout << "object[" << i << "]: " << "unnamed" << ", " << toString(object.objectType) << std::endl;
          }  
       }
 
