@@ -45,13 +45,8 @@ namespace genesis
       }
 
       VkTransformMatrixKHR vkTransform;
-      for (int i = 0; i < 3; ++i)
-      {
-         for (int j = 0; j < 4; ++j)
-         {
-            vkTransform.matrix[i][j] = xform[i][j];
-         }
-      }
+      glm::mat4 incomingTranspose = glm::transpose(xform);
+      memcpy(&vkTransform, &incomingTranspose, sizeof(VkTransformMatrixKHR));
 
       VkAccelerationStructureInstanceKHR instance{};
       instance.transform = vkTransform;
@@ -95,7 +90,7 @@ namespace genesis
       accelerationStructureBuildGeometryInfo.geometryCount = 1;
       accelerationStructureBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
 
-      uint32_t primitiveCount = 1;
+      const uint32_t numInstances = (uint32_t)_instances.size();
 
       VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo{};
       accelerationStructureBuildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
@@ -103,7 +98,7 @@ namespace genesis
          _device->vulkanDevice(),
          VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
          &accelerationStructureBuildGeometryInfo,
-         &primitiveCount,
+         &numInstances,
          &accelerationStructureBuildSizesInfo);
 
       _tlas = new genesis::AccelerationStructure(_device, VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR, accelerationStructureBuildSizesInfo.accelerationStructureSize);
@@ -124,7 +119,7 @@ namespace genesis
       accelerationBuildGeometryInfo.scratchData.deviceAddress = scratchBuffer->deviceAddress();
 
       VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo{};
-      accelerationStructureBuildRangeInfo.primitiveCount = 1;
+      accelerationStructureBuildRangeInfo.primitiveCount = numInstances;
       accelerationStructureBuildRangeInfo.primitiveOffset = 0;
       accelerationStructureBuildRangeInfo.firstVertex = 0;
       accelerationStructureBuildRangeInfo.transformOffset = 0;
