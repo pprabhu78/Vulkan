@@ -6,13 +6,12 @@
 #include "AccelerationStructure.h"
 #include "VulkanFunctions.h"
 
-
 #include <vector>
 #include <deque>
 
 namespace genesis
 {
-   Blas::Blas(Device* device, VulkanGltfModel* model)
+   Blas::Blas(Device* device, const VulkanGltfModel* model)
       : _device(device)
       , _model(model)
    {

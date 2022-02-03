@@ -20,7 +20,7 @@ namespace genesis
    class StorageImage;
    class RenderPass;
    class VulkanBuffer;
-   class Blas;
+   class Tlas;
 }
 
 class TutorialRayTracing : public genesis::VulkanExampleBase
@@ -69,17 +69,15 @@ public:
 
    VkPhysicalDeviceShaderClockFeaturesKHR _physicalDeviceShaderClockFeaturesKHR{};
 
-   genesis::AccelerationStructure* topLevelAS = nullptr;
-
    genesis::VulkanGltfModel* _gltfModel;
 
-   genesis::Blas* _blas;
+   genesis::Tlas* _tlas;
 
    genesis::Image* _skyCubeMapImage = nullptr;
    genesis::Texture* _skyCubeMapTexture = nullptr;
 
 
-   genesis::VulkanBuffer* _transformBuffer;
+
    std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroups{};
    genesis::VulkanBuffer* _raygenShaderBindingTable;
    genesis::VulkanBuffer* _missShaderBindingTable;

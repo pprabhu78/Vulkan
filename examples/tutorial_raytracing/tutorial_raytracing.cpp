@@ -23,7 +23,7 @@
 #include "VulkanDebug.h"
 #include "Texture.h"
 #include "VulkanFunctions.h"
-#include "Blas.h"
+#include "Tlas.h"
 
 #include <chrono>
 #include <sstream>
@@ -149,11 +149,7 @@ TutorialRayTracing::~TutorialRayTracing()
 
    deleteStorageImages();
 
-   delete topLevelAS;
-
-   delete _transformBuffer;
-
-   delete _blas;
+   delete _tlas;
    
    delete _raygenShaderBindingTable;
    delete _missShaderBindingTable;
@@ -236,20 +232,6 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
    _gltfModel->loadFromFile(getAssetsPath() + "models/sphere.gltf", glTFLoadingFlags);
 #endif
 
-   _blas = new genesis::Blas(_device, _gltfModel);
-
-   // Setup identity transform matrix
-   VkTransformMatrixKHR transformMatrix = {
-   1.0f, 0.0f, 0.0f, 0.0f,
-   0.0f, 1.0f, 0.0f, 0.0f,
-   0.0f, 0.0f, 1.0f, 0.0f
-   };
-
-   _transformBuffer = new genesis::VulkanBuffer(_device
-      , VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
-      , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-      , sizeof(VkTransformMatrixKHR)
-      , &transformMatrix);
 
    _skyCubeMapImage = new genesis::Image(_device);
 #if (defined SKYBOX_YOKOHOMA)
@@ -269,96 +251,9 @@ The top level acceleration structure contains the scene's object instances
 */
 void TutorialRayTracing::createTopLevelAccelerationStructure()
 {
-   VkTransformMatrixKHR transformMatrix = {
-   1.0f, 0.0f, 0.0f, 0.0f,
-   0.0f, 1.0f, 0.0f, 0.0f,
-   0.0f, 0.0f, 1.0f, 0.0f };
-
-   VkAccelerationStructureInstanceKHR instance{};
-   instance.transform = transformMatrix;
-   instance.instanceCustomIndex = 0;
-   instance.mask = 0xFF;
-   instance.instanceShaderBindingTableRecordOffset = 0;
-   instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-   instance.accelerationStructureReference = _blas->deviceAddress();
-
-   // Buffer for instance data
-   genesis::VulkanBuffer* instancesBuffer = new genesis::VulkanBuffer(_device
-      , VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
-      , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-      , sizeof(VkAccelerationStructureInstanceKHR)
-      , &instance);
-
-   VkDeviceOrHostAddressConstKHR instanceDataDeviceAddress{};
-   instanceDataDeviceAddress.deviceAddress = instancesBuffer->deviceAddress();
-
-   VkAccelerationStructureGeometryKHR accelerationStructureGeometry{};
-   accelerationStructureGeometry.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR;
-   accelerationStructureGeometry.geometryType = VK_GEOMETRY_TYPE_INSTANCES_KHR;
-   accelerationStructureGeometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
-   accelerationStructureGeometry.geometry.instances.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_INSTANCES_DATA_KHR;
-   accelerationStructureGeometry.geometry.instances.arrayOfPointers = VK_FALSE;
-   accelerationStructureGeometry.geometry.instances.data = instanceDataDeviceAddress;
-
-   // Get size info
-   /*
-   The pSrcAccelerationStructure, dstAccelerationStructure, and mode members of pBuildInfo are ignored. Any VkDeviceOrHostAddressKHR members of pBuildInfo are ignored by this command, except that the hostAddress member of VkAccelerationStructureGeometryTrianglesDataKHR::transformData will be examined to check if it is NULL.*
-   */
-   VkAccelerationStructureBuildGeometryInfoKHR accelerationStructureBuildGeometryInfo{};
-   accelerationStructureBuildGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
-   accelerationStructureBuildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-   accelerationStructureBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
-   accelerationStructureBuildGeometryInfo.geometryCount = 1;
-   accelerationStructureBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
-
-   uint32_t primitive_count = 1;
-
-   VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo{};
-   accelerationStructureBuildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
-   genesis::vkGetAccelerationStructureBuildSizesKHR(
-      _device->vulkanDevice(),
-      VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
-      &accelerationStructureBuildGeometryInfo,
-      &primitive_count,
-      &accelerationStructureBuildSizesInfo);
-
-   topLevelAS = new genesis::AccelerationStructure(_device, VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR, accelerationStructureBuildSizesInfo.accelerationStructureSize);
-
-   // Create a small scratch buffer used during build of the top level acceleration structure
-   VulkanBuffer* scratchBuffer = new VulkanBuffer(_device
-      , VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT
-      , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, accelerationStructureBuildSizesInfo.buildScratchSize);;
-
-   VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo{};
-   accelerationBuildGeometryInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_GEOMETRY_INFO_KHR;
-   accelerationBuildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL_KHR;
-   accelerationBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
-   accelerationBuildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
-   accelerationBuildGeometryInfo.dstAccelerationStructure = topLevelAS->handle();
-   accelerationBuildGeometryInfo.geometryCount = 1;
-   accelerationBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
-   accelerationBuildGeometryInfo.scratchData.deviceAddress = scratchBuffer->deviceAddress();
-
-   VkAccelerationStructureBuildRangeInfoKHR accelerationStructureBuildRangeInfo{};
-   accelerationStructureBuildRangeInfo.primitiveCount = 1;
-   accelerationStructureBuildRangeInfo.primitiveOffset = 0;
-   accelerationStructureBuildRangeInfo.firstVertex = 0;
-   accelerationStructureBuildRangeInfo.transformOffset = 0;
-   std::vector<VkAccelerationStructureBuildRangeInfoKHR*> accelerationBuildStructureRangeInfos = { &accelerationStructureBuildRangeInfo };
-
-   // Build the acceleration structure on the device via a one-time command buffer submission
-   // Some implementations may support acceleration structure building on the host (VkPhysicalDeviceAccelerationStructureFeaturesKHR->accelerationStructureHostCommands), but we prefer device builds
-   VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-   genesis::vkCmdBuildAccelerationStructuresKHR(
-      commandBuffer,
-      1,
-      &accelerationBuildGeometryInfo,
-      accelerationBuildStructureRangeInfos.data());
-   _device->flushCommandBuffer(commandBuffer);
-
-   delete scratchBuffer;
-   
-   delete instancesBuffer;
+   _tlas = new genesis::Tlas(_device);
+   _tlas->addInstance(_gltfModel, mat4());
+   _tlas->build();
 }
 
 /*
@@ -434,7 +329,7 @@ void TutorialRayTracing::createDescriptorSets()
 
    VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = genesis::VulkanInitializers::writeDescriptorSetAccelerationStructureKHR();
    descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
-   descriptorAccelerationStructureInfo.pAccelerationStructures = &(topLevelAS->handle());
+   descriptorAccelerationStructureInfo.pAccelerationStructures = &(_tlas->handle());
 
    VkDescriptorImageInfo intermediateImageDescriptor = genesis::VulkanInitializers::descriptorImageInfo(VK_NULL_HANDLE, _intermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL);
    VkDescriptorImageInfo finalImageDescriptor = genesis::VulkanInitializers::descriptorImageInfo(VK_NULL_HANDLE, _finalImageToPresent->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL);

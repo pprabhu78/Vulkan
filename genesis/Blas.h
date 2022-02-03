@@ -12,7 +12,7 @@ namespace genesis
    {
    public:
       //! construct from a given model
-      Blas(Device* device, VulkanGltfModel* model);
+      Blas(Device* device, const VulkanGltfModel* model);
 
       //! destructor
       virtual ~Blas();
@@ -22,7 +22,7 @@ namespace genesis
       virtual void build();
    protected:
       Device* _device = nullptr;
-      VulkanGltfModel* _model = nullptr;
+      const VulkanGltfModel* _model = nullptr;
       AccelerationStructure* _blas = nullptr;
    };
 }
