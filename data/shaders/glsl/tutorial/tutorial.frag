@@ -19,12 +19,7 @@ layout (set = 1, binding = 1, std430) readonly buffer materialIndices
 {
 	uint _materialIndices[];
 };
-layout (set = 1, binding = 2, std430) readonly buffer indexIndices
-{
-	uint _indexIndices[];
-};
-
-layout (set = 1, binding = 3) uniform sampler2D samplers[];
+layout (set = 1, binding = 2) uniform sampler2D samplers[];
 #else
 layout (set = 1, binding = 0) uniform sampler2D samplerColor;
 #endif

@@ -103,24 +103,18 @@ namespace genesis
          DontLoadImages = 0x00000008
       };
    public:
-      VulkanGltfModel(Device* device, bool indirect, bool rayTracing);
+      VulkanGltfModel(Device* device, bool rayTracing);
       virtual ~VulkanGltfModel();
    public:
       virtual void loadFromFile(const std::string& fileName, uint32_t fileLoadingFlags);
 
-      virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
-
-      virtual VkDescriptorSetLayout vulkanDescriptorSetLayout(void) const;
-
       virtual const Buffer* vertexBuffer(void) const;
       virtual const Buffer* indexBuffer(void) const;
-
-      virtual const std::vector<VkDescriptorSet>& descriptorSets(void) const;
-
       virtual int numVertices() const;
 
       virtual const std::vector<Node*>& linearNodes(void) const;
-
+      virtual const std::vector<Texture*>& textures(void) const;
+      virtual const std::vector<Material>& materials(void) const;
    protected:
       virtual void loadImages(tinygltf::Model& gltfModel);
       virtual void loadTextures(tinygltf::Model& gltfModel);
@@ -130,17 +124,9 @@ namespace genesis
       virtual void loadMesh(Node* node, const tinygltf::Mesh& srcMesh, tinygltf::Model& gltfModel);
       virtual void loadLights(tinygltf::Model& gltfModel);
 
-      virtual void setupDescriptorPool(void);
-      virtual void setupDescriptorSetLayout(void);
-      virtual void updateDescriptorSets(void);
-
       virtual const std::vector<Image*>& images(void) const;
 
-      virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const Node* node) const;
-
       virtual void bakeAttributes(tinygltf::Model& gltfModel, uint32_t fileLoadingFlags);
-
-      virtual void buildIndirectBuffer(void);
 
       virtual void buildLightInstancesBuffer(void);
    protected:
@@ -162,32 +148,6 @@ namespace genesis
       Buffer* _vertexBufferGpu;
       Buffer* _indexBufferGpu;
 
-      VkDescriptorPool _descriptorPool;
-      VkDescriptorSetLayout _descriptorSetLayout;
-      std::vector<VkDescriptorSet> _vecDescriptorSets;
-
-      //! indirect command buffer
-      std::vector<VkDrawIndexedIndirectCommand> _indirectCommands;
-
-      //! same buffer as above, but on the Gpu
-      Buffer* _indirectBufferGpu;
-
-      //! Nodes to be rendered, correspond to meshes.
-      //! The meshes have primitives
-      //! The primitive refers to an index of the materials
-      //! in the model. This index is that index for each rendered
-      //! geometry (sub-mesh if you will)
-      std::vector<std::uint32_t> _materialIndices;
-
-      //! Same as above, but on the Gpu instead
-      Buffer* _materialIndicesGpu;
-
-      std::vector<std::uint32_t> _indexIndices;
-      Buffer* _indexIndicesGpu;
-
-      //! Gpu side material buffer (materials found in the gltf)
-      Buffer* _materialsGpu;
-      
       // original lights
       std::vector<Light*> _lights;
 
@@ -196,9 +156,6 @@ namespace genesis
 
       // same as above, but on the gpu
       Buffer* _lightInstancesGpu;
-
-      const bool _indirect;
-
 
       const bool _rayTracing;
 

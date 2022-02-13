@@ -56,19 +56,19 @@ layout(push_constant) uniform _PushConstants { PushConstants pushConstants; };
 
 layout(set = 1, binding = 0) buffer Vertices { vec4 v[]; } vertices;
 layout(set = 1, binding = 1) buffer Indices { uint i[]; } indices;
+layout(set = 1, binding = 2, std430) readonly buffer indexIndices
+{
+   uint _indexIndices[];
+};
 
-layout(set = 1, binding = 2, std430) readonly buffer materialBuffer
+layout(set = 1, binding = 3, std430) readonly buffer materialBuffer
 {
    Material _materialBuffer[];
 };
 
-layout(set = 1, binding = 3, std430) readonly buffer materialIndices
+layout(set = 1, binding = 4, std430) readonly buffer materialIndices
 {
    uint _materialIndices[];
-};
-layout(set = 1, binding = 4, std430) readonly buffer indexIndices
-{
-   uint _indexIndices[];
 };
 
 layout(set = 1, binding = 5) uniform sampler2D samplers[];

@@ -21,6 +21,7 @@ namespace genesis
    class RenderPass;
    class VulkanBuffer;
    class Tlas;
+   class IndirectLayout;
 }
 
 class TutorialRayTracing : public genesis::VulkanExampleBase
@@ -100,4 +101,6 @@ public:
    VkDescriptorSetLayout _rayTracingDescriptorSetLayout;
 
    PushConstants _pushConstants;
+
+   genesis::IndirectLayout* _indirectLayout;
 };

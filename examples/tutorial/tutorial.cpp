@@ -12,6 +12,7 @@
 #include "Shader.h"
 #include "RenderPass.h"
 #include "PhysicalDevice.h"
+#include "IndirectLayout.h"
 
 #include "VulkanInitializers.h"
 #include "VulkanGltf.h"
@@ -166,7 +167,7 @@ void Tutorial::buildCommandBuffers()
       {
          vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxPipelineWireframe);
       }
-      _gltfSkyboxModel->draw(drawCmdBuffers[i], _pipelineLayout);
+      _indirectLayout->draw(drawCmdBuffers[i], _pipelineLayout, _gltfModel);
 
 
       // draw the model
@@ -179,7 +180,7 @@ void Tutorial::buildCommandBuffers()
          vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineWireframe);
       }
       
-      _gltfModel->draw(drawCmdBuffers[i], _pipelineLayout);
+      _indirectLayout->draw(drawCmdBuffers[i], _pipelineLayout, _gltfModel);
 
 
       // draw the UI
@@ -248,7 +249,7 @@ void Tutorial::setupDescriptorSetLayout(void)
    VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set0LayoutInfo, nullptr, &_setLayout0));
 
-   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _setLayout0, _gltfModel->vulkanDescriptorSetLayout() };
+   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _setLayout0, _indirectLayout->vulkanDescriptorSetLayout() };
 
    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::VulkanInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
 
@@ -422,7 +423,7 @@ void Tutorial::loadAssets(void)
 {
    const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
 
-   _gltfModel = new genesis::VulkanGltfModel(_device, true, false);
+   _gltfModel = new genesis::VulkanGltfModel(_device, false);
 #if defined SPONZA
    _gltfModel->loadFromFile(getAssetsPath() + "models/sponza/sponza.gltf", glTFLoadingFlags);
 #endif
@@ -435,7 +436,7 @@ void Tutorial::loadAssets(void)
    _gltfModel->loadFromFile(getAssetsPath() + "models/sphere.gltf", glTFLoadingFlags);
 #endif
 
-   _gltfSkyboxModel = new genesis::VulkanGltfModel(_device, true, false);
+   _gltfSkyboxModel = new genesis::VulkanGltfModel(_device, false);
    _gltfSkyboxModel->loadFromFile(getAssetsPath() + "models/cube.gltf", glTFLoadingFlags);
 
    _skyCubeMapImage = new genesis::Image(_device);
@@ -449,6 +450,9 @@ void Tutorial::loadAssets(void)
    _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
 #endif
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
+
+   _indirectLayout = new genesis::IndirectLayout(_device, false, true);
+   _indirectLayout->build(_gltfModel);
 }
 
 void Tutorial::prepare()

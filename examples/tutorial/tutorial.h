@@ -12,6 +12,7 @@ namespace genesis
    class VulkanGltfModel;
    class Texture;
    class Shader;
+   class IndirectLayout;
 }
 
 class Tutorial : public genesis::VulkanExampleBase
@@ -70,4 +71,6 @@ protected:
    bool _wireframe = false;
 
    PushConstants _pushConstants;
+
+   genesis::IndirectLayout* _indirectLayout = nullptr;
 };

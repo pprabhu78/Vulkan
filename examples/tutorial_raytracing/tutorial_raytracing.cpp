@@ -24,6 +24,7 @@
 #include "Texture.h"
 #include "VulkanFunctions.h"
 #include "Tlas.h"
+#include "IndirectLayout.h"
 
 #include <chrono>
 #include <sstream>
@@ -154,6 +155,8 @@ TutorialRayTracing::~TutorialRayTracing()
    delete _raygenShaderBindingTable;
    delete _missShaderBindingTable;
    delete _hitShaderBindingTable;
+
+   delete _indirectLayout;
    
    delete _gltfModel;
    delete _sceneUbo;
@@ -212,7 +215,7 @@ Create the bottom level acceleration structure contains the scene's actual geome
 */
 void TutorialRayTracing::createBottomLevelAccelerationStructure()
 {
-   _gltfModel = new genesis::VulkanGltfModel(_device, true, true);
+   _gltfModel = new genesis::VulkanGltfModel(_device, true);
 
    const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
 
@@ -244,6 +247,9 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
    _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
 #endif
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
+
+   _indirectLayout = new genesis::IndirectLayout(_device, true, true);
+   _indirectLayout->build(_gltfModel);
 }
 
 /*
@@ -363,7 +369,7 @@ void TutorialRayTracing::createRayTracingPipeline()
    VkDescriptorSetLayoutCreateInfo descriptorSetlayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(descriptorSetLayoutBindings);
    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &descriptorSetlayoutInfo, nullptr, &_rayTracingDescriptorSetLayout));
 
-   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _rayTracingDescriptorSetLayout, _gltfModel->vulkanDescriptorSetLayout() };
+   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _rayTracingDescriptorSetLayout, _indirectLayout->vulkanDescriptorSetLayout() };
 
    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::VulkanInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
 
@@ -536,7 +542,7 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    vkCmdBindDescriptorSets(drawCmdBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipelineLayout, 0, 1, &_rayTracingDescriptorSet, 0, 0);
 
    std::uint32_t firstSet = 1;
-   vkCmdBindDescriptorSets(drawCmdBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipelineLayout, firstSet, std::uint32_t(_gltfModel->descriptorSets().size()), _gltfModel->descriptorSets().data(), 0, nullptr);
+   vkCmdBindDescriptorSets(drawCmdBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipelineLayout, firstSet, std::uint32_t(_indirectLayout->descriptorSets().size()), _indirectLayout->descriptorSets().data(), 0, nullptr);
 
    ++_pushConstants.frameIndex;
    _pushConstants.clearColor = genesis::Vector4_32(1, 1, 1, 1);
