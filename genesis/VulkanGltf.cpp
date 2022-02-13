@@ -677,7 +677,7 @@ namespace genesis
       uint32_t maxSets = 0;
       if (_indirect)
       {
-         poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3));
+         poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 5));
          poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, s_maxBindlessTextures));
 
          maxSets = 1;
@@ -702,6 +702,8 @@ namespace genesis
 
       if (_indirect)
       {
+         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++));
+         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++));
          setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
          setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
          setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
@@ -713,11 +715,10 @@ namespace genesis
          VkDescriptorSetLayoutBindingFlagsCreateInfo setLayoutBindingFlags{};
          setLayoutBindingFlags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
          setLayoutBindingFlags.bindingCount = (uint32_t)setBindings.size();
-         std::vector<VkDescriptorBindingFlags> descriptorBindingFlags = { 0, 0, 0, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT };
+         std::vector<VkDescriptorBindingFlags> descriptorBindingFlags = { 0, 0, 0, 0, 0, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT };
          setLayoutBindingFlags.pBindingFlags = descriptorBindingFlags.data();
 
          descriptorSetLayoutCreateInfo.pNext = &setLayoutBindingFlags;
-
       }
       else
       {
@@ -726,6 +727,31 @@ namespace genesis
       }
 
       VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &descriptorSetLayoutCreateInfo, nullptr, &_descriptorSetLayout));
+   }
+
+   static void writeAndUpdateDescriptorSet(VkDescriptorSet dstSet
+      , uint32_t binding
+      , const std::vector<Texture*>& textures
+      , VkDevice device)
+   {
+      VkWriteDescriptorSet writeDescriptorSet{};
+      std::vector<VkDescriptorImageInfo> textureDescriptors;
+      textureDescriptors.reserve(textures.size());
+      for (const Texture* texture : textures)
+      {
+         textureDescriptors.push_back(texture->descriptor());
+      }
+
+      writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+      writeDescriptorSet.dstBinding = binding;
+      writeDescriptorSet.dstArrayElement = 0;
+      writeDescriptorSet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+      writeDescriptorSet.descriptorCount = static_cast<uint32_t>(textures.size());
+      writeDescriptorSet.pBufferInfo = 0;
+      writeDescriptorSet.dstSet = dstSet;
+      writeDescriptorSet.pImageInfo = textureDescriptors.data();
+
+      vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
    }
 
    void VulkanGltfModel::updateDescriptorSets()
@@ -744,33 +770,18 @@ namespace genesis
          VkDescriptorSet descriptorSet;
          vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &descriptorSet);
 
-         std::vector<VkDescriptorImageInfo> textureDescriptors;
-         textureDescriptors.reserve(_textures.size());
-         for (const Texture* texture : _textures)
-         {
-            textureDescriptors.push_back(texture->descriptor());
-         }
+         int bindingIndex = 0;
+         std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
+              VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, vertexBuffer()->descriptorPtr())
+            , VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, indexBuffer()->descriptorPtr())
+            , VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_materialsGpu->descriptor())
+            , VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_materialIndicesGpu->descriptor())
+            , VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_indexIndicesGpu->descriptor())
+         };
 
+         vkUpdateDescriptorSets(_device->vulkanDevice(), (int)writeDescriptorSets.size(), writeDescriptorSets.data(), 0, nullptr);
 
-         const int numBindings = 4;
-         std::array<VkWriteDescriptorSet, numBindings> writeDescriptorSet = {};
-
-         int bindingIndex = -1;
-         writeDescriptorSet[0] = VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ++bindingIndex, &_materialsGpu->descriptor());
-         writeDescriptorSet[1] = VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ++bindingIndex, &_materialIndicesGpu->descriptor());
-         writeDescriptorSet[2] = VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ++bindingIndex, &_indexIndicesGpu->descriptor());
-
-         writeDescriptorSet[3] = {};
-         writeDescriptorSet[3].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-         writeDescriptorSet[3].dstBinding = ++bindingIndex;
-         writeDescriptorSet[3].dstArrayElement = 0;
-         writeDescriptorSet[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-         writeDescriptorSet[3].descriptorCount = static_cast<uint32_t>(_textures.size());
-         writeDescriptorSet[3].pBufferInfo = 0;
-         writeDescriptorSet[3].dstSet = descriptorSet;
-         writeDescriptorSet[3].pImageInfo = textureDescriptors.data();
-
-         vkUpdateDescriptorSets(_device->vulkanDevice(), (int)writeDescriptorSet.size(), writeDescriptorSet.data(), 0, nullptr);
+         writeAndUpdateDescriptorSet(descriptorSet, bindingIndex++, _textures, _device->vulkanDevice());
 
          _vecDescriptorSets.push_back(descriptorSet);
       }

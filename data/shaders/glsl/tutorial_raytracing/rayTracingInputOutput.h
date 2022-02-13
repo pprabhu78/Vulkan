@@ -49,28 +49,29 @@ layout(set = 0, binding = 3) uniform UBO
 #if CPU_SIDE_COMPILATION
 
 #else
-layout(set = 0, binding = 4) buffer Vertices { vec4 v[]; } vertices;
-layout(set = 0, binding = 5) buffer Indices { uint i[]; } indices;
-layout(set = 0, binding = 6) uniform samplerCube environmentMap;
-
+layout(set = 0, binding = 4) uniform samplerCube environmentMap;
 
 layout(push_constant) uniform _PushConstants { PushConstants pushConstants; };
 
-layout(set = 1, binding = 0, std430) readonly buffer materialBuffer
+
+layout(set = 1, binding = 0) buffer Vertices { vec4 v[]; } vertices;
+layout(set = 1, binding = 1) buffer Indices { uint i[]; } indices;
+
+layout(set = 1, binding = 2, std430) readonly buffer materialBuffer
 {
    Material _materialBuffer[];
 };
 
-layout(set = 1, binding = 1, std430) readonly buffer materialIndices
+layout(set = 1, binding = 3, std430) readonly buffer materialIndices
 {
    uint _materialIndices[];
 };
-layout(set = 1, binding = 2, std430) readonly buffer indexIndices
+layout(set = 1, binding = 4, std430) readonly buffer indexIndices
 {
    uint _indexIndices[];
 };
 
-layout(set = 1, binding = 3) uniform sampler2D samplers[];
+layout(set = 1, binding = 5) uniform sampler2D samplers[];
 
 struct HitPayload
 {

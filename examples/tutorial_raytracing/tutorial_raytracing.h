@@ -70,6 +70,7 @@ public:
    VkPhysicalDeviceShaderClockFeaturesKHR _physicalDeviceShaderClockFeaturesKHR{};
 
    genesis::VulkanGltfModel* _gltfModel;
+   genesis::VulkanGltfModel* _gltfModel2 = nullptr;
 
    genesis::Tlas* _tlas;
 
