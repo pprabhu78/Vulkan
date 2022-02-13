@@ -702,8 +702,11 @@ namespace genesis
 
       if (_indirect)
       {
-         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++));
-         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++));
+         if (_rayTracing)
+         {
+            setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++));
+            setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++));
+         }
          setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
          setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
          setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
@@ -712,10 +715,22 @@ namespace genesis
          descriptorSetLayoutCreateInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
 
          // additional flags to specify the last variable binding point
-         VkDescriptorSetLayoutBindingFlagsCreateInfo setLayoutBindingFlags{};
+         VkDescriptorSetLayoutBindingFlagsCreateInfo setLayoutBindingFlags {};
          setLayoutBindingFlags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
          setLayoutBindingFlags.bindingCount = (uint32_t)setBindings.size();
-         std::vector<VkDescriptorBindingFlags> descriptorBindingFlags = { 0, 0, 0, 0, 0, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT };
+         std::vector<VkDescriptorBindingFlags> descriptorBindingFlags;
+
+         if (_rayTracing)
+         {
+            descriptorBindingFlags.push_back(0);
+            descriptorBindingFlags.push_back(0);
+         }
+         descriptorBindingFlags.push_back(0);
+         descriptorBindingFlags.push_back(0);
+         descriptorBindingFlags.push_back(0);
+         
+         descriptorBindingFlags.push_back(VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
+
          setLayoutBindingFlags.pBindingFlags = descriptorBindingFlags.data();
 
          descriptorSetLayoutCreateInfo.pNext = &setLayoutBindingFlags;
@@ -771,13 +786,15 @@ namespace genesis
          vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &descriptorSet);
 
          int bindingIndex = 0;
-         std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-              VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, vertexBuffer()->descriptorPtr())
-            , VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, indexBuffer()->descriptorPtr())
-            , VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_materialsGpu->descriptor())
-            , VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_materialIndicesGpu->descriptor())
-            , VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_indexIndicesGpu->descriptor())
-         };
+         std::vector<VkWriteDescriptorSet> writeDescriptorSets;
+         if (_rayTracing)
+         {
+            writeDescriptorSets.push_back(VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, vertexBuffer()->descriptorPtr()));
+            writeDescriptorSets.push_back(VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, indexBuffer()->descriptorPtr()));
+         }
+         writeDescriptorSets.push_back(VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_materialsGpu->descriptor()));
+         writeDescriptorSets.push_back(VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_materialIndicesGpu->descriptor()));
+         writeDescriptorSets.push_back(VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_indexIndicesGpu->descriptor()));
 
          vkUpdateDescriptorSets(_device->vulkanDevice(), (int)writeDescriptorSets.size(), writeDescriptorSets.data(), 0, nullptr);
 
