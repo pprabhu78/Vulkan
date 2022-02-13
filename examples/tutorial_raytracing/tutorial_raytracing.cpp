@@ -248,7 +248,7 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
 #endif
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
 
-   _indirectLayout = new genesis::IndirectLayout(_device, true, true);
+   _indirectLayout = new genesis::IndirectLayout(_device, true);
    _indirectLayout->build(_gltfModel);
 }
 

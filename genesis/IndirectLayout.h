@@ -16,7 +16,7 @@ namespace genesis
    class IndirectLayout
    {
    public:
-      IndirectLayout(Device* device, bool rayTracing, bool indirect);
+      IndirectLayout(Device* device, bool rayTracing);
       virtual ~IndirectLayout();
    public:
       virtual void build(const VulkanGltfModel* model);
@@ -33,8 +33,6 @@ namespace genesis
       virtual void destroyGpuSideBuffers(void);
       virtual void buildIndirectBuffer(const VulkanGltfModel* model);
       
-      virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const Node* node, const VulkanGltfModel* model) const;
-
    protected:
       Device* _device;
 
@@ -43,8 +41,6 @@ namespace genesis
       std::vector<VkDescriptorSet> _vecDescriptorSets;
 
       static const int s_maxBindlessTextures;
-
-      const bool _indirect;
 
       const bool _rayTracing;
 

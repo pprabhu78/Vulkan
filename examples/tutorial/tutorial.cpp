@@ -104,6 +104,8 @@ Tutorial::~Tutorial()
 
    vkDestroyPipelineLayout(_device->vulkanDevice(), _pipelineLayout, nullptr);
 
+   delete _indirectLayout;
+
    delete _gltfModel;
    delete _sceneUbo;
 
@@ -451,7 +453,7 @@ void Tutorial::loadAssets(void)
 #endif
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
 
-   _indirectLayout = new genesis::IndirectLayout(_device, false, true);
+   _indirectLayout = new genesis::IndirectLayout(_device, false);
    _indirectLayout->build(_gltfModel);
 }
 
