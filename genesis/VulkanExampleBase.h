@@ -52,7 +52,7 @@ struct GLFWwindow;
 namespace genesis
 {
 	class RenderPass;
-	class Instance;
+	class ApiInstance;
 	class PhysicalDevice;
 	class Device;
 
@@ -77,7 +77,7 @@ namespace genesis
 		void destroyCommandBuffers();
 		std::string shaderDir = "glsl";
 	protected:
-		Instance* _instance;
+		ApiInstance* _instance;
 
       Device* _device;
 

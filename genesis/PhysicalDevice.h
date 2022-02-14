@@ -3,12 +3,12 @@
 
 namespace genesis
 {
-   class Instance;
+   class ApiInstance;
 
    class PhysicalDevice
    {
    public:
-      PhysicalDevice(const Instance* instance, int deviceIndex, const std::vector<const char*>& enabledPhysicalDeviceExtensions);
+      PhysicalDevice(const ApiInstance* instance, int deviceIndex, const std::vector<const char*>& enabledPhysicalDeviceExtensions);
       virtual ~PhysicalDevice();
    public:
       virtual void printDetails(void);

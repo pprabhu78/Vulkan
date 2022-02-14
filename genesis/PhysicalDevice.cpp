@@ -6,7 +6,7 @@
 
 namespace genesis
 {
-   PhysicalDevice::PhysicalDevice(const Instance* instance, int deviceIndex
+   PhysicalDevice::PhysicalDevice(const ApiInstance* instance, int deviceIndex
       , const std::vector<const char*>& enabledPhysicalDeviceExtensions)
       : _enabledPhysicalDeviceExtensions(enabledPhysicalDeviceExtensions)
    {

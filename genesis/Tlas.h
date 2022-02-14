@@ -13,25 +13,31 @@ namespace genesis
    class Blas;
    class AccelerationStructure;
    class VulkanBuffer;
+   class ModelRegistry;
+
+   class Instance;
 
    class Tlas
    {
    public:
-      Tlas(Device* device);
+      Tlas(Device* device, const ModelRegistry* modelRegistry);
       virtual ~Tlas();
    public:
-      virtual void addInstance(const VulkanGltfModel* model, const glm::mat4& xform);
+      virtual void addInstance(const Instance& instance);
 
       virtual void build();
 
       virtual const VkAccelerationStructureKHR& handle(void) const;
    protected:
-      std::unordered_map<const VulkanGltfModel*, Blas*> _mapModelToBlas;
 
       Device* _device = nullptr;
 
       AccelerationStructure* _tlas = nullptr;
 
-      std::vector<VkAccelerationStructureInstanceKHR> _instances;
+      std::vector<VkAccelerationStructureInstanceKHR> _vulkanInstances;
+
+      const ModelRegistry* _modelRegistry;
+
+      std::unordered_map<int, Blas*> _mapModelToBlas;
    };
 }

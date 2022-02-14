@@ -7,11 +7,11 @@
 
 namespace genesis
 {
-   class Instance
+   class ApiInstance
    {
    public:
-      Instance(const std::string& name, std::vector<std::string>& instanceExtensionsToEnable, uint32_t apiVersion, bool validation);
-      virtual ~Instance();
+      ApiInstance(const std::string& name, std::vector<std::string>& instanceExtensionsToEnable, uint32_t apiVersion, bool validation);
+      virtual ~ApiInstance();
    public:
       virtual VkInstance vulkanInstance(void) const;
 

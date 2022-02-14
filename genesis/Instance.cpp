@@ -128,7 +128,7 @@ namespace genesis
       }
    }
 
-   Instance::Instance(const std::string& name, std::vector<std::string>& instanceExtensionsToEnable, uint32_t apiVersion, bool validation)
+   ApiInstance::ApiInstance(const std::string& name, std::vector<std::string>& instanceExtensionsToEnable, uint32_t apiVersion, bool validation)
       : _validation(validation)
       , _createResult(VK_RESULT_MAX_ENUM)
       , _instance(0)
@@ -241,7 +241,7 @@ namespace genesis
 
    }
 
-   Instance::~Instance()
+   ApiInstance::~ApiInstance()
    {
       if (_validation)
       {
@@ -251,17 +251,17 @@ namespace genesis
       vkDestroyInstance(_instance, nullptr);
    }
 
-   VkInstance Instance::vulkanInstance(void) const
+   VkInstance ApiInstance::vulkanInstance(void) const
    {
       return _instance;
    }
 
-   VkResult Instance::creationStatus(void) const
+   VkResult ApiInstance::creationStatus(void) const
    {
       return _createResult;
    }
 
-   bool Instance::enumeratePhysicalDevices()
+   bool ApiInstance::enumeratePhysicalDevices()
    {	
       // Physical device
       uint32_t gpuCount = 0;
@@ -281,7 +281,7 @@ namespace genesis
       return true;
    }
 
-   const std::vector<VkPhysicalDevice>& Instance::physicalDevices(void) const
+   const std::vector<VkPhysicalDevice>& ApiInstance::physicalDevices(void) const
    {
       return _physicalDevices;
    }

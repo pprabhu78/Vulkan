@@ -5,13 +5,16 @@
 #include "Buffer.h"
 #include "VulkanFunctions.h"
 #include "Device.h"
+#include "InstanceContainer.h"
+#include "ModelRegistry.h"
 
 #include <iostream>
 
 namespace genesis
 {
-   Tlas::Tlas(Device* device)
+   Tlas::Tlas(Device* device, const ModelRegistry* modelRegistry)
       : _device(device)
+      , _modelRegistry(modelRegistry)
    {
       
    }
@@ -25,14 +28,24 @@ namespace genesis
       delete _tlas;
    }
 
-   void Tlas::addInstance(const VulkanGltfModel* model, const glm::mat4& xform)
+   void Tlas::addInstance(const Instance& instance)
    {
-      auto it = _mapModelToBlas.find(model);
+      const int modelId = instance._modelId;
+
+      auto it = _mapModelToBlas.find(modelId);
+
       Blas* blas = nullptr;
       if (it == _mapModelToBlas.end())
       {
-         blas = new Blas(_device, model);
-         _mapModelToBlas.insert({ model, blas });
+         const ModelInfo* modelInfo = _modelRegistry->findModel(modelId);
+         if (modelInfo == nullptr)
+         {
+            std::cout << __FUNCTION__ << "warning: " << "modelInfo == nullptr" << std::endl;
+            return;
+         }
+
+         blas = new Blas(_device, modelInfo->model());
+         _mapModelToBlas.insert({ modelId, blas });
       }
       else
       {
@@ -45,18 +58,18 @@ namespace genesis
       }
 
       VkTransformMatrixKHR vkTransform;
-      glm::mat4 incomingTranspose = glm::transpose(xform);
+      glm::mat4 incomingTranspose = glm::transpose(instance._xform);
       memcpy(&vkTransform, &incomingTranspose, sizeof(VkTransformMatrixKHR));
 
-      VkAccelerationStructureInstanceKHR instance{};
-      instance.transform = vkTransform;
-      instance.instanceCustomIndex = 0;
-      instance.mask = 0xFF;
-      instance.instanceShaderBindingTableRecordOffset = 0;
-      instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
-      instance.accelerationStructureReference = blas->deviceAddress();
+      VkAccelerationStructureInstanceKHR vulkanInstance{};
+      vulkanInstance.transform = vkTransform;
+      vulkanInstance.instanceCustomIndex = 0;
+      vulkanInstance.mask = 0xFF;
+      vulkanInstance.instanceShaderBindingTableRecordOffset = 0;
+      vulkanInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
+      vulkanInstance.accelerationStructureReference = blas->deviceAddress();
 
-      _instances.push_back(instance);
+      _vulkanInstances.push_back(vulkanInstance);
    }
 
    void Tlas::build()
@@ -65,8 +78,8 @@ namespace genesis
       genesis::VulkanBuffer* instancesBuffer = new genesis::VulkanBuffer(_device
          , VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR
          , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-         , _instances.size()*sizeof(VkAccelerationStructureInstanceKHR)
-         , _instances.data());
+         , _vulkanInstances.size()*sizeof(VkAccelerationStructureInstanceKHR)
+         , _vulkanInstances.data());
 
       VkDeviceOrHostAddressConstKHR instanceDataDeviceAddress{};
       instanceDataDeviceAddress.deviceAddress = instancesBuffer->deviceAddress();
@@ -90,7 +103,7 @@ namespace genesis
       accelerationStructureBuildGeometryInfo.geometryCount = 1;
       accelerationStructureBuildGeometryInfo.pGeometries = &accelerationStructureGeometry;
 
-      const uint32_t numInstances = (uint32_t)_instances.size();
+      const uint32_t numInstances = (uint32_t)_vulkanInstances.size();
 
       VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo{};
       accelerationStructureBuildSizesInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR;
