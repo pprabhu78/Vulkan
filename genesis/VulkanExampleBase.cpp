@@ -37,7 +37,7 @@ namespace genesis
       this->settings.validation = true;
 #endif
 
-      _instance = new Instance(name, _enabledInstanceExtensions, apiVersion, this->settings.validation);
+      _instance = new ApiInstance(name, _enabledInstanceExtensions, apiVersion, this->settings.validation);
       return _instance->creationStatus();
    }
 
@@ -677,7 +677,7 @@ namespace genesis
    void VulkanExampleBase::onMouseWheel(int delta)
    {
       short wheelDelta = delta;
-      camera.translate(glm::vec3(0.0f, 0.0f, (float)wheelDelta * 0.005f));
+      camera.translate(glm::vec3(0.0f, 0.0f, (float)wheelDelta));
       viewUpdated = true;
    }
 
