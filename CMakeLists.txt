@@ -152,6 +152,6 @@ ENDIF(WIN32)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin/")
 
-add_subdirectory(base)
+#add_subdirectory(base)
 add_subdirectory(genesis)
 add_subdirectory(examples)

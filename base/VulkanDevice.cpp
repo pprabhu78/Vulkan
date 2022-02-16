@@ -8,7 +8,7 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#include <VulkanDevice.h>
+#include "VulkanDevice.h"
 #include <unordered_set>
 
 namespace vks

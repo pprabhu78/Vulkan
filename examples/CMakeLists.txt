@@ -81,7 +81,16 @@ function(buildExample EXAMPLE_NAME)
 			add_executable(${EXAMPLE_NAME} WIN32 ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})
 		endif()
 		
-		target_link_libraries(${EXAMPLE_NAME} base ${Vulkan_LIBRARY} ${WINLIBS})
+		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
+		else()
+			target_link_libraries(${EXAMPLE_NAME} base ${Vulkan_LIBRARY} ${WINLIBS})
+		endif()
+		
+		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
+			target_include_directories(${EXAMPLE_NAME} PRIVATE "../genesis")
+		else()
+			target_include_directories(${EXAMPLE_NAME} PRIVATE "../base")
+		endif()
 
 		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
 			target_link_libraries(${EXAMPLE_NAME} genesis)
@@ -111,7 +120,10 @@ function(buildExample EXAMPLE_NAME)
 		endif()
 	else(WIN32)
 		add_executable(${EXAMPLE_NAME} ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS_GLSL} ${SHADERS_HLSL} ${README_FILES})
-		target_link_libraries(${EXAMPLE_NAME} base )
+		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
+		else()
+			target_link_libraries(${EXAMPLE_NAME} base )
+		endif()
 	endif(WIN32)
 
 	set_target_properties(${EXAMPLE_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
@@ -137,85 +149,85 @@ function(buildExamples)
 endfunction(buildExamples)
 
 set(EXAMPLES
-	bloom
-	computecloth
-	computecullandlod
-	computeheadless
-	computenbody
-	computeparticles
-	computeraytracing
-	computeshader
-	conditionalrender
-	conservativeraster
-	debugmarker
-	deferred
-	deferredmultisampling
-	deferredshadows
-	descriptorindexing
-	descriptorsets
-	displacement
-	distancefieldfonts
-	dynamicrendering
-	dynamicuniformbuffer
-	gears
-	geometryshader
-	gltfloading
-	gltfscenerendering
-	gltfskinning
-	hdr
-	imgui
-	indirectdraw
-	inlineuniformblocks
-	inputattachments
-	instancing
-	multisampling
-	multithreading
-	multiview
-	negativeviewportheight	
-	occlusionquery
-	offscreen
-	oit
-	parallaxmapping
-	particlefire
-	pbrbasic
-	pbribl
-	pbrtexture
-	pipelines
-	pipelinestatistics
-	pushconstants
-	pushdescriptors
-	radialblur
-	rayquery
-	raytracingbasic
-	raytracingcallable
-	raytracingreflections
-	raytracingshadows	
-	renderheadless
-	screenshot
-	shadowmapping
-	shadowmappingomni
-	shadowmappingcascade
-	specializationconstants
-	sphericalenvmapping
-	ssao
-	stencilbuffer
-	subpasses
-	terraintessellation
-	tessellation
-	textoverlay
-	texture
-	texture3d
-	texturearray
-	texturecubemap
-	texturecubemaparray
-	texturemipmapgen
-	texturesparseresidency
-	triangle
+#	bloom
+#	computecloth
+#	computecullandlod
+#	computeheadless
+#	computenbody
+#	computeparticles
+#	computeraytracing
+#	computeshader
+#	conditionalrender
+#	conservativeraster
+#	debugmarker
+#	deferred
+#	deferredmultisampling
+#	deferredshadows
+#	descriptorindexing
+#	descriptorsets
+#	displacement
+#	distancefieldfonts
+#	dynamicrendering
+#	dynamicuniformbuffer
+#	gears
+#	geometryshader
+#	gltfloading
+#	gltfscenerendering
+#	gltfskinning
+#	hdr
+#	imgui
+#	indirectdraw
+#	inlineuniformblocks
+#	inputattachments
+#	instancing
+#	multisampling
+#	multithreading
+#	multiview
+#	negativeviewportheight	
+#	occlusionquery
+#	offscreen
+#	oit
+#	parallaxmapping
+#	particlefire
+#	pbrbasic
+#	pbribl
+#	pbrtexture
+#	pipelines
+#	pipelinestatistics
+#	pushconstants
+#	pushdescriptors
+#	radialblur
+#	rayquery
+#	raytracingbasic
+#	raytracingcallable
+#	raytracingreflections
+#	raytracingshadows	
+#	renderheadless
+#	screenshot
+#	shadowmapping
+#	shadowmappingomni
+#	shadowmappingcascade
+#	specializationconstants
+#	sphericalenvmapping
+#	ssao
+#	stencilbuffer
+#	subpasses
+#	terraintessellation
+#	tessellation
+#	textoverlay
+#	texture
+#	texture3d
+#	texturearray
+#	texturecubemap
+#	texturecubemaparray
+#	texturemipmapgen
+#	texturesparseresidency
+#	triangle
 	tutorial
 	tutorial_raytracing
-	variablerateshading
-	viewportarray
-	vulkanscene
+#	variablerateshading
+#	viewportarray
+#	vulkanscene
 )
 
 buildExamples()
