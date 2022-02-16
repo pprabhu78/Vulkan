@@ -4,21 +4,27 @@
 
 #extension GL_GOOGLE_include_directive : enable
 
+// This is needed to support buffer_reference extension
+// We need buffer_reference to be able to store multiple Model structs
+#extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_EXT_buffer_reference2 : require
+
 #include "sampling.glsl"
 #include "rayTracingInputOutput.h"
 
 layout(location = 0) rayPayloadInEXT HitPayload payLoad;
 hitAttributeEXT vec2 attribs;
 
-Vertex unpack(uint index, int vertexSizeInBytes)
+Vertex unpack(uint index, int vertexSizeInBytes, VertexBuffer vertexBuffer)
 {
 	// Unpack the vertices from the SSBO using the glTF vertex structure
 	// The multiplier is the size of the vertex divided by four float components (=16 bytes)
 	const int m =  vertexSizeInBytes/ 16;
 
-	vec4 d0 = vertices.v[m * index + 0];
-	vec4 d1 = vertices.v[m * index + 1];
-	vec4 d2 = vertices.v[m * index + 2];
+	const vec4 d0 = vertexBuffer._vertices[m * index + 0];
+	const vec4 d1 = vertexBuffer._vertices[m * index + 1];
+	const vec4 d2 = vertexBuffer._vertices[m * index + 2];
 
 	Vertex v;
 	v.pos = d0.xyz;
@@ -32,12 +38,23 @@ Vertex unpack(uint index, int vertexSizeInBytes)
 
 void main()
 {
-    uint indicesOffset = _indexIndices[gl_GeometryIndexEXT];
-	ivec3 index = ivec3(indices.i[indicesOffset + (3 * gl_PrimitiveID)], indices.i[ indicesOffset + (3 * gl_PrimitiveID + 1)], indices.i[ indicesOffset + (3 * gl_PrimitiveID + 2)]);
+	const Model model = models._models[gl_InstanceCustomIndexEXT];
 
-	Vertex v0 = unpack(index.x, sceneUbo.vertexSizeInBytes);
-	Vertex v1 = unpack(index.y, sceneUbo.vertexSizeInBytes);
-	Vertex v2 = unpack(index.z, sceneUbo.vertexSizeInBytes);
+	VertexBuffer vertexBuffer = VertexBuffer(model.vertexBufferAddress);
+	IndexBuffer indexBuffer = IndexBuffer(model.indexBufferAddress);
+
+	IndexIndicesBuffer indexIndicesBuffer = IndexIndicesBuffer(model.indexIndicesAddress);
+	MaterialBuffer  materialBuffer   = MaterialBuffer(model.materialAddress);
+	MaterialIndicesBuffer  materialIndicesBuffer   = MaterialIndicesBuffer(model.materialIndicesAddress);
+
+	const uint64_t textureOffset = model.textureOffset;
+
+    const uint indicesOffset = indexIndicesBuffer._indexIndices[gl_GeometryIndexEXT];
+	const ivec3 index = ivec3(indexBuffer._indices[indicesOffset + (3 * gl_PrimitiveID)], indexBuffer._indices[ indicesOffset + (3 * gl_PrimitiveID + 1)], indexBuffer._indices[ indicesOffset + (3 * gl_PrimitiveID + 2)]);
+
+	Vertex v0 = unpack(index.x, sceneUbo.vertexSizeInBytes, vertexBuffer);
+	Vertex v1 = unpack(index.y, sceneUbo.vertexSizeInBytes, vertexBuffer);
+	Vertex v2 = unpack(index.z, sceneUbo.vertexSizeInBytes, vertexBuffer);
 
 	const vec3 barycentricCoords = vec3(1.0f - attribs.x - attribs.y, attribs.x, attribs.y);
 
@@ -46,7 +63,8 @@ void main()
 	const vec2 uv = v0.uv * barycentricCoords.x + v1.uv * barycentricCoords.y + v2.uv * barycentricCoords.z;
 	const vec4 vertexColor = v0.color * barycentricCoords.x + v1.color * barycentricCoords.y + v2.color * barycentricCoords.z;
 
-	const Material material = _materialBuffer[_materialIndices[gl_GeometryIndexEXT]];
+	const Material material = materialBuffer._materials[materialIndicesBuffer._materialIndices[gl_GeometryIndexEXT]];
+	const uint samplerIndex = uint(textureOffset) + material.baseColorTextureIndex;
 
 #if PATH_TRACER
 	// pick a random position around this tbn
@@ -58,8 +76,6 @@ void main()
 	
 	vec3 rayOrigin = worldPosition;
 	vec3 rayDirection = samplingHemisphere(payLoad.seed, worldTangent, worldBiNormal, worldNormal);
-
-	uint samplerIndex = material.baseColorTextureIndex;
 
 #if 0
 	vec3 decal = texture(samplers[samplerIndex], uv).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
@@ -80,7 +96,6 @@ void main()
 	vec3 normalViewSpace = (transpose(inverse(sceneUbo.viewMatrix))*vec4(normal.x,normal.y, normal.z, 1)).xyz;
 	vec3 vertexViewSpace = (sceneUbo.viewMatrix * vec4(position, 1.0)).xyz;
 
-	uint samplerIndex = _materialBuffer[_materialIndices[gl_GeometryIndexEXT]].baseColorTextureIndex;
 
 	// the base color is decreasing the lighting to a very low value.
 	// therefore, exclude it for now

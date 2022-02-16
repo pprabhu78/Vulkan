@@ -3,6 +3,7 @@
 #include "InstanceContainer.h"
 #include "Tlas.h"
 #include "IndirectLayout.h"
+#include "ModelInfo.h"
 
 #include <iostream>
 
@@ -57,8 +58,17 @@ namespace genesis
    {
       _indirectLayout = new IndirectLayout(_device, true);
 
-      const ModelInfo* modelInfo = _modelRegistry->findModel(0);
-      _indirectLayout->build(modelInfo->model());
+      std::vector<const VulkanGltfModel*> models;
+      
+      // Models have been registered in order with a running model id that's incremented
+      // so, push them in order onto this vector
+      for(int i = 0; i < _modelRegistry->numModels(); ++i)
+      {
+         const ModelInfo* modelInfo = _modelRegistry->findModel(i);
+         models.push_back(modelInfo->model());
+      }
+      
+      _indirectLayout->build(models);
    }
 
    const IndirectLayout* Cell::layout(void) const

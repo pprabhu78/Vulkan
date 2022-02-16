@@ -21,6 +21,7 @@ struct PushConstants
 #else
 
 #include "../common/gltfMaterial.h"
+#include "../common/gltfModelDesc.h"
 
 layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 layout(set = 0, binding = 1, rgba32f) uniform image2D intermediateImage;
@@ -53,25 +54,28 @@ layout(set = 0, binding = 4) uniform samplerCube environmentMap;
 
 layout(push_constant) uniform _PushConstants { PushConstants pushConstants; };
 
-
-layout(set = 1, binding = 0) buffer Vertices { vec4 v[]; } vertices;
-layout(set = 1, binding = 1) buffer Indices { uint i[]; } indices;
-layout(set = 1, binding = 2, std430) readonly buffer indexIndices
+struct Model
 {
-   uint _indexIndices[];
+   uint64_t textureOffset;
+   uint64_t vertexBufferAddress;
+   uint64_t indexBufferAddress;
+   uint64_t indexIndicesAddress;
+   uint64_t materialAddress;       
+   uint64_t materialIndicesAddress;
 };
 
-layout(set = 1, binding = 3, std430) readonly buffer materialBuffer
-{
-   Material _materialBuffer[];
-};
+layout(buffer_reference, scalar) buffer VertexBuffer { vec4 _vertices[]; };
+layout(buffer_reference, scalar) buffer IndexBuffer { uint _indices[]; };
+layout(buffer_reference, scalar) buffer IndexIndicesBuffer { uint _indexIndices[]; };
+layout(buffer_reference, scalar) buffer MaterialBuffer { Material _materials[]; }; 
+layout(buffer_reference, scalar) buffer MaterialIndicesBuffer { uint _materialIndices[]; };
 
-layout(set = 1, binding = 4, std430) readonly buffer materialIndices
-{
-   uint _materialIndices[];
-};
+layout(set = 1, binding = 0, scalar) buffer ModelBuffer 
+{ 
+   Model _models[]; 
+} models;
 
-layout(set = 1, binding = 5) uniform sampler2D samplers[];
+layout(set = 1, binding = 1) uniform sampler2D samplers[];
 
 struct HitPayload
 {

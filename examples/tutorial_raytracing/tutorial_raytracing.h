@@ -22,6 +22,7 @@ namespace genesis
    class VulkanBuffer;
    class Tlas;
    class IndirectLayout;
+   class CellManager;
 }
 
 class TutorialRayTracing : public genesis::VulkanExampleBase
@@ -70,15 +71,8 @@ public:
 
    VkPhysicalDeviceShaderClockFeaturesKHR _physicalDeviceShaderClockFeaturesKHR{};
 
-   genesis::VulkanGltfModel* _gltfModel;
-   genesis::VulkanGltfModel* _gltfModel2 = nullptr;
-
-   genesis::Tlas* _tlas;
-
    genesis::Image* _skyCubeMapImage = nullptr;
    genesis::Texture* _skyCubeMapTexture = nullptr;
-
-
 
    std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroups{};
    genesis::VulkanBuffer* _raygenShaderBindingTable;
@@ -102,5 +96,5 @@ public:
 
    PushConstants _pushConstants;
 
-   genesis::IndirectLayout* _indirectLayout;
+   genesis::CellManager* _cellManager;
 };

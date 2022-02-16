@@ -16,6 +16,7 @@ namespace genesis
    class Instance
    {
    public:
+      int _instanceId;
       int _modelId;
       glm::mat4 _xform;
    };

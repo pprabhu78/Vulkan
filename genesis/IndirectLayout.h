@@ -19,17 +19,17 @@ namespace genesis
       IndirectLayout(Device* device, bool rayTracing);
       virtual ~IndirectLayout();
    public:
-      virtual void build(const VulkanGltfModel* model);
+      virtual void build(const std::vector<const VulkanGltfModel*>& models);
       virtual const std::vector<VkDescriptorSet>& descriptorSets(void) const;
       virtual VkDescriptorSetLayout vulkanDescriptorSetLayout(void) const;
       
       virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const VulkanGltfModel* model) const;
 
    protected:
-      virtual void setupDescriptorPool(const VulkanGltfModel* model);
-      virtual void setupDescriptorSetLayout(const VulkanGltfModel* model);
-      virtual void updateDescriptorSets(const VulkanGltfModel* model);
-      virtual void createGpuSideBuffers(const VulkanGltfModel* model);
+      virtual void setupDescriptorPool(int totalNumTextures);
+      virtual void setupDescriptorSetLayout(int totalNumTextures);
+      virtual void updateDescriptorSets(const std::vector<const VulkanGltfModel*>& models);
+      virtual void createGpuSideBuffers(const std::vector<const VulkanGltfModel*>& models);
       virtual void destroyGpuSideBuffers(void);
       virtual void buildIndirectBuffer(const VulkanGltfModel* model);
       
@@ -39,8 +39,6 @@ namespace genesis
       VkDescriptorPool _descriptorPool;
       VkDescriptorSetLayout _descriptorSetLayout;
       std::vector<VkDescriptorSet> _vecDescriptorSets;
-
-      static const int s_maxBindlessTextures;
 
       const bool _rayTracing;
 
@@ -54,13 +52,7 @@ namespace genesis
       std::vector<std::uint32_t> _materialIndices;
 
       //! flattened list of indices into the index buffer
-      Buffer* _indexIndicesGpu = nullptr;
-
-      //! Gpu side material buffer (materials found in the gltf)
-      Buffer* _materialsGpu = nullptr;
-
-      //! flattened list of material indices
-      Buffer* _materialIndicesGpu = nullptr;
+      std::vector<Buffer*> _buffersCreatedHere;
 
       //! same buffer as above, but on the Gpu
       Buffer* _indirectBufferGpu;
@@ -68,6 +60,6 @@ namespace genesis
       //! indirect command buffer
       std::vector<VkDrawIndexedIndirectCommand> _indirectCommands;
 
-      static const int s_maxBindlessTextures;
+      Buffer* _modelsGpu = nullptr;
    };
 }

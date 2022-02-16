@@ -23,6 +23,9 @@
 #include "VulkanDebug.h"
 #include "Texture.h"
 #include "VulkanFunctions.h"
+
+#include "Cell.h"
+#include "CellManager.h"
 #include "Tlas.h"
 #include "IndirectLayout.h"
 
@@ -75,8 +78,7 @@ void TutorialRayTracing::resetCamera()
 }
 
 TutorialRayTracing::TutorialRayTracing()
-   : _gltfModel(nullptr)
-   , _pushConstants{}
+   : _pushConstants{}
 {
    _pushConstants.frameIndex = -1;
    title = "genesis: path tracer";
@@ -150,15 +152,12 @@ TutorialRayTracing::~TutorialRayTracing()
 
    deleteStorageImages();
 
-   delete _tlas;
+   delete _cellManager;
    
    delete _raygenShaderBindingTable;
    delete _missShaderBindingTable;
    delete _hitShaderBindingTable;
-
-   delete _indirectLayout;
    
-   delete _gltfModel;
    delete _sceneUbo;
 
    delete _skyCubeMapTexture;
@@ -215,25 +214,8 @@ Create the bottom level acceleration structure contains the scene's actual geome
 */
 void TutorialRayTracing::createBottomLevelAccelerationStructure()
 {
-   _gltfModel = new genesis::VulkanGltfModel(_device, true);
-
    const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
 
-#if (defined SPONZA)
-   _gltfModel->loadFromFile(getAssetsPath() + "models/sponza/sponza.gltf", glTFLoadingFlags);
-#endif
-
-#if defined VENUS
-   _gltfModel->loadFromFile(getAssetPath() + "models/venus.gltf", glTFLoadingFlags);
-#endif
-
-#if defined CORNELL
-   _gltfModel->loadFromFile(getAssetPath() + "models/cornellBox.gltf", glTFLoadingFlags);
-#endif
-
-#if defined SPHERE
-   _gltfModel->loadFromFile(getAssetsPath() + "models/sphere.gltf", glTFLoadingFlags);
-#endif
 
 
    _skyCubeMapImage = new genesis::Image(_device);
@@ -248,8 +230,6 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
 #endif
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
 
-   _indirectLayout = new genesis::IndirectLayout(_device, true);
-   _indirectLayout->build(_gltfModel);
 }
 
 /*
@@ -257,9 +237,45 @@ The top level acceleration structure contains the scene's object instances
 */
 void TutorialRayTracing::createTopLevelAccelerationStructure()
 {
-   _tlas = new genesis::Tlas(_device);
-   _tlas->addInstance(_gltfModel, mat4());
-   _tlas->build();
+   std::string gltfModel;
+   std::string gltfModel2;
+
+#if (defined SPONZA)
+   gltfModel = getAssetsPath() + "models/sponza/sponza.gltf";
+#endif
+
+#if defined VENUS
+   gltfModel = getAssetsPath() + "models/venus.gltf";
+#endif
+
+#if defined CORNELL
+   gltfModel = getAssetsPath() + "models/cornellBox.gltf";
+#endif
+
+#if defined SPHERE
+   gltfModel = getAssetsPath() + "models/sphere.gltf";
+#endif
+
+   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
+   _cellManager = new genesis::CellManager(_device, glTFLoadingFlags);
+
+   _cellManager->addInstance(gltfModel, mat4());
+
+#if 0
+   gltfModel2 = getAssetsPath() + "../../glTF-Sample-Models/2.0//WaterBottle//glTF/WaterBottle.gltf";
+
+   glm::mat4 mat2;
+   mat2 = glm::translate(mat2, glm::vec3(-2, -1.0f, 0.0f));
+   _cellManager->addInstance(gltfModel2, mat2);
+
+   glm::mat4 mat3;
+   mat3 = glm::translate(mat3, glm::vec3(-3, -2.0f, 0.0f));
+
+   _cellManager->addInstance(gltfModel2, mat3);
+#endif
+
+   _cellManager->buildTlases();
+   _cellManager->buildLayouts();
 }
 
 /*
@@ -334,7 +350,7 @@ void TutorialRayTracing::createDescriptorSets()
 
    VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = genesis::VulkanInitializers::writeDescriptorSetAccelerationStructureKHR();
    descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
-   descriptorAccelerationStructureInfo.pAccelerationStructures = &(_tlas->handle());
+   descriptorAccelerationStructureInfo.pAccelerationStructures = &(_cellManager->cell(0)->tlas()->handle());
 
    VkDescriptorImageInfo intermediateImageDescriptor = genesis::VulkanInitializers::descriptorImageInfo(VK_NULL_HANDLE, _intermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL);
    VkDescriptorImageInfo finalImageDescriptor = genesis::VulkanInitializers::descriptorImageInfo(VK_NULL_HANDLE, _finalImageToPresent->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL);
@@ -369,7 +385,7 @@ void TutorialRayTracing::createRayTracingPipeline()
    VkDescriptorSetLayoutCreateInfo descriptorSetlayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(descriptorSetLayoutBindings);
    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &descriptorSetlayoutInfo, nullptr, &_rayTracingDescriptorSetLayout));
 
-   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _rayTracingDescriptorSetLayout, _indirectLayout->vulkanDescriptorSetLayout() };
+   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _rayTracingDescriptorSetLayout, _cellManager->cell(0)->layout()->vulkanDescriptorSetLayout() };
 
    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::VulkanInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
 
@@ -542,7 +558,7 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    vkCmdBindDescriptorSets(drawCmdBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipelineLayout, 0, 1, &_rayTracingDescriptorSet, 0, 0);
 
    std::uint32_t firstSet = 1;
-   vkCmdBindDescriptorSets(drawCmdBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipelineLayout, firstSet, std::uint32_t(_indirectLayout->descriptorSets().size()), _indirectLayout->descriptorSets().data(), 0, nullptr);
+   vkCmdBindDescriptorSets(drawCmdBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipelineLayout, firstSet, std::uint32_t(_cellManager->cell(0)->layout()->descriptorSets().size()), _cellManager->cell(0)->layout()->descriptorSets().data(), 0, nullptr);
 
    ++_pushConstants.frameIndex;
    _pushConstants.clearColor = genesis::Vector4_32(1, 1, 1, 1);

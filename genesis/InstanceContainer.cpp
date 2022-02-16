@@ -21,6 +21,7 @@ namespace genesis
       Instance instance;
       instance._modelId = modelId;
       instance._xform = xform;
+      instance._instanceId = instanceId;
 
       _instances.push_back(instance);
 

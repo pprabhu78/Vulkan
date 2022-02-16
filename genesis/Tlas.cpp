@@ -7,6 +7,7 @@
 #include "Device.h"
 #include "InstanceContainer.h"
 #include "ModelRegistry.h"
+#include "ModelInfo.h"
 
 #include <iostream>
 
@@ -68,6 +69,9 @@ namespace genesis
       vulkanInstance.instanceShaderBindingTableRecordOffset = 0;
       vulkanInstance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;
       vulkanInstance.accelerationStructureReference = blas->deviceAddress();
+      // store the model id as the custom index, so we can access the model
+      // this instance refers to from the model buffer in the shader
+      vulkanInstance.instanceCustomIndex = instance._modelId;  
 
       _vulkanInstances.push_back(vulkanInstance);
    }

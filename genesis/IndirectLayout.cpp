@@ -7,14 +7,14 @@
 #include "VulkanDebug.h"
 #include <deque>
 
+#define CPU_SIDE_COMPILATION 1
+#include "../data/shaders/glsl/common/gltfModelDesc.h"
+
 namespace genesis
 {
    IndirectLayout::IndirectLayout(Device* device, bool rayTracing)
       : _device(device)
       , _rayTracing(rayTracing)
-      , _materialIndicesGpu(nullptr)
-      , _indexIndicesGpu(nullptr)
-      , _materialsGpu(nullptr)
       , _indirectBufferGpu(nullptr)
    {
       // nothing else to do
@@ -28,63 +28,97 @@ namespace genesis
       vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _descriptorSetLayout, nullptr);
    }
 
-   void IndirectLayout::createGpuSideBuffers(const VulkanGltfModel* model)
+   void IndirectLayout::createGpuSideBuffers(const std::vector<const VulkanGltfModel*>& gltfModels)
    {
-      const auto& materials = model->materials();
+      std::vector<ModelDesc> models;
+      int currentTextureOffset = 0;
+      for (const VulkanGltfModel* model : gltfModels)
+      {
+         // clear it before the next model
+         _materialIndices.clear();
+         _indexIndices.clear();
 
-      buildIndirectBuffer(model);
+         buildIndirectBuffer(model);
 
-      const int sizeInBytesMaterialIndices = (int)(_materialIndices.size() * sizeof(uint32_t));
-      _materialIndicesGpu = new Buffer(_device, BT_SBO, sizeInBytesMaterialIndices, true);
-      void* pDstMaterialIndices = _materialIndicesGpu->stagingBuffer();
-      memcpy(pDstMaterialIndices, _materialIndices.data(), sizeInBytesMaterialIndices);
-      _materialIndicesGpu->syncToGpu(true);
+         const auto& materials = model->materials();
 
-      const int sizeInBytesIndexIndices = (int)(_indexIndices.size() * sizeof(uint32_t));
-      _indexIndicesGpu = new Buffer(_device, BT_SBO, sizeInBytesIndexIndices, true);
-      void* pDstIndexIndices = _indexIndicesGpu->stagingBuffer();
-      memcpy(pDstIndexIndices, _indexIndices.data(), sizeInBytesIndexIndices);
-      _indexIndicesGpu->syncToGpu(true);
+         const int sizeInBytesMaterialIndices = (int)(_materialIndices.size() * sizeof(uint32_t));
+         Buffer* materialIndicesGpu = new Buffer(_device, BT_SBO, sizeInBytesMaterialIndices, true, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "MaterialsIndicesGpu");
+         void* pDstMaterialIndices = materialIndicesGpu->stagingBuffer();
+         memcpy(pDstMaterialIndices, _materialIndices.data(), sizeInBytesMaterialIndices);
+         materialIndicesGpu->syncToGpu(true);
+         _buffersCreatedHere.push_back(materialIndicesGpu);
 
-      const int sizeInBytesMaterials = (int)(materials.size() * sizeof(Material));
-      _materialsGpu = new Buffer(_device, BT_SBO, sizeInBytesMaterials, true, 0, "MaterialsGpu");
-      void* pDstMaterials = _materialsGpu->stagingBuffer();
-      memcpy(pDstMaterials, materials.data(), sizeInBytesMaterials);
-      _materialsGpu->syncToGpu(true);
+         const int sizeInBytesIndexIndices = (int)(_indexIndices.size() * sizeof(uint32_t));
+         Buffer* indexIndicesGpu = new Buffer(_device, BT_SBO, sizeInBytesIndexIndices, true, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "IndexIndicesGpu");
+         void* pDstIndexIndices = indexIndicesGpu->stagingBuffer();
+         memcpy(pDstIndexIndices, _indexIndices.data(), sizeInBytesIndexIndices);
+         indexIndicesGpu->syncToGpu(true);
+         _buffersCreatedHere.push_back(indexIndicesGpu);
+
+         const int sizeInBytesMaterials = (int)(materials.size() * sizeof(Material));
+         Buffer* materialsGpu = new Buffer(_device, BT_SBO, sizeInBytesMaterials, true, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "MaterialsGpu");
+         void* pDstMaterials = materialsGpu->stagingBuffer();
+         memcpy(pDstMaterials, materials.data(), sizeInBytesMaterials);
+         materialsGpu->syncToGpu(true);
+         _buffersCreatedHere.push_back(materialsGpu);
+
+         ModelDesc modelDesc;
+         modelDesc.textureOffset = currentTextureOffset;
+         currentTextureOffset += (int)model->textures().size();
+         modelDesc.vertexBufferAddress = model->vertexBuffer()->bufferAddress();
+         modelDesc.indexBufferAddress = model->indexBuffer()->bufferAddress();
+         modelDesc.indexIndicesAddress = indexIndicesGpu->bufferAddress();
+         modelDesc.materialAddress = materialsGpu->bufferAddress();
+         modelDesc.materialIndicesAddress = materialIndicesGpu->bufferAddress();
+
+         models.push_back(modelDesc);
+      }
+
+      const uint32_t sizeInBytesModels = (uint32_t)models.size() * sizeof(ModelDesc);
+
+      _modelsGpu = new Buffer(_device, BT_SBO, sizeInBytesModels, true, 0, "ModelsGpu");
+      void* pDstModels = _modelsGpu->stagingBuffer();
+      memcpy(pDstModels, models.data(), sizeInBytesModels);
+      _modelsGpu->syncToGpu(true);
    }
 
    void IndirectLayout::destroyGpuSideBuffers(void)
    {
-      delete _indexIndicesGpu;
-      delete _materialIndicesGpu;
-      delete _materialsGpu;
+      delete _modelsGpu;
+      _modelsGpu = nullptr;
+
+      for (Buffer* buffer : _buffersCreatedHere)
+      {
+         delete buffer;
+      }
+      _buffersCreatedHere.clear();
+
       delete _indirectBufferGpu;
+      _indirectBufferGpu = nullptr;
    }
 
-   void IndirectLayout::build(const VulkanGltfModel* model)
+   void IndirectLayout::build(const std::vector<const VulkanGltfModel*>& gltfModels)
    {
-      createGpuSideBuffers(model);
+      createGpuSideBuffers(gltfModels);
 
-      setupDescriptorPool(model);
-      setupDescriptorSetLayout(model);
-      updateDescriptorSets(model);
+      int totalNumTextures = 0;
+      for (const VulkanGltfModel* model : gltfModels)
+      {
+         totalNumTextures += (int)model->textures().size();
+      }
+
+      setupDescriptorPool(totalNumTextures);
+      setupDescriptorSetLayout(totalNumTextures);
+      updateDescriptorSets(gltfModels);
    }
 
-   const int IndirectLayout::s_maxBindlessTextures = 100;
-
-   void IndirectLayout::setupDescriptorPool(const VulkanGltfModel* model)
+   void IndirectLayout::setupDescriptorPool(int totalNumTextures)
    {
       std::vector<VkDescriptorPoolSize> poolSizes = {};
 
-      const std::vector<Texture*>& textures = model->textures();
-
-      if (_rayTracing)
-      { 
-         poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3));
-      }
-         
-      poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2));
-      poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, s_maxBindlessTextures));
+      poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1));
+      poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, totalNumTextures));
 
       const uint32_t maxSets = 1;
       
@@ -92,28 +126,17 @@ namespace genesis
       VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &_descriptorPool));
    }
 
-   void IndirectLayout::setupDescriptorSetLayout(const VulkanGltfModel* model)
+   void IndirectLayout::setupDescriptorSetLayout(int totalNumTextures)
    {
       std::vector<VkDescriptorSetLayoutBinding> setBindings = {};
       uint32_t bindingIndex = 0;
 
       VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
 
-      if (_rayTracing)
-      {
-         // vertices
-         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++));
-         // indices
-         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++));
-         // index indices
-         setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
-      }
-      // material buffer
-      setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
-      // material indices
+      // model buffer
       setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, 1));
       // samplers
-      setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, s_maxBindlessTextures));
+      setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++, totalNumTextures));
 
       descriptorSetLayoutCreateInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
 
@@ -123,18 +146,8 @@ namespace genesis
       setLayoutBindingFlags.bindingCount = (uint32_t)setBindings.size();
 
       std::vector<VkDescriptorBindingFlags> descriptorBindingFlags;
-      if (_rayTracing)
-      {
-         // vertices
-         descriptorBindingFlags.push_back(0);
-         // indices
-         descriptorBindingFlags.push_back(0);
-         // index indices
-         descriptorBindingFlags.push_back(0);
-      }
-      // material buffer
-      descriptorBindingFlags.push_back(0);
-      // material indices
+
+      // model buffer
       descriptorBindingFlags.push_back(0);
       // samplers
       descriptorBindingFlags.push_back(VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT);
@@ -149,7 +162,7 @@ namespace genesis
 
    static void writeAndUpdateDescriptorSet(VkDescriptorSet dstSet
       , uint32_t binding
-      , const std::vector<Texture*>& textures
+      , const std::vector<const Texture*>& textures
       , VkDevice device)
    {
       VkWriteDescriptorSet writeDescriptorSet{};
@@ -172,9 +185,19 @@ namespace genesis
       vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, nullptr);
    }
 
-   void IndirectLayout::updateDescriptorSets(const VulkanGltfModel* model)
+   void IndirectLayout::updateDescriptorSets(const std::vector<const VulkanGltfModel*>& gltfModels)
    {
-      uint32_t variableDescCounts[] = { s_maxBindlessTextures };
+      std::vector<const Texture*> allTextures;
+      for (const VulkanGltfModel* model : gltfModels)
+      {
+         const auto& textures = model->textures();
+         for (const Texture* texture : textures)
+         {
+            allTextures.push_back(texture);
+         }
+      }
+
+      uint32_t variableDescCounts[] = { uint32_t(allTextures.size()) };
       VkDescriptorSetVariableDescriptorCountAllocateInfo variableDescriptorCountAllocInfo = {};
       variableDescriptorCountAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO;
       variableDescriptorCountAllocInfo.descriptorSetCount = 1;
@@ -186,25 +209,15 @@ namespace genesis
       VkDescriptorSet descriptorSet;
       vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &descriptorSet);
 
-      const std::vector<Texture*>& textures = model->textures();
-
       int bindingIndex = 0;
       std::vector<VkWriteDescriptorSet> writeDescriptorSets;
-      if (_rayTracing)
-      {
-         writeDescriptorSets.push_back(VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, model->vertexBuffer()->descriptorPtr()));
-         writeDescriptorSets.push_back(VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, model->indexBuffer()->descriptorPtr()));
-         writeDescriptorSets.push_back(VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_indexIndicesGpu->descriptor()));
-      }
-      writeDescriptorSets.push_back(VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_materialsGpu->descriptor()));
-      writeDescriptorSets.push_back(VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_materialIndicesGpu->descriptor()));
+      writeDescriptorSets.push_back(VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_modelsGpu->descriptor()));
 
       vkUpdateDescriptorSets(_device->vulkanDevice(), (int)writeDescriptorSets.size(), writeDescriptorSets.data(), 0, nullptr);
 
-      writeAndUpdateDescriptorSet(descriptorSet, bindingIndex++, textures, _device->vulkanDevice());
+      writeAndUpdateDescriptorSet(descriptorSet, bindingIndex++, allTextures, _device->vulkanDevice());
 
       _vecDescriptorSets.push_back(descriptorSet);
-
    }
 
    void IndirectLayout::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const VulkanGltfModel* model) const
@@ -259,11 +272,14 @@ namespace genesis
          }
       }
 
+#pragma message("PPP: TO DO")
+#if 0
       const int sizeInBytes = (int)(_indirectCommands.size() * sizeof(VkDrawIndexedIndirectCommand));
       _indirectBufferGpu = new Buffer(_device, BT_INDIRECT_BUFFER, sizeInBytes, true);
       void* pDst = _indirectBufferGpu->stagingBuffer();
       memcpy(pDst, _indirectCommands.data(), sizeInBytes);
       _indirectBufferGpu->syncToGpu(true);
+#endif
    }
 
    const std::vector<VkDescriptorSet>& IndirectLayout::descriptorSets(void) const

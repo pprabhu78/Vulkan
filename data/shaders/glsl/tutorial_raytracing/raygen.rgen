@@ -3,6 +3,12 @@
 #extension GL_GOOGLE_include_directive : enable
 #extension GL_ARB_shader_clock : enable
 
+// This is needed to support buffer_reference extension
+// We need buffer_reference to be able to store multiple Model structs
+#extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_EXT_buffer_reference2 : require
+
 #include "sampling.glsl"
 #include "rayTracingInputOutput.h"
 
@@ -20,8 +26,6 @@ void main()
 
 	float tmin = 0.001;
 	float tmax = 10000.0;
-
-	
 
 #if PATH_TRACER
 	uint seed = tea(gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.x, int(clockARB()));

@@ -1,33 +1,11 @@
 #include "ModelRegistry.h"
 #include "VulkanGltf.h"
+#include "ModelInfo.h"
 
 #include <iostream>
 
 namespace genesis
 {
-   ModelInfo::ModelInfo(Device* device, const std::string& modelFileName, int modelId, int modelLoadingFlags)
-      : _device(device)
-      , _modelId(modelId)
-   {
-      _model = new VulkanGltfModel(_device, modelLoadingFlags);
-      _model->loadFromFile(modelFileName, modelLoadingFlags);
-   }
-
-   ModelInfo::~ModelInfo()
-   {
-      delete _model;
-   }
-
-   int ModelInfo::modelId(void) const
-   {
-      return _modelId;
-   }
-
-   const VulkanGltfModel* ModelInfo::model(void) const
-   {
-      return _model;
-   }
-
    ModelRegistry::ModelRegistry(Device* device, int modelLoadingFlags)
       : _device(device)
       , _modelLoadingFlags(modelLoadingFlags)
@@ -86,5 +64,10 @@ namespace genesis
       ModelInfo* modelInfo = new ModelInfo(_device, modelFileName, modelId, _modelLoadingFlags);
       _mapModelIdToModelInfo.insert({ modelId, modelInfo });
       _mapModelNameToId.insert({ modelFileName, modelId });
+   }
+
+   int ModelRegistry::numModels(void) const
+   {
+      return (int)_mapModelIdToModelInfo.size();
    }
 }
