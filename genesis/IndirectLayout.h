@@ -4,6 +4,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 
 namespace genesis
 {
@@ -12,6 +13,7 @@ namespace genesis
    class Buffer;
 
    struct Node;
+   struct Primitive;
 
    class IndirectLayout
    {
@@ -36,6 +38,8 @@ namespace genesis
 
       virtual void fillIndirectCommands(const VulkanGltfModel* model);
       virtual void createGpuSideDrawBuffers();
+
+      virtual void forEachPrimitive(const VulkanGltfModel* model, const std::function<void(const Primitive&)>& func);
    protected:
       Device* _device;
 

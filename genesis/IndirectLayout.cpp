@@ -238,33 +238,13 @@ namespace genesis
 
    void IndirectLayout::fillIndexAndMaterialIndices(const VulkanGltfModel* model)
    {
-      std::deque<const Node*> nodesToProcess;
-      for (const Node* node : model->linearNodes())
-      {
-         nodesToProcess.push_back(node);
-      }
-
-      while (!nodesToProcess.empty())
-      {
-         const Node* node = nodesToProcess.front(); nodesToProcess.pop_front();
-
-         if (node->_mesh)
+      forEachPrimitive(model, 
+         [&](const Primitive& primitive)
          {
-            for (const Primitive& primitive : node->_mesh->primitives)
-            {
-               if (primitive.indexCount > 0)
-               {
-                  _scratchMaterialIndices.push_back(primitive.materialIndex);
-                  _scratchIndexIndices.push_back(primitive.firstIndex);
-               }
-            }
+            _scratchMaterialIndices.push_back(primitive.materialIndex);
+            _scratchIndexIndices.push_back(primitive.firstIndex);
          }
-
-         for (const Node* child : node->_children)
-         {
-            nodesToProcess.push_back(child);
-         }
-      }
+      );
    }
 
    const std::vector<VkDescriptorSet>& IndirectLayout::descriptorSets(void) const
@@ -277,41 +257,20 @@ namespace genesis
       return _descriptorSetLayout;
    }
 
+
    void IndirectLayout::fillIndirectCommands(const VulkanGltfModel* model)
    {
-      std::deque<const Node*> nodesToProcess;
-      for (const Node* node : model->linearNodes())
-      {
-         nodesToProcess.push_back(node);
-      }
-
-      while (!nodesToProcess.empty())
-      {
-         const Node* node = nodesToProcess.front(); nodesToProcess.pop_front();
-
-         if (node->_mesh)
+      forEachPrimitive(model, [&](const Primitive& primitive)
          {
-            for (const Primitive& primitive : node->_mesh->primitives)
-            {
-               if (primitive.indexCount > 0)
-               {
-                  VkDrawIndexedIndirectCommand command;
-                  command.indexCount = primitive.indexCount;
-                  command.instanceCount = 1;
-                  command.firstIndex = primitive.firstIndex;
-                  command.vertexOffset = 0;
-                  command.firstInstance = 0;
-                  _indirectCommands.push_back(command);
-               }
-            }
-         }
+            VkDrawIndexedIndirectCommand command;
+            command.indexCount = primitive.indexCount;
+            command.instanceCount = 1;
+            command.firstIndex = primitive.firstIndex;
+            command.vertexOffset = 0;
+            command.firstInstance = 0;
+            _indirectCommands.push_back(command);
 
-         for (const Node* child : node->_children)
-         {
-            nodesToProcess.push_back(child);
-         }
-      }
-
+         });
    }
 
    void IndirectLayout::createGpuSideDrawBuffers()
@@ -331,5 +290,35 @@ namespace genesis
          fillIndirectCommands(model);
       }
       createGpuSideDrawBuffers();
+   }
+
+   void IndirectLayout::forEachPrimitive(const VulkanGltfModel* model, const std::function<void(const Primitive&)>& func)
+   {
+      std::deque<const Node*> nodesToProcess;
+      for (const Node* node : model->linearNodes())
+      {
+         nodesToProcess.push_back(node);
+      }
+
+      while (!nodesToProcess.empty())
+      {
+         const Node* node = nodesToProcess.front(); nodesToProcess.pop_front();
+
+         if (node->_mesh)
+         {
+            for (const Primitive& primitive : node->_mesh->primitives)
+            {
+               if (primitive.indexCount > 0)
+               {
+                  func(primitive);
+               }
+            }
+         }
+
+         for (const Node* child : node->_children)
+         {
+            nodesToProcess.push_back(child);
+         }
+      }
    }
 }
