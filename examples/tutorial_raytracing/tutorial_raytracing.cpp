@@ -261,7 +261,7 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
 
    _cellManager->addInstance(gltfModel, mat4());
 
-#if 0
+#if 1
    gltfModel2 = getAssetsPath() + "../../glTF-Sample-Models/2.0//WaterBottle//glTF/WaterBottle.gltf";
 
    glm::mat4 mat2;

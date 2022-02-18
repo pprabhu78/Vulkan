@@ -56,7 +56,7 @@ namespace genesis
 
    void Cell::buildLayout()
    {
-      _indirectLayout = new IndirectLayout(_device, true);
+      _indirectLayout = new IndirectLayout(_device);
 
       std::vector<const VulkanGltfModel*> models;
       

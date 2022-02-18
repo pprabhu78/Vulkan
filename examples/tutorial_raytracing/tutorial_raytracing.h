@@ -96,5 +96,5 @@ public:
 
    PushConstants _pushConstants;
 
-   genesis::CellManager* _cellManager;
+   genesis::CellManager* _cellManager = nullptr;
 };

@@ -12,9 +12,8 @@
 
 namespace genesis
 {
-   IndirectLayout::IndirectLayout(Device* device, bool rayTracing)
+   IndirectLayout::IndirectLayout(Device* device)
       : _device(device)
-      , _rayTracing(rayTracing)
       , _indirectBufferGpu(nullptr)
    {
       // nothing else to do
@@ -26,6 +25,8 @@ namespace genesis
 
       vkDestroyDescriptorPool(_device->vulkanDevice(), _descriptorPool, nullptr);
       vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _descriptorSetLayout, nullptr);
+
+      delete _indirectBufferGpu;
    }
 
    void IndirectLayout::createGpuSideBuffers(const std::vector<const VulkanGltfModel*>& gltfModels)
@@ -35,24 +36,24 @@ namespace genesis
       for (const VulkanGltfModel* model : gltfModels)
       {
          // clear it before the next model
-         _materialIndices.clear();
-         _indexIndices.clear();
+         _scratchMaterialIndices.clear();
+         _scratchIndexIndices.clear();
 
-         buildIndirectBuffer(model);
+         fillIndexAndMaterialIndices(model);
 
          const auto& materials = model->materials();
 
-         const int sizeInBytesMaterialIndices = (int)(_materialIndices.size() * sizeof(uint32_t));
+         const int sizeInBytesMaterialIndices = (int)(_scratchMaterialIndices.size() * sizeof(uint32_t));
          Buffer* materialIndicesGpu = new Buffer(_device, BT_SBO, sizeInBytesMaterialIndices, true, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "MaterialsIndicesGpu");
          void* pDstMaterialIndices = materialIndicesGpu->stagingBuffer();
-         memcpy(pDstMaterialIndices, _materialIndices.data(), sizeInBytesMaterialIndices);
+         memcpy(pDstMaterialIndices, _scratchMaterialIndices.data(), sizeInBytesMaterialIndices);
          materialIndicesGpu->syncToGpu(true);
          _buffersCreatedHere.push_back(materialIndicesGpu);
 
-         const int sizeInBytesIndexIndices = (int)(_indexIndices.size() * sizeof(uint32_t));
+         const int sizeInBytesIndexIndices = (int)(_scratchIndexIndices.size() * sizeof(uint32_t));
          Buffer* indexIndicesGpu = new Buffer(_device, BT_SBO, sizeInBytesIndexIndices, true, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, "IndexIndicesGpu");
          void* pDstIndexIndices = indexIndicesGpu->stagingBuffer();
-         memcpy(pDstIndexIndices, _indexIndices.data(), sizeInBytesIndexIndices);
+         memcpy(pDstIndexIndices, _scratchIndexIndices.data(), sizeInBytesIndexIndices);
          indexIndicesGpu->syncToGpu(true);
          _buffersCreatedHere.push_back(indexIndicesGpu);
 
@@ -235,7 +236,48 @@ namespace genesis
       vkCmdDrawIndexedIndirect(commandBuffer, _indirectBufferGpu->vulkanBuffer(), 0, (uint32_t)_indirectCommands.size(), sizeof(VkDrawIndexedIndirectCommand));
    }
 
-   void IndirectLayout::buildIndirectBuffer(const VulkanGltfModel* model)
+   void IndirectLayout::fillIndexAndMaterialIndices(const VulkanGltfModel* model)
+   {
+      std::deque<const Node*> nodesToProcess;
+      for (const Node* node : model->linearNodes())
+      {
+         nodesToProcess.push_back(node);
+      }
+
+      while (!nodesToProcess.empty())
+      {
+         const Node* node = nodesToProcess.front(); nodesToProcess.pop_front();
+
+         if (node->_mesh)
+         {
+            for (const Primitive& primitive : node->_mesh->primitives)
+            {
+               if (primitive.indexCount > 0)
+               {
+                  _scratchMaterialIndices.push_back(primitive.materialIndex);
+                  _scratchIndexIndices.push_back(primitive.firstIndex);
+               }
+            }
+         }
+
+         for (const Node* child : node->_children)
+         {
+            nodesToProcess.push_back(child);
+         }
+      }
+   }
+
+   const std::vector<VkDescriptorSet>& IndirectLayout::descriptorSets(void) const
+   {
+      return _vecDescriptorSets;
+   }
+
+   VkDescriptorSetLayout IndirectLayout::vulkanDescriptorSetLayout(void) const
+   {
+      return _descriptorSetLayout;
+   }
+
+   void IndirectLayout::fillIndirectCommands(const VulkanGltfModel* model)
    {
       std::deque<const Node*> nodesToProcess;
       for (const Node* node : model->linearNodes())
@@ -260,8 +302,6 @@ namespace genesis
                   command.vertexOffset = 0;
                   command.firstInstance = 0;
                   _indirectCommands.push_back(command);
-                  _materialIndices.push_back(primitive.materialIndex);
-                  _indexIndices.push_back(primitive.firstIndex);
                }
             }
          }
@@ -272,23 +312,24 @@ namespace genesis
          }
       }
 
-#pragma message("PPP: TO DO")
-#if 0
+   }
+
+   void IndirectLayout::createGpuSideDrawBuffers()
+   {
       const int sizeInBytes = (int)(_indirectCommands.size() * sizeof(VkDrawIndexedIndirectCommand));
       _indirectBufferGpu = new Buffer(_device, BT_INDIRECT_BUFFER, sizeInBytes, true);
       void* pDst = _indirectBufferGpu->stagingBuffer();
       memcpy(pDst, _indirectCommands.data(), sizeInBytes);
       _indirectBufferGpu->syncToGpu(true);
-#endif
    }
 
-   const std::vector<VkDescriptorSet>& IndirectLayout::descriptorSets(void) const
+   void IndirectLayout::buildDrawBuffers(const std::vector<const VulkanGltfModel*>& gltfModels)
    {
-      return _vecDescriptorSets;
-   }
-
-   VkDescriptorSetLayout IndirectLayout::vulkanDescriptorSetLayout(void) const
-   {
-      return _descriptorSetLayout;
+      _indirectCommands.clear();
+      for (const VulkanGltfModel* model : gltfModels)
+      {
+         fillIndirectCommands(model);
+      }
+      createGpuSideDrawBuffers();
    }
 }
