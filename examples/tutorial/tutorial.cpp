@@ -54,6 +54,8 @@ Tutorial::Tutorial()
    camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
 #endif
+   // Require Vulkan 1.2
+   apiVersion = VK_API_VERSION_1_2;
 
    _enabledInstanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
 
@@ -61,10 +63,13 @@ Tutorial::Tutorial()
    _enabledPhysicalDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME);
 
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
 }
 
 void Tutorial::enableFeatures()
 {
+   _physicalDevice->enabledPhysicalDeviceFeatures().shaderInt64 = true;
+
    // Example uses multi draw indirect if available-
    if (_physicalDevice->physicalDeviceFeatures().multiDrawIndirect) {
       _physicalDevice->enabledPhysicalDeviceFeatures().multiDrawIndirect = VK_TRUE;
@@ -87,7 +92,11 @@ void Tutorial::enableFeatures()
    _physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
 
-   deviceCreatepNextChain = &_physicalDeviceDescriptorIndexingFeatures;
+   _enabledBufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+   _enabledBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+   _enabledBufferDeviceAddressFeatures.pNext = &_physicalDeviceDescriptorIndexingFeatures;
+
+   deviceCreatepNextChain = &_enabledBufferDeviceAddressFeatures;
 }
 
 Tutorial::~Tutorial()
@@ -453,8 +462,9 @@ void Tutorial::loadAssets(void)
 #endif
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
 
-   _indirectLayout = new genesis::IndirectLayout(_device, false);
-   _indirectLayout->build(_gltfModel);
+   _indirectLayout = new genesis::IndirectLayout(_device);
+   _indirectLayout->build({ _gltfModel });
+   _indirectLayout->buildDrawBuffers({ _gltfModel });
 }
 
 void Tutorial::prepare()

@@ -5,21 +5,40 @@
 #extension GL_EXT_nonuniform_qualifier : require
 #extension GL_GOOGLE_include_directive : enable
 
+// This is needed to support buffer_reference extension
+// We need buffer_reference to be able to store multiple Model structs
+#extension GL_EXT_scalar_block_layout : enable
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_EXT_buffer_reference2 : require
+
 #include "../common/gltfMaterial.h"
+#include "../common/gltfModelDesc.h"
 #include "input_output.h"
 
 #if INDIRECT
 
-layout (set = 1, binding = 0, std430) readonly buffer materialBuffer
+struct Model
 {
-	Material _materialBuffer[];
+   uint64_t textureOffset;
+   uint64_t vertexBufferAddress;
+   uint64_t indexBufferAddress;
+   uint64_t indexIndicesAddress;
+   uint64_t materialAddress;       
+   uint64_t materialIndicesAddress;
 };
 
-layout (set = 1, binding = 1, std430) readonly buffer materialIndices
-{
-	uint _materialIndices[];
-};
-layout (set = 1, binding = 2) uniform sampler2D samplers[];
+layout(buffer_reference, scalar) buffer VertexBuffer { vec4 _vertices[]; };
+layout(buffer_reference, scalar) buffer IndexBuffer { uint _indices[]; };
+layout(buffer_reference, scalar) buffer IndexIndicesBuffer { uint _indexIndices[]; };
+layout(buffer_reference, scalar) buffer MaterialBuffer { Material _materials[]; }; 
+layout(buffer_reference, scalar) buffer MaterialIndicesBuffer { uint _materialIndices[]; };
+
+layout(set = 1, binding = 0, scalar) buffer ModelBuffer 
+{ 
+   Model _models[]; 
+} models;
+
+layout(set = 1, binding = 1) uniform sampler2D samplers[];
 #else
 layout (set = 1, binding = 0) uniform sampler2D samplerColor;
 #endif
@@ -35,7 +54,16 @@ layout (location = 0) out vec4 outFragColor;
 void main() 
 {
 #if INDIRECT
-	uint samplerIndex = _materialBuffer[_materialIndices[inDrawIndex]].baseColorTextureIndex;
+	const Model model = models._models[0];
+
+	IndexIndicesBuffer indexIndicesBuffer = IndexIndicesBuffer(model.indexIndicesAddress);
+	MaterialBuffer  materialBuffer   = MaterialBuffer(model.materialAddress);
+	MaterialIndicesBuffer  materialIndicesBuffer   = MaterialIndicesBuffer(model.materialIndicesAddress);
+
+	const uint64_t textureOffset = model.textureOffset;
+
+	const Material material = materialBuffer._materials[materialIndicesBuffer._materialIndices[inDrawIndex]];
+	const uint samplerIndex = uint(textureOffset) + material.baseColorTextureIndex;
 	
 	vec4 color = texture(samplers[samplerIndex], inUV) * vec4(inColor.xyz, 1) * dot(normalize(inNormalViewSpace), normalize(-inVertexViewSpace));
 #else

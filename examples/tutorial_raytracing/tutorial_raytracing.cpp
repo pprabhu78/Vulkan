@@ -118,12 +118,12 @@ void TutorialRayTracing::enableFeatures()
    _physicalDevice->enabledPhysicalDeviceFeatures().shaderInt64 = true;
 
    // Enable features required for ray tracing using feature chaining via pNext		
-   _enabledBufferDeviceAddresFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
-   _enabledBufferDeviceAddresFeatures.bufferDeviceAddress = VK_TRUE;
+   _enabledBufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+   _enabledBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
 
    _enabledRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
    _enabledRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
-   _enabledRayTracingPipelineFeatures.pNext = &_enabledBufferDeviceAddresFeatures;
+   _enabledRayTracingPipelineFeatures.pNext = &_enabledBufferDeviceAddressFeatures;
 
    _enabledAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
    _enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE;

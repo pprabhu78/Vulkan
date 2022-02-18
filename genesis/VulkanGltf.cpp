@@ -484,7 +484,7 @@ namespace genesis
       bakeAttributes(glTfModel, fileLoadingFlags);
 
       VkBufferUsageFlags additionalFlags = 0;
-      if (_rayTracing)
+      //if (_rayTracing)
       {
          additionalFlags = VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT 
             | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR 
