@@ -35,4 +35,9 @@ namespace genesis
    {
       return _instances;
    }
+
+   const std::unordered_map<uint32_t, std::unordered_set<uint32_t> >& InstanceContainer::mapModelIdsToInstances(void) const
+   {
+      return _mapModelIdToInstanceIds;
+   }
 }

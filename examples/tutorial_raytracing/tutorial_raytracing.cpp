@@ -264,17 +264,12 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
 #if 1
    gltfModel2 = getAssetsPath() + "../../glTF-Sample-Models/2.0//WaterBottle//glTF/WaterBottle.gltf";
 
-   glm::mat4 mat2;
-   mat2 = glm::translate(mat2, glm::vec3(-2, -1.0f, 0.0f));
-   _cellManager->addInstance(gltfModel2, mat2);
-
-   glm::mat4 mat3;
-   mat3 = glm::translate(mat3, glm::vec3(-3, -2.0f, 0.0f));
-
-   _cellManager->addInstance(gltfModel2, mat3);
+   _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-2, -1.0f, 0.0f)));
+   _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-3, -2.0f, 0.0f)));
 #endif
 
    _cellManager->buildTlases();
+   _cellManager->buildDrawBuffers();
    _cellManager->buildLayouts();
 }
 

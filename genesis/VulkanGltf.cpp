@@ -545,4 +545,46 @@ namespace genesis
    {
       return _materials;
    }
+
+   int VulkanGltfModel::numPrimitives(void) const
+   {
+      int count = 0;
+      forEachPrimitive(
+         [&](const Primitive& primitive)
+         {
+            ++count;
+         }
+      );
+      return count;
+   }
+
+   void VulkanGltfModel::forEachPrimitive(const std::function<void(const Primitive&)>& func) const
+   {
+      std::deque<const Node*> nodesToProcess;
+      for (const Node* node : linearNodes())
+      {
+         nodesToProcess.push_back(node);
+      }
+
+      while (!nodesToProcess.empty())
+      {
+         const Node* node = nodesToProcess.front(); nodesToProcess.pop_front();
+
+         if (node->_mesh)
+         {
+            for (const Primitive& primitive : node->_mesh->primitives)
+            {
+               if (primitive.indexCount > 0)
+               {
+                  func(primitive);
+               }
+            }
+         }
+
+         for (const Node* child : node->_children)
+         {
+            nodesToProcess.push_back(child);
+         }
+      }
+   }
 }

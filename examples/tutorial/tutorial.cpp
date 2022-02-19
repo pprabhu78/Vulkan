@@ -13,6 +13,8 @@
 #include "RenderPass.h"
 #include "PhysicalDevice.h"
 #include "IndirectLayout.h"
+#include "Cell.h"
+#include "CellManager.h"
 
 #include "VulkanInitializers.h"
 #include "VulkanGltf.h"
@@ -113,9 +115,8 @@ Tutorial::~Tutorial()
 
    vkDestroyPipelineLayout(_device->vulkanDevice(), _pipelineLayout, nullptr);
 
-   delete _indirectLayout;
+   delete _cellManager;
 
-   delete _gltfModel;
    delete _sceneUbo;
 
    delete _gltfSkyboxModel;
@@ -178,8 +179,8 @@ void Tutorial::buildCommandBuffers()
       {
          vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxPipelineWireframe);
       }
-      _indirectLayout->draw(drawCmdBuffers[i], _pipelineLayout, _gltfModel);
-
+#pragma message("PPP: TO DO: skybox")
+      //_indirectLayout->draw(drawCmdBuffers[i], _pipelineLayout, _gltfModel);
 
       // draw the model
       if (!_wireframe)
@@ -190,10 +191,9 @@ void Tutorial::buildCommandBuffers()
       {
          vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineWireframe);
       }
+
+      _cellManager->cell(0)->draw(drawCmdBuffers[i], _pipelineLayout);
       
-      _indirectLayout->draw(drawCmdBuffers[i], _pipelineLayout, _gltfModel);
-
-
       // draw the UI
       drawUI(drawCmdBuffers[i]);
 
@@ -260,7 +260,7 @@ void Tutorial::setupDescriptorSetLayout(void)
    VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set0LayoutInfo, nullptr, &_setLayout0));
 
-   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _setLayout0, _indirectLayout->vulkanDescriptorSetLayout() };
+   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _setLayout0, _cellManager->cell(0)->layout()->vulkanDescriptorSetLayout() };
 
    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::VulkanInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
 
@@ -432,20 +432,39 @@ void Tutorial::viewChanged()
 
 void Tutorial::loadAssets(void)
 {
-   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
+   std::string gltfModel;
+   std::string gltfModel2;
 
-   _gltfModel = new genesis::VulkanGltfModel(_device, false);
-#if defined SPONZA
-   _gltfModel->loadFromFile(getAssetsPath() + "models/sponza/sponza.gltf", glTFLoadingFlags);
+#if (defined SPONZA)
+   gltfModel = getAssetsPath() + "models/sponza/sponza.gltf";
 #endif
 
 #if defined VENUS
-   _gltfModel->loadFromFile(getAssetsPath() + "models/venus.gltf", glTFLoadingFlags);
+   gltfModel = getAssetsPath() + "models/venus.gltf";
+#endif
+
+#if defined CORNELL
+   gltfModel = getAssetsPath() + "models/cornellBox.gltf";
 #endif
 
 #if defined SPHERE
-   _gltfModel->loadFromFile(getAssetsPath() + "models/sphere.gltf", glTFLoadingFlags);
+   gltfModel = getAssetsPath() + "models/sphere.gltf";
 #endif
+
+   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
+   _cellManager = new genesis::CellManager(_device, glTFLoadingFlags);
+
+   _cellManager->addInstance(gltfModel, mat4());
+
+#if 1
+   gltfModel2 = getAssetsPath() + "../../glTF-Sample-Models/2.0//WaterBottle//glTF/WaterBottle.gltf";
+
+   _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-2, -1.0f, 0.0f)));
+   _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-3, -2.0f, 0.0f)));
+#endif
+
+   _cellManager->buildDrawBuffers();
+   _cellManager->buildLayouts();
 
    _gltfSkyboxModel = new genesis::VulkanGltfModel(_device, false);
    _gltfSkyboxModel->loadFromFile(getAssetsPath() + "models/cube.gltf", glTFLoadingFlags);
@@ -462,9 +481,12 @@ void Tutorial::loadAssets(void)
 #endif
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
 
+#pragma message("PPP: TO DO: skybox")
+#if 0
    _indirectLayout = new genesis::IndirectLayout(_device);
    _indirectLayout->build({ _gltfModel });
    _indirectLayout->buildDrawBuffers({ _gltfModel });
+#endif
 }
 
 void Tutorial::prepare()

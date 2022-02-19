@@ -75,7 +75,7 @@ layout(set = 1, binding = 0, scalar) buffer ModelBuffer
    Model _models[]; 
 } models;
 
-layout(set = 1, binding = 1) uniform sampler2D samplers[];
+layout(set = 1, binding = 2) uniform sampler2D samplers[];
 
 struct HitPayload
 {

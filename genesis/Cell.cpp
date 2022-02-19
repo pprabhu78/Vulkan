@@ -56,8 +56,11 @@ namespace genesis
 
    void Cell::buildLayout()
    {
-      _indirectLayout = new IndirectLayout(_device);
-
+      if (!_indirectLayout)
+      {
+         _indirectLayout = new IndirectLayout(_device);
+      }
+      
       std::vector<const VulkanGltfModel*> models;
       
       // Models have been registered in order with a running model id that's incremented
@@ -74,5 +77,19 @@ namespace genesis
    const IndirectLayout* Cell::layout(void) const
    {
       return _indirectLayout;
+   }
+
+   void Cell::buildDrawBuffer(void)
+   {  
+      if (!_indirectLayout)
+      {
+         _indirectLayout = new IndirectLayout(_device);
+      }
+      _indirectLayout->buildDrawBuffer(_modelRegistry, _instanceContainer);
+   }
+
+   void Cell::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const
+   {
+      _indirectLayout->draw(commandBuffer, pipelineLayout);
    }
 }

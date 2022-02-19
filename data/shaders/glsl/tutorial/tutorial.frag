@@ -1,7 +1,5 @@
 #version 450
 
-#define INDIRECT 1
-
 #extension GL_EXT_nonuniform_qualifier : require
 #extension GL_GOOGLE_include_directive : enable
 
@@ -15,46 +13,19 @@
 #include "../common/gltfModelDesc.h"
 #include "input_output.h"
 
-#if INDIRECT
-
-struct Model
-{
-   uint64_t textureOffset;
-   uint64_t vertexBufferAddress;
-   uint64_t indexBufferAddress;
-   uint64_t indexIndicesAddress;
-   uint64_t materialAddress;       
-   uint64_t materialIndicesAddress;
-};
-
-layout(buffer_reference, scalar) buffer VertexBuffer { vec4 _vertices[]; };
-layout(buffer_reference, scalar) buffer IndexBuffer { uint _indices[]; };
-layout(buffer_reference, scalar) buffer IndexIndicesBuffer { uint _indexIndices[]; };
-layout(buffer_reference, scalar) buffer MaterialBuffer { Material _materials[]; }; 
-layout(buffer_reference, scalar) buffer MaterialIndicesBuffer { uint _materialIndices[]; };
-
-layout(set = 1, binding = 0, scalar) buffer ModelBuffer 
-{ 
-   Model _models[]; 
-} models;
-
-layout(set = 1, binding = 1) uniform sampler2D samplers[];
-#else
-layout (set = 1, binding = 0) uniform sampler2D samplerColor;
-#endif
-
 layout (location = 0) in vec2 inUV;
 layout (location = 1) in vec3 inColor;
 layout (location = 2) in vec3 inNormalViewSpace;
 layout (location = 3) in vec3 inVertexViewSpace;
 layout (location = 4) flat in uint inDrawIndex;
+layout (location = 5) flat in uint inModelId;
 
 layout (location = 0) out vec4 outFragColor;
 
 void main() 
 {
 #if INDIRECT
-	const Model model = models._models[0];
+	const Model model = models._models[inModelId];
 
 	IndexIndicesBuffer indexIndicesBuffer = IndexIndicesBuffer(model.indexIndicesAddress);
 	MaterialBuffer  materialBuffer   = MaterialBuffer(model.materialAddress);

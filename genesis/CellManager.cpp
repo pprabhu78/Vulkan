@@ -63,4 +63,20 @@ namespace genesis
       }
       return _cells[cellIndex];
    }
+
+   void CellManager::buildDrawBuffers(void)
+   {
+      for (Cell* cell : _cells)
+      {
+         cell->buildDrawBuffer();
+      }
+   }
+   
+   void CellManager::draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const
+   {
+      for (Cell* cell : _cells)
+      {
+         cell->draw(commandBuffer, pipelineLayout);
+      }
+   }
 }

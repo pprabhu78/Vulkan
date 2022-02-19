@@ -44,6 +44,9 @@ namespace genesis
 
       virtual void buildLayout(void);
       virtual const IndirectLayout* layout(void) const;
+
+      virtual void buildDrawBuffer(void);
+      virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
    protected:
       Device* _device;
 
@@ -51,8 +54,8 @@ namespace genesis
 
       Tlas* _tlas = nullptr;
 
-      const ModelRegistry* _modelRegistry;
+      const ModelRegistry* _modelRegistry = nullptr;
 
-      IndirectLayout* _indirectLayout;
+      IndirectLayout* _indirectLayout = nullptr;
    };
 }

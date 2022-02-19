@@ -28,6 +28,9 @@ namespace genesis
       virtual void buildLayouts(void);
 
       virtual const Cell* cell(int cellIndex) const;
+
+      virtual void buildDrawBuffers(void);
+      virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
    protected:
       Device* _device;
       std::vector<Cell*> _cells;

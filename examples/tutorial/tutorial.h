@@ -13,6 +13,7 @@ namespace genesis
    class Texture;
    class Shader;
    class IndirectLayout;
+   class CellManager;
 }
 
 class Tutorial : public genesis::VulkanExampleBase
@@ -56,7 +57,7 @@ protected:
    VkDescriptorSetLayout _setLayout0;
    VkDescriptorSet _descriptorSet0;
 
-   genesis::VulkanGltfModel* _gltfModel = nullptr;   
+   genesis::CellManager* _cellManager = nullptr;
 
    genesis::VulkanGltfModel* _gltfSkyboxModel = nullptr;
    genesis::Image* _skyCubeMapImage = nullptr;
@@ -74,5 +75,7 @@ protected:
 
    PushConstants _pushConstants;
 
-   genesis::IndirectLayout* _indirectLayout = nullptr;
+#if 1
+   genesis::IndirectLayout* _skyBoxLayout = nullptr;
+#endif
 };

@@ -16,9 +16,11 @@ namespace genesis
    class Instance
    {
    public:
+      glm::mat4 _xform;
       int _instanceId;
       int _modelId;
-      glm::mat4 _xform;
+      int pad0;
+      int pad1;
    };
 
    class InstanceContainer
@@ -30,6 +32,8 @@ namespace genesis
       virtual uint32_t addInstance(int modelId, const glm::mat4& xform);
 
       virtual const std::vector<Instance>& instances(void) const;
+
+      virtual const std::unordered_map<uint32_t, std::unordered_set<uint32_t> >& mapModelIdsToInstances(void) const;
    protected:
       Device* _device;
       std::atomic<uint32_t> _nextInstanceId;

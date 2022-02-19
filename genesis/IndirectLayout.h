@@ -5,12 +5,16 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <tuple>
+
+#include "InstanceContainer.h"
 
 namespace genesis
 {
    class Device;
    class VulkanGltfModel;
    class Buffer;
+   class ModelRegistry;
 
    struct Node;
    struct Primitive;
@@ -25,8 +29,8 @@ namespace genesis
       virtual const std::vector<VkDescriptorSet>& descriptorSets(void) const;
       virtual VkDescriptorSetLayout vulkanDescriptorSetLayout(void) const;
       
-      virtual void buildDrawBuffers(const std::vector<const VulkanGltfModel*>& models);
-      virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout, const VulkanGltfModel* model) const;
+      virtual void buildDrawBuffer(const ModelRegistry* modelRegistry, const InstanceContainer* instanceContainer);
+      virtual void draw(VkCommandBuffer commandBuffer, VkPipelineLayout pipelineLayout) const;
 
    protected:
       virtual void setupDescriptorPool(int totalNumTextures);
@@ -36,10 +40,8 @@ namespace genesis
       virtual void destroyGpuSideBuffers(void);
       virtual void fillIndexAndMaterialIndices(const VulkanGltfModel* model);
 
-      virtual void fillIndirectCommands(const VulkanGltfModel* model);
+      virtual void fillIndirectCommands(const VulkanGltfModel* model, int firstInstance, int instanceCount);
       virtual void createGpuSideDrawBuffers();
-
-      virtual void forEachPrimitive(const VulkanGltfModel* model, const std::function<void(const Primitive&)>& func);
    protected:
       Device* _device;
 
@@ -59,12 +61,22 @@ namespace genesis
       //! flattened list of indices into the index buffer
       std::vector<Buffer*> _buffersCreatedHere;
 
-      //! same buffer as above, but on the Gpu
-      Buffer* _indirectBufferGpu;
-
       //! indirect command buffer
       std::vector<VkDrawIndexedIndirectCommand> _indirectCommands;
+      //! same buffer as above, but on the Gpu
+      Buffer* _indirectBufferGpu = nullptr;
 
+      //! instances
+      std::vector<Instance> _flattenedInstances;
+      //! same as above, but on the gpu
+      Buffer* _flattenedInstancesGpu = nullptr;;
+
+      //! flattened list of models
+      std::vector<const VulkanGltfModel*> _flattenedModels;
       Buffer* _modelsGpu = nullptr;
+
+      //! for each model, offset into the _indirectBufferGpu (in bytes) where that model starts
+      //! And the size (equal to the num of primitives in the model)
+      std::vector< std::tuple<int, int> > _modelDrawOffsetAndSize;      
    };
 }

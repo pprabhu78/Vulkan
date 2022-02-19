@@ -2,6 +2,7 @@
 
 #include <string>
 #include <vector>
+#include <functional>
 
 #include "GenMath.h"
 
@@ -115,6 +116,9 @@ namespace genesis
       virtual const std::vector<Node*>& linearNodes(void) const;
       virtual const std::vector<Texture*>& textures(void) const;
       virtual const std::vector<Material>& materials(void) const;
+
+      virtual void forEachPrimitive(const std::function<void(const Primitive&)>& func) const;
+      virtual int numPrimitives(void) const;
    protected:
       virtual void loadImages(tinygltf::Model& gltfModel);
       virtual void loadTextures(tinygltf::Model& gltfModel);
