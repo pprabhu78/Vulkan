@@ -1,17 +1,22 @@
+/*
+* Vulkan Example - Basic hardware accelerated ray tracing example
+*
+* Copyright (C) 2019-2020 by Sascha Willems - www.saschawillems.de
+*
+* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+*/
 
-#include <vulkan/vulkan.h>
+#include "tutorial.h"
 
-#include <windows.h>
-#include <processenv.h>
 
-#include "Image.h"
+#include "Device.h"
+#include "PhysicalDevice.h"
 #include "Texture.h"
 #include "Buffer.h"
-#include "Device.h"
-#include "tutorial.h"
 #include "Shader.h"
+#include "Image.h"
 #include "RenderPass.h"
-#include "PhysicalDevice.h"
+
 #include "IndirectLayout.h"
 #include "Cell.h"
 #include "CellManager.h"
@@ -215,16 +220,6 @@ void Tutorial::buildCommandBuffers()
 
 }
 
-void Tutorial::draw()
-{
-   VulkanExampleBase::prepareFrame();
-
-   submitInfo.commandBufferCount = 1;
-   submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
-   VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
-   VulkanExampleBase::submitFrame();
-}
-
 void Tutorial::updateSceneUbo(void)
 {
    SceneUbo ubo;
@@ -424,6 +419,18 @@ void Tutorial::preparePipelines()
    debugmarker::setName(_device->vulkanDevice(), _skyBoxPipelineWireframe, "_skyBoxPipelineWireframe");
 }
    
+
+
+void Tutorial::draw()
+{
+   VulkanExampleBase::prepareFrame();
+
+   submitInfo.commandBufferCount = 1;
+   submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
+   VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
+   VulkanExampleBase::submitFrame();
+}
+
 
 void Tutorial::render()
 {
