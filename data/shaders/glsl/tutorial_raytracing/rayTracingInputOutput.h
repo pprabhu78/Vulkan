@@ -21,11 +21,7 @@ layout(set = 0, binding = 3) uniform SceneUboBuffer
 {
    SceneUbo sceneUbo;
 };
-#endif
 
-#if CPU_SIDE_COMPILATION
-
-#else
 layout(set = 0, binding = 4) uniform samplerCube environmentMap;
 
 layout(push_constant) uniform _PushConstants { PushConstants pushConstants; };

@@ -34,6 +34,13 @@ using namespace genesis::tools;
 
 Tutorial::Tutorial()
 {
+   _pushConstants.clearColor = glm::vec4(0, 0, 0, 0);
+   _pushConstants.environmentMapCoordTransform = glm::vec4(1, 1, 1, 1);
+
+   _pushConstants.frameIndex = 0;
+   _pushConstants.textureLodBias = 0;
+   _pushConstants.reflectivity = 0;
+
    title = "genesis: tutorial";
 #if (defined VENUS)
    camera.type = Camera::CameraType::lookat;
