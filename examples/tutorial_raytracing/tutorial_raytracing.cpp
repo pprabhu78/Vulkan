@@ -209,30 +209,7 @@ void TutorialRayTracing::createStorageImages()
    _device->flushCommandBuffer(commandBuffer);
 }
 
-/*
-Create the bottom level acceleration structure contains the scene's actual geometry (vertices, triangles)
-*/
-void TutorialRayTracing::createBottomLevelAccelerationStructure()
-{
-   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
-
-   _skyCubeMapImage = new genesis::Image(_device);
-#if (defined SKYBOX_YOKOHOMA)
-   _pushConstants.environmentMapCoordTransform.x = -1;
-   _pushConstants.environmentMapCoordTransform.y = -1;
-   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/cubemap_yokohama_rgba.ktx");
-#endif
-
-#if (defined SKYBOX_PISA)
-   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
-#endif
-   _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
-}
-
-/*
-The top level acceleration structure contains the scene's object instances
-*/
-void TutorialRayTracing::createTopLevelAccelerationStructure()
+void TutorialRayTracing::createScene()
 {
    std::string gltfModel;
    std::string gltfModel2;
@@ -268,6 +245,19 @@ void TutorialRayTracing::createTopLevelAccelerationStructure()
    _cellManager->buildTlases();
    _cellManager->buildDrawBuffers();
    _cellManager->buildLayouts();
+
+
+   _skyCubeMapImage = new genesis::Image(_device);
+#if (defined SKYBOX_YOKOHOMA)
+   _pushConstants.environmentMapCoordTransform.x = -1;
+   _pushConstants.environmentMapCoordTransform.y = -1;
+   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/cubemap_yokohama_rgba.ktx");
+#endif
+
+#if (defined SKYBOX_PISA)
+   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
+#endif
+   _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
 }
 
 /*
@@ -286,9 +276,6 @@ SBT Layout used in this sample:
 Create the descriptor sets used for the ray tracing dispatch
 */
 
-void TutorialRayTracing::createShaderBindingTable() {
-   _shaderBindingTable->build(_rayTracingPipeline);
-}
 void TutorialRayTracing::createDescriptorSets()
 {
    std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -370,6 +357,8 @@ void TutorialRayTracing::createRayTracingPipeline()
    rayTracingPipelineCreateInfo.maxPipelineRayRecursionDepth = 1;
    rayTracingPipelineCreateInfo.layout = _rayTracingPipelineLayout;
    VK_CHECK_RESULT(genesis::vkCreateRayTracingPipelinesKHR(_device->vulkanDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rayTracingPipelineCreateInfo, nullptr, &_rayTracingPipeline));
+
+   _shaderBindingTable->build(_rayTracingPipeline);
 }
 
 /*
@@ -380,12 +369,14 @@ void TutorialRayTracing::updateSceneUbo()
 {
    SceneUbo ubo;
    ubo.viewMatrix = camera.matrices.view;
-   ubo.viewInverse = glm::inverse(camera.matrices.view);
-   ubo.projInverse = glm::inverse(camera.matrices.perspective);
+   ubo.viewMatrixInverse = glm::inverse(camera.matrices.view);
+
+   ubo.projectionMatrix = camera.matrices.perspective;
+   ubo.projectionMatrixInverse = glm::inverse(camera.matrices.perspective);
+
    ubo.vertexSizeInBytes = sizeof(genesis::Vertex);
 
    uint8_t* data = (uint8_t*)_sceneUbo->stagingBuffer();
-   int size = sizeof(SceneUbo);
    memcpy(data, &ubo, sizeof(SceneUbo));
    _sceneUbo->syncToGpu(false);
 }
@@ -521,15 +512,10 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
 void TutorialRayTracing::prepare()
 {
    VulkanExampleBase::prepare();
-
-   // Create the acceleration structures used to render the ray traced scene
-   createBottomLevelAccelerationStructure();
-   createTopLevelAccelerationStructure();
-
+   createScene();
    createStorageImages();
    createSceneUbo();
    createRayTracingPipeline();
-   createShaderBindingTable();
    createDescriptorSets();
    prepared = true;
 }
@@ -553,24 +539,12 @@ void TutorialRayTracing::render()
       return;
    }
    draw();
-
-   if (camera.updated)
-   {
-      _pushConstants.frameIndex = -1;
-      updateSceneUbo();
-   }
 }
 
-void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
+void TutorialRayTracing::viewChanged()
 {
-   if (overlay->header("Settings")) {
-      if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f)) \
-      {
-         _pushConstants.frameIndex = -1;
-      }
-      if (overlay->sliderFloat("reflectivity", &_pushConstants.reflectivity, 0, 1)) {
-      }
-   }
+   _pushConstants.frameIndex = -1;
+   updateSceneUbo();
 }
 
 void TutorialRayTracing::setupRenderPass()
@@ -595,4 +569,16 @@ void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer 
    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
    VulkanExampleBase::drawUI(commandBuffer);
    vkCmdEndRenderPass(commandBuffer);
+}
+
+void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
+{
+   if (overlay->header("Settings")) {
+      if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f)) \
+      {
+         _pushConstants.frameIndex = -1;
+      }
+      if (overlay->sliderFloat("reflectivity", &_pushConstants.reflectivity, 0, 1)) {
+      }
+   }
 }

@@ -218,12 +218,6 @@ void Tutorial::draw()
    VulkanExampleBase::submitFrame();
 }
 
-void Tutorial::prepareSceneUbo()
-{
-   _sceneUbo = new genesis::Buffer(_device, genesis::BT_UBO, sizeof(SceneUbo), true);
-   updateSceneUbo();
-}
-
 void Tutorial::updateSceneUbo(void)
 {
    SceneUbo ubo;
@@ -236,6 +230,12 @@ void Tutorial::updateSceneUbo(void)
    uint8_t* data = (uint8_t*)_sceneUbo->stagingBuffer();
    memcpy(data, &ubo, sizeof(SceneUbo));
    _sceneUbo->syncToGpu(false);
+}
+
+void Tutorial::createSceneUbo()
+{
+   _sceneUbo = new genesis::Buffer(_device, genesis::BT_UBO, sizeof(SceneUbo), true);
+   updateSceneUbo();
 }
 
 void Tutorial::setupDescriptorPool()
@@ -431,7 +431,7 @@ void Tutorial::viewChanged()
    updateSceneUbo();
 }
 
-void Tutorial::loadAssets(void)
+void Tutorial::createScene(void)
 {
    std::string gltfModel;
    std::string gltfModel2;
@@ -493,9 +493,8 @@ void Tutorial::loadAssets(void)
 void Tutorial::prepare()
 {
    VulkanExampleBase::prepare();
-   loadAssets();
-
-   prepareSceneUbo();
+   createScene();
+   createSceneUbo();
    setupDescriptorSetLayout();
    setupDescriptorPool();
    updateDescriptorSet();

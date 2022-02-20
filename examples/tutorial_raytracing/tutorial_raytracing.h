@@ -40,9 +40,7 @@ public:
    virtual void deleteStorageImages(void);
    virtual void createStorageImages(void);
    virtual void writeStorageImageDescriptors(void);
-   virtual void createBottomLevelAccelerationStructure();
-   virtual void createTopLevelAccelerationStructure();
-   virtual void createShaderBindingTable();
+   virtual void createScene();
    virtual void createDescriptorSets();
    virtual void createRayTracingPipeline();
    virtual void createSceneUbo();
@@ -52,7 +50,8 @@ public:
    virtual void enableFeatures() override;
    virtual void prepare();
    virtual void draw();
-   virtual void render();
+   virtual void render() override;
+   virtual void viewChanged() override;
    virtual void saveScreenShot(void);
    virtual void resetCamera(void);
    virtual void OnUpdateUIOverlay(genesis::UIOverlay* overlay) override;

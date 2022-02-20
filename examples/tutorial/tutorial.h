@@ -33,7 +33,7 @@ public:
 
 public:
    virtual void draw();
-   virtual void prepareSceneUbo();
+   virtual void createSceneUbo();
    virtual void updateSceneUbo(void);
    
    virtual void setupDescriptorPool();
@@ -41,7 +41,7 @@ public:
    virtual void updateDescriptorSet(void);
    virtual void preparePipelines();
 
-   virtual void loadAssets(void);
+   virtual void createScene(void);
 
 protected:
 

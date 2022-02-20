@@ -20,9 +20,9 @@ void main()
 	const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeEXT.xy);
 	vec2 d = inUV * 2.0 - 1.0;
 
-	vec4 rayOrigin = sceneUbo.viewInverse * vec4(0,0,0,1);
-	vec4 target = sceneUbo.projInverse * vec4(d.x, d.y, 1, 1) ;
-	vec4 rayDirection = sceneUbo.viewInverse*vec4(normalize(target.xyz), 0) ;
+	vec4 rayOrigin = sceneUbo.viewMatrixInverse * vec4(0,0,0,1);
+	vec4 target = sceneUbo.projectionMatrixInverse * vec4(d.x, d.y, 1, 1) ;
+	vec4 rayDirection = sceneUbo.viewMatrixInverse*vec4(normalize(target.xyz), 0) ;
 
 	float tmin = 0.001;
 	float tmax = 10000.0;

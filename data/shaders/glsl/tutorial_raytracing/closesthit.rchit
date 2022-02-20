@@ -108,7 +108,7 @@ void main()
 	{
 		vec3 incidentVector = normalize(vertexViewSpace);
 		vec3 reflectedVector = reflect(incidentVector, normalViewSpace);
-		vec3 reflectedVectorWorldSpace = normalize(vec3(sceneUbo.viewInverse * vec4(reflectedVector, 0)));
+		vec3 reflectedVectorWorldSpace = normalize(vec3(sceneUbo.viewMatrixInverse * vec4(reflectedVector, 0)));
 
 		// use the lod to sample an lod to simulate roughness
 		float maxLod = floor(log2(textureSize(environmentMap, 0))).x;

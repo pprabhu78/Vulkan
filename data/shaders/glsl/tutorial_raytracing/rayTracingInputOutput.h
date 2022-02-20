@@ -37,8 +37,11 @@ layout(set = 0, binding = 3) uniform UBO
 {
 #endif
    mat4 viewMatrix;
-   mat4 viewInverse;
-   mat4 projInverse;
+   mat4 projectionMatrix;
+
+   mat4 viewMatrixInverse;
+   mat4 projectionMatrixInverse;
+
    int vertexSizeInBytes;
 #if CPU_SIDE_COMPILATION
 };
