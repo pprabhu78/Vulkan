@@ -23,6 +23,7 @@
 #include "VulkanDebug.h"
 #include "Texture.h"
 #include "VulkanFunctions.h"
+#include "ShaderBindingTable.h"
 
 #include "Cell.h"
 #include "CellManager.h"
@@ -115,6 +116,7 @@ TutorialRayTracing::TutorialRayTracing()
 
 void TutorialRayTracing::enableFeatures()
 {
+   // This is required for 64 bit math
    _physicalDevice->enabledPhysicalDeviceFeatures().shaderInt64 = true;
 
    // Enable features required for ray tracing using feature chaining via pNext		
@@ -152,12 +154,10 @@ TutorialRayTracing::~TutorialRayTracing()
 
    deleteStorageImages();
 
+   delete _shaderBindingTable;
+
    delete _cellManager;
-   
-   delete _raygenShaderBindingTable;
-   delete _missShaderBindingTable;
-   delete _hitShaderBindingTable;
-   
+
    delete _sceneUbo;
 
    delete _skyCubeMapTexture;
@@ -216,8 +216,6 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
 {
    const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
 
-
-
    _skyCubeMapImage = new genesis::Image(_device);
 #if (defined SKYBOX_YOKOHOMA)
    _pushConstants.environmentMapCoordTransform.x = -1;
@@ -229,7 +227,6 @@ void TutorialRayTracing::createBottomLevelAccelerationStructure()
    _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
 #endif
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
-
 }
 
 /*
@@ -285,50 +282,13 @@ SBT Layout used in this sample:
 |-----------|
 | hit       |
 \-----------/
-
-*/
-void TutorialRayTracing::createShaderBindingTable() {
-   const uint32_t handleSize = _rayTracingPipelineProperties.shaderGroupHandleSize;
-   const uint32_t handleSizeAligned = genesis::tools::alignedSize(_rayTracingPipelineProperties.shaderGroupHandleSize, _rayTracingPipelineProperties.shaderGroupHandleAlignment);
-   const uint32_t groupCount = static_cast<uint32_t>(shaderGroups.size());
-   const uint32_t sbtSize = groupCount * handleSizeAligned;
-
-   std::vector<uint8_t> shaderHandleStorage(sbtSize);
-   VK_CHECK_RESULT(genesis::vkGetRayTracingShaderGroupHandlesKHR(_device->vulkanDevice(), _rayTracingPipeline, 0, groupCount, sbtSize, shaderHandleStorage.data()));
-
-   const VkBufferUsageFlags bufferUsageFlags = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-   const VkMemoryPropertyFlags memoryUsageFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-
-   _raygenShaderBindingTable = new genesis::VulkanBuffer(_device, bufferUsageFlags, memoryUsageFlags, handleSize);
-   _missShaderBindingTable = new genesis::VulkanBuffer(_device, bufferUsageFlags, memoryUsageFlags, handleSize);
-   _hitShaderBindingTable = new genesis::VulkanBuffer(_device, bufferUsageFlags, memoryUsageFlags, handleSize);
-
-   // Copy handles
-   _raygenShaderBindingTable->map();
-   _missShaderBindingTable->map();
-   _hitShaderBindingTable->map();
-   memcpy(_raygenShaderBindingTable->_mapped, shaderHandleStorage.data(), handleSize);
-   memcpy(_missShaderBindingTable->_mapped, shaderHandleStorage.data() + handleSizeAligned, handleSize);
-   memcpy(_hitShaderBindingTable->_mapped, shaderHandleStorage.data() + handleSizeAligned * 2, handleSize);
-
-   _raygenShaderSbtEntry.deviceAddress = _raygenShaderBindingTable->deviceAddress();
-   _raygenShaderSbtEntry.stride = handleSizeAligned;
-   _raygenShaderSbtEntry.size = handleSizeAligned;
-
-   _missShaderSbtEntry.deviceAddress = _missShaderBindingTable->deviceAddress();
-   _missShaderSbtEntry.stride = handleSizeAligned;
-   _missShaderSbtEntry.size = handleSizeAligned;
-
-   _hitShaderSbtEntry.deviceAddress = _hitShaderBindingTable->deviceAddress();
-   _hitShaderSbtEntry.stride = handleSizeAligned;
-   _hitShaderSbtEntry.size = handleSizeAligned;
-
-   VkStridedDeviceAddressRegionKHR callableShaderSbtEntry{};
-}
-
 /*
 Create the descriptor sets used for the ray tracing dispatch
 */
+
+void TutorialRayTracing::createShaderBindingTable() {
+   _shaderBindingTable->build(_rayTracingPipeline);
+}
 void TutorialRayTracing::createDescriptorSets()
 {
    std::vector<VkDescriptorPoolSize> poolSizes = {
@@ -393,67 +353,23 @@ void TutorialRayTracing::createRayTracingPipeline()
 
    VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_rayTracingPipelineLayout));
 
-   /*
-   Setup ray tracing shader groups
-   */
-   std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
-
-   // Ray generation group
-   {
-      Shader* shader = loadShader(getShadersPath() + "tutorial_raytracing/raygen.rgen.spv", genesis::ST_RT_RAYGEN);
-      shaderStages.push_back(shader->pipelineShaderStageCreateInfo());
-      VkRayTracingShaderGroupCreateInfoKHR shaderGroup{};
-      shaderGroup.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
-      shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-      shaderGroup.generalShader = static_cast<uint32_t>(shaderStages.size()) - 1;
-      shaderGroup.closestHitShader = VK_SHADER_UNUSED_KHR;
-      shaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
-      shaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
-      shaderGroups.push_back(shaderGroup);
-   }
-
-   // Miss group
-   {
-      Shader* shader = loadShader(getShadersPath() + "tutorial_raytracing/miss.rmiss.spv", genesis::ST_RT_MISS);
-      shaderStages.push_back(shader->pipelineShaderStageCreateInfo());
-
-      VkRayTracingShaderGroupCreateInfoKHR shaderGroup{};
-      shaderGroup.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
-      shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
-      shaderGroup.generalShader = static_cast<uint32_t>(shaderStages.size()) - 1;
-      shaderGroup.closestHitShader = VK_SHADER_UNUSED_KHR;
-      shaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
-      shaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
-      shaderGroups.push_back(shaderGroup);
-   }
-
-   // Closest hit group
-   {
-      Shader* shader = loadShader(getShadersPath() + "tutorial_raytracing/closesthit.rchit.spv", genesis::ST_RT_CLOSEST_HIT);
-      shaderStages.push_back(shader->pipelineShaderStageCreateInfo());
-
-      VkRayTracingShaderGroupCreateInfoKHR shaderGroup{};
-      shaderGroup.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
-      shaderGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_TRIANGLES_HIT_GROUP_KHR;
-      shaderGroup.generalShader = VK_SHADER_UNUSED_KHR;
-      shaderGroup.closestHitShader = static_cast<uint32_t>(shaderStages.size()) - 1;
-      shaderGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
-      shaderGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
-      shaderGroups.push_back(shaderGroup);
-   }
+   _shaderBindingTable = new genesis::ShaderBindingTable(_device);
+   _shaderBindingTable->addShader(getShadersPath() + "tutorial_raytracing/raygen.rgen.spv", genesis::ST_RT_RAYGEN);
+   _shaderBindingTable->addShader(getShadersPath() + "tutorial_raytracing/miss.rmiss.spv", genesis::ST_RT_MISS);
+   _shaderBindingTable->addShader(getShadersPath() + "tutorial_raytracing/closesthit.rchit.spv", genesis::ST_RT_CLOSEST_HIT);
 
    /*
    Create the ray tracing pipeline
    */
-   VkRayTracingPipelineCreateInfoKHR rayTracingPipelineCI{};
-   rayTracingPipelineCI.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
-   rayTracingPipelineCI.stageCount = static_cast<uint32_t>(shaderStages.size());
-   rayTracingPipelineCI.pStages = shaderStages.data();
-   rayTracingPipelineCI.groupCount = static_cast<uint32_t>(shaderGroups.size());
-   rayTracingPipelineCI.pGroups = shaderGroups.data();
-   rayTracingPipelineCI.maxPipelineRayRecursionDepth = 1;
-   rayTracingPipelineCI.layout = _rayTracingPipelineLayout;
-   VK_CHECK_RESULT(genesis::vkCreateRayTracingPipelinesKHR(_device->vulkanDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rayTracingPipelineCI, nullptr, &_rayTracingPipeline));
+   VkRayTracingPipelineCreateInfoKHR rayTracingPipelineCreateInfo{};
+   rayTracingPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
+   rayTracingPipelineCreateInfo.stageCount = static_cast<uint32_t>(_shaderBindingTable->shaderStages().size());
+   rayTracingPipelineCreateInfo.pStages = _shaderBindingTable->shaderStages().data();
+   rayTracingPipelineCreateInfo.groupCount = static_cast<uint32_t>(_shaderBindingTable->shaderGroups().size());
+   rayTracingPipelineCreateInfo.pGroups = _shaderBindingTable->shaderGroups().data();
+   rayTracingPipelineCreateInfo.maxPipelineRayRecursionDepth = 1;
+   rayTracingPipelineCreateInfo.layout = _rayTracingPipelineLayout;
+   VK_CHECK_RESULT(genesis::vkCreateRayTracingPipelinesKHR(_device->vulkanDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rayTracingPipelineCreateInfo, nullptr, &_rayTracingPipeline));
 }
 
 /*
@@ -566,14 +482,14 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
       &_pushConstants);
 
    genesis::vkCmdTraceRaysKHR(
-      drawCmdBuffers[commandBufferIndex],
-      &_raygenShaderSbtEntry,
-      &_missShaderSbtEntry,
-      &_hitShaderSbtEntry,
-      &_callableShaderSbtEntry,
-      width,
-      height,
-      1);
+      drawCmdBuffers[commandBufferIndex]
+      , &_shaderBindingTable->raygenEntry()
+      , &_shaderBindingTable->missEntry()
+      , &_shaderBindingTable->hitEntry()
+      , &_shaderBindingTable->callableEntry()
+      , width
+      , height
+      , 1);
 
    genesis::ImageTransitions transitions;
    // Prepare current swap chain image as transfer destination
@@ -605,20 +521,6 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
 void TutorialRayTracing::prepare()
 {
    VulkanExampleBase::prepare();
-
-   // Get ray tracing pipeline properties, which will be used later on in the sample
-   _rayTracingPipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
-   VkPhysicalDeviceProperties2 deviceProperties2{};
-   deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-   deviceProperties2.pNext = &_rayTracingPipelineProperties;
-   vkGetPhysicalDeviceProperties2(_physicalDevice->vulkanPhysicalDevice(), &deviceProperties2);
-
-   // Get acceleration structure properties, which will be used later on in the sample
-   _accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
-   VkPhysicalDeviceFeatures2 deviceFeatures2{};
-   deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-   deviceFeatures2.pNext = &_accelerationStructureFeatures;
-   vkGetPhysicalDeviceFeatures2(_physicalDevice->vulkanPhysicalDevice(), &deviceFeatures2);
 
    // Create the acceleration structures used to render the ray traced scene
    createBottomLevelAccelerationStructure();

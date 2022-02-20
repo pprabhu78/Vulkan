@@ -23,6 +23,7 @@ namespace genesis
    class Tlas;
    class IndirectLayout;
    class CellManager;
+   class ShaderBindingTable;
 }
 
 class TutorialRayTracing : public genesis::VulkanExampleBase
@@ -60,8 +61,6 @@ public:
    virtual void drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer);
 
 public:
-   VkPhysicalDeviceRayTracingPipelinePropertiesKHR  _rayTracingPipelineProperties{};
-   VkPhysicalDeviceAccelerationStructureFeaturesKHR _accelerationStructureFeatures{};
 
    VkPhysicalDeviceBufferDeviceAddressFeatures _enabledBufferDeviceAddressFeatures{};
    VkPhysicalDeviceRayTracingPipelineFeaturesKHR _enabledRayTracingPipelineFeatures{};
@@ -74,15 +73,6 @@ public:
    genesis::Image* _skyCubeMapImage = nullptr;
    genesis::Texture* _skyCubeMapTexture = nullptr;
 
-   std::vector<VkRayTracingShaderGroupCreateInfoKHR> shaderGroups{};
-   genesis::VulkanBuffer* _raygenShaderBindingTable;
-   genesis::VulkanBuffer* _missShaderBindingTable;
-   genesis::VulkanBuffer* _hitShaderBindingTable;
-
-   VkStridedDeviceAddressRegionKHR _raygenShaderSbtEntry{};
-   VkStridedDeviceAddressRegionKHR _missShaderSbtEntry{};
-   VkStridedDeviceAddressRegionKHR _hitShaderSbtEntry{};
-   VkStridedDeviceAddressRegionKHR _callableShaderSbtEntry{};
 
    genesis::StorageImage* _finalImageToPresent;
    genesis::StorageImage* _intermediateImage;
@@ -97,4 +87,6 @@ public:
    PushConstants _pushConstants;
 
    genesis::CellManager* _cellManager = nullptr;
+
+   genesis::ShaderBindingTable* _shaderBindingTable = nullptr;
 };

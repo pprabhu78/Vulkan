@@ -38,6 +38,20 @@ namespace genesis
             }
          }
       }
+
+      // Get ray tracing pipeline properties, which will be used later on in the sample
+      _rayTracingPipelineProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_PROPERTIES_KHR;
+      VkPhysicalDeviceProperties2 deviceProperties2{};
+      deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+      deviceProperties2.pNext = &_rayTracingPipelineProperties;
+      vkGetPhysicalDeviceProperties2(_physicalDevice, &deviceProperties2);
+
+      // Get acceleration structure properties, which will be used later on in the sample
+      _accelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+      VkPhysicalDeviceFeatures2 deviceFeatures2{};
+      deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+      deviceFeatures2.pNext = &_accelerationStructureFeatures;
+      vkGetPhysicalDeviceFeatures2(_physicalDevice, &deviceFeatures2);
    }
    
    PhysicalDevice::~PhysicalDevice()
@@ -191,5 +205,15 @@ namespace genesis
       }
 
       return false;
+   }
+
+   const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& PhysicalDevice::rayTracingPipelineProperties(void) const
+   {
+      return _rayTracingPipelineProperties;
+   }
+
+   const VkPhysicalDeviceAccelerationStructureFeaturesKHR& PhysicalDevice::rayTracingAccelerationStructureFeatures(void) const
+   {
+      return _accelerationStructureFeatures;
    }
 }

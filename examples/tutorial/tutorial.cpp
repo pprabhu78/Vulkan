@@ -70,9 +70,10 @@ Tutorial::Tutorial()
 
 void Tutorial::enableFeatures()
 {
+   // This is required for 64 bit math
    _physicalDevice->enabledPhysicalDeviceFeatures().shaderInt64 = true;
 
-   // Example uses multi draw indirect if available-
+   // This is required for multi draw indirect
    if (_physicalDevice->physicalDeviceFeatures().multiDrawIndirect) {
       _physicalDevice->enabledPhysicalDeviceFeatures().multiDrawIndirect = VK_TRUE;
    }

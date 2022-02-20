@@ -24,7 +24,6 @@ namespace genesis
       //! All the memory properties supported (initialized in constructor)
       virtual const VkPhysicalDeviceMemoryProperties& physicalDeviceMemoryProperties(void) const;
 
-
       //! All the features enabled (non-const). Used to set
       virtual VkPhysicalDeviceFeatures& enabledPhysicalDeviceFeatures(void);
 
@@ -43,6 +42,12 @@ namespace genesis
       virtual bool extensionSupported(const std::string& extension) const;
 
       virtual bool getSupportedDepthFormat(VkFormat& depthFormat) const;
+
+      //! ray tracing pipeline properties.
+      const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& rayTracingPipelineProperties(void) const;
+
+      //! ray tracing acceleration properties.
+      const VkPhysicalDeviceAccelerationStructureFeaturesKHR& rayTracingAccelerationStructureFeatures(void) const;
       
    protected:
       // Stores physical device properties (for e.g. checking device limits)
@@ -64,6 +69,10 @@ namespace genesis
       std::vector<std::string> _supportedExtensions;
 
       std::vector<VkQueueFamilyProperties> _queueFamilyProperties;
+
+      VkPhysicalDeviceRayTracingPipelinePropertiesKHR  _rayTracingPipelineProperties{};
+
+      VkPhysicalDeviceAccelerationStructureFeaturesKHR _accelerationStructureFeatures{};
    };
 }
 
