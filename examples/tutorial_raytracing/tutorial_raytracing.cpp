@@ -209,57 +209,6 @@ void TutorialRayTracing::createStorageImages()
    _device->flushCommandBuffer(commandBuffer);
 }
 
-void TutorialRayTracing::createScene()
-{
-   std::string gltfModel;
-   std::string gltfModel2;
-
-#if (defined SPONZA)
-   gltfModel = getAssetsPath() + "models/sponza/sponza.gltf";
-#endif
-
-#if defined VENUS
-   gltfModel = getAssetsPath() + "models/venus.gltf";
-#endif
-
-#if defined CORNELL
-   gltfModel = getAssetsPath() + "models/cornellBox.gltf";
-#endif
-
-#if defined SPHERE
-   gltfModel = getAssetsPath() + "models/sphere.gltf";
-#endif
-
-   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
-   _cellManager = new genesis::CellManager(_device, glTFLoadingFlags);
-
-   _cellManager->addInstance(gltfModel, mat4());
-
-#if 1
-   gltfModel2 = getAssetsPath() + "../../glTF-Sample-Models/2.0//WaterBottle//glTF/WaterBottle.gltf";
-
-   _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-2, -1.0f, 0.0f)));
-   _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-3, -2.0f, 0.0f)));
-#endif
-
-   _cellManager->buildTlases();
-   _cellManager->buildDrawBuffers();
-   _cellManager->buildLayouts();
-
-
-   _skyCubeMapImage = new genesis::Image(_device);
-#if (defined SKYBOX_YOKOHOMA)
-   _pushConstants.environmentMapCoordTransform.x = -1;
-   _pushConstants.environmentMapCoordTransform.y = -1;
-   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/cubemap_yokohama_rgba.ktx");
-#endif
-
-#if (defined SKYBOX_PISA)
-   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
-#endif
-   _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
-}
-
 /*
 Create the Shader Binding Tables that binds the programs and top-level acceleration structure
 
@@ -509,17 +458,6 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[commandBufferIndex]));
 }
 
-void TutorialRayTracing::prepare()
-{
-   VulkanExampleBase::prepare();
-   createScene();
-   createStorageImages();
-   createSceneUbo();
-   createRayTracingPipeline();
-   createDescriptorSets();
-   prepared = true;
-}
-
 void TutorialRayTracing::draw()
 {
    VulkanExampleBase::prepareFrame();
@@ -552,6 +490,81 @@ void TutorialRayTracing::setupRenderPass()
    _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
 }
 
+void TutorialRayTracing::createScene()
+{
+   std::string gltfModel;
+   std::string gltfModel2;
+
+#if (defined SPONZA)
+   gltfModel = getAssetsPath() + "models/sponza/sponza.gltf";
+#endif
+
+#if defined VENUS
+   gltfModel = getAssetsPath() + "models/venus.gltf";
+#endif
+
+#if defined CORNELL
+   gltfModel = getAssetsPath() + "models/cornellBox.gltf";
+#endif
+
+#if defined SPHERE
+   gltfModel = getAssetsPath() + "models/sphere.gltf";
+#endif
+
+   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
+   _cellManager = new genesis::CellManager(_device, glTFLoadingFlags);
+
+   _cellManager->addInstance(gltfModel, mat4());
+
+#if 1
+   gltfModel2 = getAssetsPath() + "../../glTF-Sample-Models/2.0//WaterBottle//glTF/WaterBottle.gltf";
+
+   _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-2, -1.0f, 0.0f)));
+   _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-3, -2.0f, 0.0f)));
+#endif
+
+   _cellManager->buildTlases();
+   _cellManager->buildDrawBuffers();
+   _cellManager->buildLayouts();
+
+
+   _skyCubeMapImage = new genesis::Image(_device);
+#if (defined SKYBOX_YOKOHOMA)
+   _pushConstants.environmentMapCoordTransform.x = -1;
+   _pushConstants.environmentMapCoordTransform.y = -1;
+   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/cubemap_yokohama_rgba.ktx");
+#endif
+
+#if (defined SKYBOX_PISA)
+   _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
+#endif
+   _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
+}
+
+void TutorialRayTracing::prepare()
+{
+   VulkanExampleBase::prepare();
+   createScene();
+   createStorageImages();
+   createSceneUbo();
+   createRayTracingPipeline();
+   createDescriptorSets();
+
+   prepared = true;
+}
+
+void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
+{
+   if (overlay->header("Settings")) {
+      if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f)) \
+      {
+         _pushConstants.frameIndex = -1;
+      }
+      if (overlay->sliderFloat("reflectivity", &_pushConstants.reflectivity, 0, 1)) {
+      }
+   }
+}
+
 void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer)
 {
    VkClearValue clearValues[2];
@@ -569,16 +582,4 @@ void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer 
    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
    VulkanExampleBase::drawUI(commandBuffer);
    vkCmdEndRenderPass(commandBuffer);
-}
-
-void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
-{
-   if (overlay->header("Settings")) {
-      if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f)) \
-      {
-         _pushConstants.frameIndex = -1;
-      }
-      if (overlay->sliderFloat("reflectivity", &_pushConstants.reflectivity, 0, 1)) {
-      }
-   }
 }
