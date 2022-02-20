@@ -17,6 +17,17 @@ struct PushConstants
    float contributionFromEnvironment;
 };
 
+struct SceneUbo
+{
+   mat4 viewMatrix;
+   mat4 projectionMatrix;
+
+   mat4 viewMatrixInverse;
+   mat4 projectionMatrixInverse;
+
+   int vertexSizeInBytes;
+};
+
 #if CPU_SIDE_COMPILATION
 #else
 
@@ -26,29 +37,11 @@ struct PushConstants
 layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 layout(set = 0, binding = 1, rgba32f) uniform image2D intermediateImage;
 layout(set = 0, binding = 2, rgba8) uniform image2D finalImage;
-#endif
-
-#if CPU_SIDE_COMPILATION
-struct SceneUbo
+layout(set = 0, binding = 3) uniform SceneUboBuffer
 {
-public:
-#else
-layout(set = 0, binding = 3) uniform UBO
-{
-#endif
-   mat4 viewMatrix;
-   mat4 projectionMatrix;
-
-   mat4 viewMatrixInverse;
-   mat4 projectionMatrixInverse;
-
-   int vertexSizeInBytes;
-#if CPU_SIDE_COMPILATION
+   SceneUbo sceneUbo;
 };
-#else
-} sceneUbo;
 #endif
-
 
 #if CPU_SIDE_COMPILATION
 
