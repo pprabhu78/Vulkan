@@ -7,32 +7,12 @@ using namespace glm;
 #else
 #endif
 
-struct PushConstants
-{
-   vec4 clearColor;
-   vec4 environmentMapCoordTransform;
-   int frameIndex;
-   float textureLodBias;
-   float reflectivity;
-   float contributionFromEnvironment;
-};
-
-struct SceneUbo
-{
-   mat4 viewMatrix;
-   mat4 projectionMatrix;
-
-   mat4 viewMatrixInverse;
-   mat4 projectionMatrixInverse;
-
-   int vertexSizeInBytes;
-};
-
 #if CPU_SIDE_COMPILATION
 #else
 
 #include "../common/gltfMaterial.h"
 #include "../common/gltfModelDesc.h"
+#include "../common/sceneUbo.h"
 
 layout(set = 0, binding = 0) uniform accelerationStructureEXT topLevelAS;
 layout(set = 0, binding = 1, rgba32f) uniform image2D intermediateImage;

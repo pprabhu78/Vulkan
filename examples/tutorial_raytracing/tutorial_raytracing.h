@@ -6,6 +6,7 @@
 
 #define CPU_SIDE_COMPILATION 1
 #include "../data/shaders/glsl/tutorial_raytracing/rayTracingInputOutput.h"
+#include "../data/shaders/glsl/common/sceneUbo.h"
 
 namespace genesis
 {
