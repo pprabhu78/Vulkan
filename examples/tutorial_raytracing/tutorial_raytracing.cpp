@@ -289,14 +289,23 @@ void TutorialRayTracing::createRayTracingPipeline()
 
    VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_rayTracingPipelineLayout));
 
+   /*
+      SBT Layout used in this sample:
+
+      /-----------\
+      | raygen    |
+      |-----------|
+      | miss      |
+      |-----------|
+      | hit       |
+      \-----------/
+   */
    _shaderBindingTable = new genesis::ShaderBindingTable(_device);
    _shaderBindingTable->addShader(getShadersPath() + "tutorial_raytracing/raygen.rgen.spv", genesis::ST_RT_RAYGEN);
    _shaderBindingTable->addShader(getShadersPath() + "tutorial_raytracing/miss.rmiss.spv", genesis::ST_RT_MISS);
    _shaderBindingTable->addShader(getShadersPath() + "tutorial_raytracing/closesthit.rchit.spv", genesis::ST_RT_CLOSEST_HIT);
 
-   /*
-   Create the ray tracing pipeline
-   */
+   // create the ray tracing pipeline
    VkRayTracingPipelineCreateInfoKHR rayTracingPipelineCreateInfo{};
    rayTracingPipelineCreateInfo.sType = VK_STRUCTURE_TYPE_RAY_TRACING_PIPELINE_CREATE_INFO_KHR;
    rayTracingPipelineCreateInfo.stageCount = static_cast<uint32_t>(_shaderBindingTable->shaderStages().size());

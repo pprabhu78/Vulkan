@@ -39,7 +39,7 @@ public:
    virtual void setupDescriptorPool();
    virtual void setupDescriptorSetLayout(void);
    virtual void updateDescriptorSet(void);
-   virtual void preparePipelines();
+   virtual void createRasterizationPipeline();
 
    virtual void createScene(void);
 

@@ -291,7 +291,7 @@ void Tutorial::updateDescriptorSet(void)
 }
 
 
-void Tutorial::preparePipelines()
+void Tutorial::createRasterizationPipeline()
 {
    // bindings
    std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions
@@ -418,8 +418,6 @@ void Tutorial::preparePipelines()
    VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxPipelineWireframe));
    debugmarker::setName(_device->vulkanDevice(), _skyBoxPipelineWireframe, "_skyBoxPipelineWireframe");
 }
-   
-
 
 void Tutorial::draw()
 {
@@ -435,7 +433,9 @@ void Tutorial::draw()
 void Tutorial::render()
 {
    if (!prepared)
+   {
       return;
+   }
    draw();
 }
 
@@ -512,7 +512,7 @@ void Tutorial::prepare()
    setupDescriptorSetLayout();
    setupDescriptorPool();
    updateDescriptorSet();
-   preparePipelines();
+   createRasterizationPipeline();
    buildCommandBuffers();
    
    prepared = true;
