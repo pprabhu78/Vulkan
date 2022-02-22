@@ -36,27 +36,31 @@ public:
 public:
    virtual void windowResized() override;
    virtual void keyPressed(uint32_t key) override;
-public:
-
-   virtual void deleteStorageImages(void);
-   virtual void createStorageImages(void);
-   virtual void writeStorageImageDescriptors(void);
-   virtual void createScene();
-   virtual void createAndUpdateRayTracingDescriptorSets();
-   virtual void createRayTracingPipeline();
-   virtual void createSceneUbo();
-
-   virtual void rayTrace(int commandBufferIndex);
-   virtual void updateSceneUbo();
-   virtual void enableFeatures() override;
-   virtual void prepare();
-   virtual void draw();
    virtual void render() override;
    virtual void viewChanged() override;
-   virtual void saveScreenShot(void);
-   virtual void resetCamera(void);
+   virtual void enableFeatures() override;
    virtual void OnUpdateUIOverlay(genesis::UIOverlay* overlay) override;
    virtual void setupRenderPass() override;
+   virtual void prepare() override;
+public:
+   virtual void draw();
+
+   virtual void createSceneUbo();
+   virtual void updateSceneUbo();
+
+   virtual void createScene();
+
+   virtual void saveScreenShot(void);
+   virtual void resetCamera(void);
+
+   virtual void createAndUpdateRayTracingDescriptorSets();
+   virtual void createRayTracingPipeline();
+
+   virtual void createStorageImages(void);
+   virtual void deleteStorageImages(void);
+   virtual void writeStorageImageDescriptors(void);
+
+   virtual void rayTrace(int commandBufferIndex);
 
    virtual void drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer);
 

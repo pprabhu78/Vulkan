@@ -24,26 +24,28 @@ public:
 
 public:
    virtual void keyPressed(uint32_t key) override;
-
-   virtual void buildCommandBuffers() override;
    virtual void render() override;
    virtual void viewChanged() override;
-   virtual void prepare() override;
    virtual void enableFeatures() override;
    virtual void OnUpdateUIOverlay(genesis::UIOverlay* overlay) override;
+   virtual void buildCommandBuffers() override;
+   virtual void prepare() override;
 
 public:
    virtual void draw();
+
    virtual void createSceneUbo();
    virtual void updateSceneUbo(void);
+
+   virtual void createScene(void);
+
+   virtual void saveScreenShot(void);
+   virtual void resetCamera(void);
 
    virtual void createRasterizationPipeline();
    virtual void createAndUpdateRasterizationDescriptorSets(void);
 
-   virtual void createScene(void);
    virtual genesis::Shader* loadShader(const std::string& shaderFile, genesis::ShaderType shaderType);
-   virtual void resetCamera(void);
-   virtual void saveScreenShot(void);
 
 protected:
    VkPhysicalDeviceDescriptorIndexingFeatures _physicalDeviceDescriptorIndexingFeatures{};
