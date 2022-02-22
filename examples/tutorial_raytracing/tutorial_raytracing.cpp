@@ -186,53 +186,9 @@ TutorialRayTracing::~TutorialRayTracing()
 
    delete _sceneUbo;
 
+   delete _gltfSkyboxModel;
    delete _skyCubeMapTexture;
    delete _skyCubeMapImage;
-}
-
-void TutorialRayTracing::writeStorageImageDescriptors()
-{
-   VkDescriptorImageInfo intermediateImageDescriptor{ VK_NULL_HANDLE, _intermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
-   VkDescriptorImageInfo finalImageDescriptor{ VK_NULL_HANDLE, _finalImageToPresent->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
-
-   int bindingIndex = 1;
-   std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-     genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &intermediateImageDescriptor)
-   , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &finalImageDescriptor)
-   };
-
-   vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
-}
-
-void TutorialRayTracing::deleteStorageImages()
-{
-   delete _finalImageToPresent;
-   _finalImageToPresent = nullptr;
-
-   delete _intermediateImage;
-   _intermediateImage = nullptr;
-}
-
-/*
-Set up a storage image that the ray generation shader will be writing to
-*/
-void TutorialRayTracing::createStorageImages()
-{
-   // intermediate image does computations in full floating point
-   _intermediateImage   = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, width, height
-      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
-
-   // final image is used for presentation. So, its the same format as the swap chain
-   _finalImageToPresent = new genesis::StorageImage(_device, swapChain.colorFormat, width, height
-      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
-
-   genesis::ImageTransitions transitions;
-   VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-
-   transitions.setImageLayout(commandBuffer, _intermediateImage->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-   transitions.setImageLayout(commandBuffer, _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-
-   _device->flushCommandBuffer(commandBuffer);
 }
 
 void TutorialRayTracing::createAndUpdateRayTracingDescriptorSets()
@@ -391,22 +347,6 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[commandBufferIndex]));
 }
 
-/*
-If the window has been resized, we need to recreate the storage image and it's descriptor
-*/
-void TutorialRayTracing::windowResized()
-{
-   // Delete allocated resources
-   deleteStorageImages();
-   // Recreate image
-   createStorageImages();
-   // Update descriptor
-   writeStorageImageDescriptors();
-
-   _pushConstants.frameIndex = -1;
-}
-
-
 void TutorialRayTracing::saveScreenShot(void)
 {
    using namespace std;
@@ -538,6 +478,8 @@ void TutorialRayTracing::createScene()
    _cellManager->buildDrawBuffers();
    _cellManager->buildLayouts();
 
+   _gltfSkyboxModel = new genesis::VulkanGltfModel(_device, false);
+   _gltfSkyboxModel->loadFromFile(getAssetsPath() + "models/cube.gltf", glTFLoadingFlags);
 
    _skyCubeMapImage = new genesis::Image(_device);
 #if (defined SKYBOX_YOKOHOMA)
@@ -550,6 +492,13 @@ void TutorialRayTracing::createScene()
    _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
 #endif
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
+
+#pragma message("PPP: TO DO: skybox")
+#if 0
+   _indirectLayout = new genesis::IndirectLayout(_device);
+   _indirectLayout->build({ _gltfModel });
+   _indirectLayout->buildDrawBuffers({ _gltfModel });
+#endif
 }
 
 void TutorialRayTracing::prepare()
@@ -598,4 +547,64 @@ void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer 
 void TutorialRayTracing::setupRenderPass()
 {
    _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
+}
+
+void TutorialRayTracing::writeStorageImageDescriptors()
+{
+   VkDescriptorImageInfo intermediateImageDescriptor{ VK_NULL_HANDLE, _intermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
+   VkDescriptorImageInfo finalImageDescriptor{ VK_NULL_HANDLE, _finalImageToPresent->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
+
+   int bindingIndex = 1;
+   std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
+     genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &intermediateImageDescriptor)
+   , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &finalImageDescriptor)
+   };
+
+   vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
+}
+
+void TutorialRayTracing::deleteStorageImages()
+{
+   delete _finalImageToPresent;
+   _finalImageToPresent = nullptr;
+
+   delete _intermediateImage;
+   _intermediateImage = nullptr;
+}
+
+/*
+Set up a storage image that the ray generation shader will be writing to
+*/
+void TutorialRayTracing::createStorageImages()
+{
+   // intermediate image does computations in full floating point
+   _intermediateImage = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, width, height
+      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
+
+   // final image is used for presentation. So, its the same format as the swap chain
+   _finalImageToPresent = new genesis::StorageImage(_device, swapChain.colorFormat, width, height
+      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
+
+   genesis::ImageTransitions transitions;
+   VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+
+   transitions.setImageLayout(commandBuffer, _intermediateImage->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+   transitions.setImageLayout(commandBuffer, _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+
+   _device->flushCommandBuffer(commandBuffer);
+}
+
+/*
+If the window has been resized, we need to recreate the storage image and it's descriptor
+*/
+void TutorialRayTracing::windowResized()
+{
+   // Delete allocated resources
+   deleteStorageImages();
+   // Recreate image
+   createStorageImages();
+   // Update descriptor
+   writeStorageImageDescriptors();
+
+   _pushConstants.frameIndex = -1;
 }

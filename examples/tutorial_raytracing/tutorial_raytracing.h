@@ -71,6 +71,7 @@ public:
    VkPhysicalDeviceDescriptorIndexingFeaturesEXT _physicalDeviceDescriptorIndexingFeatures{};
    VkPhysicalDeviceShaderClockFeaturesKHR _physicalDeviceShaderClockFeaturesKHR{};
 
+   genesis::VulkanGltfModel* _gltfSkyboxModel = nullptr;
    genesis::Image* _skyCubeMapImage = nullptr;
    genesis::Texture* _skyCubeMapTexture = nullptr;
 

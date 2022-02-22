@@ -177,6 +177,10 @@ Tutorial::~Tutorial()
    vkDestroyPipeline(_device->vulkanDevice(), _skyBoxRasterizationPipelineWireframe, nullptr);
 
    vkDestroyPipelineLayout(_device->vulkanDevice(), _rasterizationPipelineLayout, nullptr);
+   
+
+   vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rasterizationDescriptorSetLayout, nullptr);
+   vkDestroyDescriptorPool(_device->vulkanDevice(), _rasterizationDescriptorPool, nullptr);
 
    delete _cellManager;
 
@@ -185,96 +189,11 @@ Tutorial::~Tutorial()
    delete _gltfSkyboxModel;
    delete _skyCubeMapTexture;
    delete _skyCubeMapImage;
-
-   vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rasterizationDescriptorSetLayout, nullptr);
-
-   vkDestroyDescriptorPool(_device->vulkanDevice(), _rasterizationDescriptorPool, nullptr);
-}
-
-void Tutorial::buildCommandBuffers()
-{
-   VkCommandBufferBeginInfo cmdBufInfo = {};
-   cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-   cmdBufInfo.pNext = nullptr;
-
-   // Set clear values for all framebuffer attachments with loadOp set to clear
-   // We use two attachments (color and depth) that are cleared at the start of the subpass and as such we need to set clear values for both
-   VkClearValue clearValues[2];
-   clearValues[0].color = { { 0.0f, 0.0f, 0.2f, 1.0f } };
-   clearValues[1].depthStencil = { 1.0f, 0 };
-
-   VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
-   renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
-   renderPassBeginInfo.renderArea.offset = { 0, 0 };
-   renderPassBeginInfo.renderArea.extent = { width, height };
-
-   renderPassBeginInfo.clearValueCount = 2;
-   renderPassBeginInfo.pClearValues = clearValues;
-
-   const VkViewport viewport = genesis::VulkanInitializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-   const VkRect2D scissor = genesis::VulkanInitializers::rect2D(width, height, 0, 0);
-
-   for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
-   {
-      // Set target frame buffer
-      renderPassBeginInfo.framebuffer = frameBuffers[i];
-
-      VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
-
-      // Start the first sub pass specified in our default render pass setup by the base class
-      // This will clear the color and depth attachment
-      vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-      // Update dynamic viewport state
-      vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
-
-      // Update dynamic scissor state
-      vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
-
-      vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineLayout, 0, 1, &_rasterizationDescriptorSet, 0, nullptr);
-
-      vkCmdPushConstants(drawCmdBuffers[i], _rasterizationPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
-
-      // draw the sky box
-      if (!_wireframe)
-      {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipeline);
-      }
-      else
-      {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipelineWireframe);
-      }
-#pragma message("PPP: TO DO: skybox")
-      //_indirectLayout->draw(drawCmdBuffers[i], _pipelineLayout, _gltfModel);
-
-      // draw the model
-      if (!_wireframe)
-      {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipeline);
-      }
-      else
-      {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineWireframe);
-      }
-
-      _cellManager->cell(0)->draw(drawCmdBuffers[i], _rasterizationPipelineLayout);
-      
-      // draw the UI
-      drawUI(drawCmdBuffers[i]);
-
-      vkCmdEndRenderPass(drawCmdBuffers[i]);
-
-      // Ending the render pass will add an implicit barrier transitioning the frame buffer color attachment to
-      // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR for presenting it to the windowing system
-
-      VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
-   }
 }
 
 void Tutorial::createAndUpdateRasterizationDescriptorSets(void)
 {
-   std::vector<VkDescriptorPoolSize> poolSizes =
-   {
+   std::vector<VkDescriptorPoolSize> poolSizes = {
       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}
    ,  {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}
    };
@@ -294,23 +213,8 @@ void Tutorial::createAndUpdateRasterizationDescriptorSets(void)
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
 }
 
-genesis::Shader* Tutorial::loadShader(const std::string& shaderFile, genesis::ShaderType shaderType)
-{
-   genesis::Shader* shader = new genesis::Shader(_device);
-   shader->loadFromFile(shaderFile, shaderType);
-   if (shader->valid() == false)
-   {
-      std::cout << "error loading shader" << std::endl;
-      delete shader;
-      return nullptr;
-   }
-   _shaders.push_back(shader);
-   return shader;
-}
-
 void Tutorial::createRasterizationPipeline()
 {
-
    int bindingIndex = 0;
    std::vector<VkDescriptorSetLayoutBinding> set0Bindings =
    {
@@ -408,6 +312,88 @@ void Tutorial::createRasterizationPipeline()
    VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxRasterizationPipelineWireframe));
    debugmarker::setName(_device->vulkanDevice(), _skyBoxRasterizationPipelineWireframe, "_skyBoxPipelineWireframe");
 }
+
+
+void Tutorial::buildCommandBuffers()
+{
+   VkCommandBufferBeginInfo cmdBufInfo = {};
+   cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+   cmdBufInfo.pNext = nullptr;
+
+   // Set clear values for all framebuffer attachments with loadOp set to clear
+   // We use two attachments (color and depth) that are cleared at the start of the subpass and as such we need to set clear values for both
+   VkClearValue clearValues[2];
+   clearValues[0].color = { { 0.0f, 0.0f, 0.2f, 1.0f } };
+   clearValues[1].depthStencil = { 1.0f, 0 };
+
+   VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
+   renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
+   renderPassBeginInfo.renderArea.offset = { 0, 0 };
+   renderPassBeginInfo.renderArea.extent = { width, height };
+
+   renderPassBeginInfo.clearValueCount = 2;
+   renderPassBeginInfo.pClearValues = clearValues;
+
+   const VkViewport viewport = genesis::VulkanInitializers::viewport((float)width, (float)height, 0.0f, 1.0f);
+   const VkRect2D scissor = genesis::VulkanInitializers::rect2D(width, height, 0, 0);
+
+   for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
+   {
+      // Set target frame buffer
+      renderPassBeginInfo.framebuffer = frameBuffers[i];
+
+      VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
+
+      // Start the first sub pass specified in our default render pass setup by the base class
+      // This will clear the color and depth attachment
+      vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+      // Update dynamic viewport state
+      vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
+
+      // Update dynamic scissor state
+      vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
+
+      vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineLayout, 0, 1, &_rasterizationDescriptorSet, 0, nullptr);
+
+      vkCmdPushConstants(drawCmdBuffers[i], _rasterizationPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
+
+      // draw the sky box
+      if (!_wireframe)
+      {
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipeline);
+      }
+      else
+      {
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipelineWireframe);
+      }
+#pragma message("PPP: TO DO: skybox")
+      //_indirectLayout->draw(drawCmdBuffers[i], _pipelineLayout, _gltfModel);
+
+      // draw the model
+      if (!_wireframe)
+      {
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipeline);
+      }
+      else
+      {
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineWireframe);
+      }
+
+      _cellManager->cell(0)->draw(drawCmdBuffers[i], _rasterizationPipelineLayout);
+
+      // draw the UI
+      drawUI(drawCmdBuffers[i]);
+
+      vkCmdEndRenderPass(drawCmdBuffers[i]);
+
+      // Ending the render pass will add an implicit barrier transitioning the frame buffer color attachment to
+      // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR for presenting it to the windowing system
+
+      VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
+   }
+}
+
 
 void Tutorial::saveScreenShot(void)
 {
@@ -582,3 +568,18 @@ void Tutorial::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
       }     
    }
 }
+
+genesis::Shader* Tutorial::loadShader(const std::string& shaderFile, genesis::ShaderType shaderType)
+{
+   genesis::Shader* shader = new genesis::Shader(_device);
+   shader->loadFromFile(shaderFile, shaderType);
+   if (shader->valid() == false)
+   {
+      std::cout << "error loading shader" << std::endl;
+      delete shader;
+      return nullptr;
+   }
+   _shaders.push_back(shader);
+   return shader;
+}
+
