@@ -42,7 +42,7 @@ public:
    virtual void createStorageImages(void);
    virtual void writeStorageImageDescriptors(void);
    virtual void createScene();
-   virtual void createAndUpdateDescriptorSets();
+   virtual void createAndUpdateRayTracingDescriptorSets();
    virtual void createRayTracingPipeline();
    virtual void createSceneUbo();
 

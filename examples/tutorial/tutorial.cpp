@@ -271,7 +271,7 @@ void Tutorial::buildCommandBuffers()
    }
 }
 
-void Tutorial::createAndUpdateDescriptorSets(void)
+void Tutorial::createAndUpdateRasterizationDescriptorSets(void)
 {
    std::vector<VkDescriptorPoolSize> poolSizes =
    {
@@ -566,7 +566,7 @@ void Tutorial::prepare()
    createScene();
    createSceneUbo();
    createRasterizationPipeline();
-   createAndUpdateDescriptorSets();
+   createAndUpdateRasterizationDescriptorSets();
    buildCommandBuffers();
    
    prepared = true;

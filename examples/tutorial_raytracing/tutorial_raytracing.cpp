@@ -235,7 +235,7 @@ void TutorialRayTracing::createStorageImages()
    _device->flushCommandBuffer(commandBuffer);
 }
 
-void TutorialRayTracing::createAndUpdateDescriptorSets()
+void TutorialRayTracing::createAndUpdateRayTracingDescriptorSets()
 {
    std::vector<VkDescriptorPoolSize> poolSizes = {
    { VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1 },
@@ -559,7 +559,7 @@ void TutorialRayTracing::prepare()
    createStorageImages();
    createSceneUbo();
    createRayTracingPipeline();
-   createAndUpdateDescriptorSets();
+   createAndUpdateRayTracingDescriptorSets();
 
    prepared = true;
 }

@@ -38,7 +38,7 @@ public:
    virtual void updateSceneUbo(void);
 
    virtual void createRasterizationPipeline();
-   virtual void createAndUpdateDescriptorSets(void);
+   virtual void createAndUpdateRasterizationDescriptorSets(void);
 
    virtual void createScene(void);
    virtual genesis::Shader* loadShader(const std::string& shaderFile, genesis::ShaderType shaderType);
