@@ -23,6 +23,7 @@ public:
    ~Tutorial();
 
 public:
+   virtual void keyPressed(uint32_t key) override;
 
    virtual void buildCommandBuffers() override;
    virtual void render() override;
@@ -43,15 +44,17 @@ public:
 
    virtual void createScene(void);
    virtual genesis::Shader* loadShader(const std::string& shaderFile, genesis::ShaderType shaderType);
+   virtual void resetCamera(void);
+   virtual void saveScreenShot(void);
 
 protected:
 
-   VkPipelineLayout _pipelineLayout;
-   VkPipeline _pipeline;
-   VkPipeline _pipelineWireframe;
+   VkPipelineLayout _rasterizationPipelineLayout;
+   VkPipeline _rasterizationPipeline;
+   VkPipeline _rasterizationPipelineWireframe;
 
-   VkPipeline _skyBoxPipeline;
-   VkPipeline _skyBoxPipelineWireframe;
+   VkPipeline _skyBoxRasterizationPipeline;
+   VkPipeline _skyBoxRasterizationPipelineWireframe;
 
    genesis::Buffer* _sceneUbo;
 
@@ -68,7 +71,12 @@ protected:
 
    VkPhysicalDeviceBufferDeviceAddressFeatures _enabledBufferDeviceAddressFeatures{};
 
+   VkPhysicalDeviceRayTracingPipelineFeaturesKHR _enabledRayTracingPipelineFeatures{};
+   VkPhysicalDeviceAccelerationStructureFeaturesKHR _enabledAccelerationStructureFeatures{};
+
    VkPhysicalDeviceVulkan11Features _physicalDeviceVulkan11Features{};
+
+   VkPhysicalDeviceShaderClockFeaturesKHR _physicalDeviceShaderClockFeaturesKHR{};
 
    std::vector<genesis::Shader*> _shaders;
 

@@ -24,11 +24,16 @@
 #include "VulkanInitializers.h"
 #include "VulkanGltf.h"
 #include "VulkanDebug.h"
+#include "ScreenShotUtility.h"
 
 #include "GenAssert.h"
 
+#include <chrono>
+#include <sstream>
+
 //#define VENUS 1
 #define SPONZA 1
+//#define CORNELL 1
 //#define SPHERE 1
 
 //#define SKYBOX_PISA 1
@@ -37,21 +42,21 @@
 using namespace genesis;
 using namespace genesis::tools;
 
-Tutorial::Tutorial()
+void Tutorial::resetCamera(void)
 {
-   _pushConstants.clearColor = glm::vec4(0, 0, 0, 0);
-   _pushConstants.environmentMapCoordTransform = glm::vec4(1, 1, 1, 1);
-
-   _pushConstants.frameIndex = 0;
-   _pushConstants.textureLodBias = 0;
-   _pushConstants.reflectivity = 0;
-
-   title = "genesis: tutorial";
 #if (defined VENUS)
    camera.type = Camera::CameraType::lookat;
    camera.setPosition(glm::vec3(0.0f, 0.0f, -2.5f));
    camera.setRotation(glm::vec3(0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+#endif
+
+#if CORNELL
+   camera.type = Camera::CameraType::lookat;
+   camera.setPosition(glm::vec3(0.0f, 0.0f, -14.5f));
+   camera.setRotation(glm::vec3(0.0f));
+   camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+   _pushConstants.contributionFromEnvironment = 0.01f;
 #endif
 
 #if (defined SPHERE)
@@ -67,18 +72,32 @@ Tutorial::Tutorial()
    camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
    camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
    camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+   _pushConstants.contributionFromEnvironment = 10;
 #endif
+}
+
+Tutorial::Tutorial()
+{
+   _pushConstants.clearColor = glm::vec4(0, 0, 0, 0);
+   _pushConstants.environmentMapCoordTransform = glm::vec4(1, 1, 1, 1);
+
+   _pushConstants.frameIndex = -1;
+   _pushConstants.textureLodBias = 0;
+   _pushConstants.reflectivity = 0;
+
+   title = "genesis: tutorial";
+
+   resetCamera();
+
    // Require Vulkan 1.2
    apiVersion = VK_API_VERSION_1_2;
 
-   _enabledInstanceExtensions.push_back(VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME);
-
-   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_MAINTENANCE3_EXTENSION_NAME);
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
    _enabledPhysicalDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME);
-
-   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
 }
+
+#define  ADD_NEXT(previous, current) current.pNext = &previous
 
 void Tutorial::enableFeatures()
 {
@@ -86,12 +105,11 @@ void Tutorial::enableFeatures()
    _physicalDevice->enabledPhysicalDeviceFeatures().shaderInt64 = true;
 
    // This is required for multi draw indirect
-   if (_physicalDevice->physicalDeviceFeatures().multiDrawIndirect) {
-      _physicalDevice->enabledPhysicalDeviceFeatures().multiDrawIndirect = VK_TRUE;
-   }
+   _physicalDevice->enabledPhysicalDeviceFeatures().multiDrawIndirect = VK_TRUE;
 
    // Enable anisotropic filtering if supported
-   if (_physicalDevice->physicalDeviceFeatures().samplerAnisotropy) {
+   if (_physicalDevice->physicalDeviceFeatures().samplerAnisotropy) 
+   {
       _physicalDevice->enabledPhysicalDeviceFeatures().samplerAnisotropy = VK_TRUE;
    }
 
@@ -101,17 +119,30 @@ void Tutorial::enableFeatures()
       _physicalDevice->enabledPhysicalDeviceFeatures().fillModeNonSolid = VK_TRUE;
    }
 
+   _enabledBufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
+   _enabledBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
+
+   _enabledRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
+   _enabledRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
+   ADD_NEXT(_enabledBufferDeviceAddressFeatures, _enabledRayTracingPipelineFeatures);
+
+   _enabledAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
+   _enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
+   ADD_NEXT(_enabledRayTracingPipelineFeatures, _enabledAccelerationStructureFeatures);
+
    _physicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
    _physicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
+   ADD_NEXT(_enabledAccelerationStructureFeatures, _physicalDeviceDescriptorIndexingFeatures);
 
-   _enabledBufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
-   _enabledBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
-   _enabledBufferDeviceAddressFeatures.pNext = &_physicalDeviceDescriptorIndexingFeatures;
+   _physicalDeviceShaderClockFeaturesKHR.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR;
+   _physicalDeviceShaderClockFeaturesKHR.shaderDeviceClock = true;
+   _physicalDeviceShaderClockFeaturesKHR.shaderSubgroupClock = true;
+   ADD_NEXT(_physicalDeviceDescriptorIndexingFeatures, _physicalDeviceShaderClockFeaturesKHR);
 
-   deviceCreatepNextChain = &_enabledBufferDeviceAddressFeatures;
+   deviceCreatepNextChain = &_physicalDeviceShaderClockFeaturesKHR;
 }
 
 Tutorial::~Tutorial()
@@ -120,13 +151,13 @@ Tutorial::~Tutorial()
    {
       delete shader;
    }
-   vkDestroyPipeline(_device->vulkanDevice(), _pipeline, nullptr);
-   vkDestroyPipeline(_device->vulkanDevice(), _pipelineWireframe, nullptr);
+   vkDestroyPipeline(_device->vulkanDevice(), _rasterizationPipeline, nullptr);
+   vkDestroyPipeline(_device->vulkanDevice(), _rasterizationPipelineWireframe, nullptr);
 
-   vkDestroyPipeline(_device->vulkanDevice(), _skyBoxPipeline, nullptr);
-   vkDestroyPipeline(_device->vulkanDevice(), _skyBoxPipelineWireframe, nullptr);
+   vkDestroyPipeline(_device->vulkanDevice(), _skyBoxRasterizationPipeline, nullptr);
+   vkDestroyPipeline(_device->vulkanDevice(), _skyBoxRasterizationPipelineWireframe, nullptr);
 
-   vkDestroyPipelineLayout(_device->vulkanDevice(), _pipelineLayout, nullptr);
+   vkDestroyPipelineLayout(_device->vulkanDevice(), _rasterizationPipelineLayout, nullptr);
 
    delete _cellManager;
 
@@ -179,18 +210,18 @@ void Tutorial::buildCommandBuffers()
       // Update dynamic scissor state
       vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
 
-      vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSet0, 0, nullptr);
+      vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineLayout, 0, 1, &_descriptorSet0, 0, nullptr);
 
-      vkCmdPushConstants(drawCmdBuffers[i], _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
+      vkCmdPushConstants(drawCmdBuffers[i], _rasterizationPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
 
       // draw the sky box
       if (!_wireframe)
       {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxPipeline);
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipeline);
       }
       else
       {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxPipelineWireframe);
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipelineWireframe);
       }
 #pragma message("PPP: TO DO: skybox")
       //_indirectLayout->draw(drawCmdBuffers[i], _pipelineLayout, _gltfModel);
@@ -198,14 +229,14 @@ void Tutorial::buildCommandBuffers()
       // draw the model
       if (!_wireframe)
       {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipeline);
       }
       else
       {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineWireframe);
+         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineWireframe);
       }
 
-      _cellManager->cell(0)->draw(drawCmdBuffers[i], _pipelineLayout);
+      _cellManager->cell(0)->draw(drawCmdBuffers[i], _rasterizationPipelineLayout);
       
       // draw the UI
       drawUI(drawCmdBuffers[i]);
@@ -217,17 +248,63 @@ void Tutorial::buildCommandBuffers()
 
       VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
    }
+}
 
+void Tutorial::saveScreenShot(void)
+{
+   using namespace std;
+   using namespace std::chrono;
+
+   time_t tt = system_clock::to_time_t(system_clock::now());
+   tm utc_tm = *gmtime(&tt);
+   tm local_tm = *localtime(&tt);
+
+   std::stringstream ss;
+   ss << local_tm.tm_year + 1900 << '-';
+   ss << local_tm.tm_mon + 1 << '-';
+   ss << local_tm.tm_mday << '_';
+   ss << local_tm.tm_hour;
+   ss << local_tm.tm_min;
+   if (local_tm.tm_sec < 10)
+   {
+      ss << "0";
+   }
+   ss << local_tm.tm_sec;
+
+   std::string fileName = ss.str();
+
+   genesis::ScreenShotUtility screenShotUtility(_device);
+   screenShotUtility.takeScreenShot("..\\screenshots\\" + fileName + ".png"
+      , swapChain.images[currentBuffer], swapChain.colorFormat
+      , width, height);
+}
+
+void Tutorial::keyPressed(uint32_t key)
+{
+   if (key == KEY_F5)
+   {
+      saveScreenShot();
+   }
+   else if (key == KEY_SPACE)
+   {
+      resetCamera();
+   }
+   else if (key == KEY_F4)
+   {
+      settings.overlay = !settings.overlay;
+   }
 }
 
 void Tutorial::updateSceneUbo(void)
 {
    SceneUbo ubo;
    ubo.viewMatrix = camera.matrices.view;
-   ubo.projectionMatrix = camera.matrices.perspective;
-
    ubo.viewMatrixInverse = glm::inverse(camera.matrices.view);
+
+   ubo.projectionMatrix = camera.matrices.perspective;
    ubo.projectionMatrixInverse = glm::inverse(camera.matrices.perspective);
+
+   ubo.vertexSizeInBytes = sizeof(genesis::Vertex);
 
    uint8_t* data = (uint8_t*)_sceneUbo->stagingBuffer();
    memcpy(data, &ubo, sizeof(SceneUbo));
@@ -271,8 +348,8 @@ void Tutorial::setupDescriptorSetLayout(void)
    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
 
-   VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout));
-   debugmarker::setName(_device->vulkanDevice(), _pipelineLayout, "_pipelineLayout");
+   VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_rasterizationPipelineLayout));
+   debugmarker::setName(_device->vulkanDevice(), _rasterizationPipelineLayout, "_pipelineLayout");
 }
 
 
@@ -289,7 +366,6 @@ void Tutorial::updateDescriptorSet(void)
 
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
 }
-
 
 genesis::Shader* Tutorial::loadShader(const std::string& shaderFile, genesis::ShaderType shaderType)
 {
@@ -346,7 +422,7 @@ void Tutorial::createRasterizationPipeline()
    std::vector<VkDynamicState> dynamicStateEnables = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
    VkPipelineDynamicStateCreateInfo dynamicState = genesis::VulkanInitializers::pipelineDynamicStateCreateInfo(dynamicStateEnables.data(), static_cast<uint32_t>(dynamicStateEnables.size()), 0);
 
-   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::VulkanInitializers::graphicsPipelineCreateInfo(_pipelineLayout, _renderPass->vulkanRenderPass());
+   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::VulkanInitializers::graphicsPipelineCreateInfo(_rasterizationPipelineLayout, _renderPass->vulkanRenderPass());
 
    graphicsPipelineCreateInfo.pVertexInputState = &vertexInputState;
    graphicsPipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
@@ -363,10 +439,10 @@ void Tutorial::createRasterizationPipeline()
    graphicsPipelineCreateInfo.stageCount = (uint32_t)shaderStageInfos.size();
    graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();
 
-   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_pipeline));
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipeline));
 
    rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_pipelineWireframe));
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipelineWireframe));
    rasterizationState.polygonMode = VK_POLYGON_MODE_FILL; // reset
 
    // next 2 are the skybox
@@ -377,12 +453,12 @@ void Tutorial::createRasterizationPipeline()
    rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT; // cull the front facing polygons
    depthStencilState.depthWriteEnable = VK_FALSE;
    depthStencilState.depthTestEnable = VK_FALSE;
-   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxPipeline));
-   debugmarker::setName(_device->vulkanDevice(), _skyBoxPipeline, "_skyBoxPipeline");
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxRasterizationPipeline));
+   debugmarker::setName(_device->vulkanDevice(), _skyBoxRasterizationPipeline, "_skyBoxPipeline");
 
    rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxPipelineWireframe));
-   debugmarker::setName(_device->vulkanDevice(), _skyBoxPipelineWireframe, "_skyBoxPipelineWireframe");
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxRasterizationPipelineWireframe));
+   debugmarker::setName(_device->vulkanDevice(), _skyBoxRasterizationPipelineWireframe, "_skyBoxPipelineWireframe");
 }
 
 void Tutorial::draw()

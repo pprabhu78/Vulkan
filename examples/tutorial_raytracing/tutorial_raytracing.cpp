@@ -8,7 +8,6 @@
 
 #include "tutorial_raytracing.h"
 
-
 #include "Device.h"
 #include "PhysicalDevice.h"
 #include "Texture.h"
@@ -46,6 +45,13 @@ using namespace genesis::tools;
 
 void TutorialRayTracing::resetCamera()
 {
+   title = "genesis: path tracer";
+   settings.overlay = false;
+   camera.type = genesis::Camera::CameraType::lookat;
+   camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
+   camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
+   camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.5f));
+
 #if VENUS
    camera.type = Camera::CameraType::lookat;
    camera.setPosition(glm::vec3(0.0f, 0.0f, -8.5f));
@@ -81,13 +87,11 @@ void TutorialRayTracing::resetCamera()
 TutorialRayTracing::TutorialRayTracing()
    : _pushConstants{}
 {
+   _pushConstants.environmentMapCoordTransform = glm::vec4(1, 1, 1, 1);
+
    _pushConstants.frameIndex = -1;
-   title = "genesis: path tracer";
-   settings.overlay = false;
-   camera.type = genesis::Camera::CameraType::lookat;
-   camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
-   camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
-   camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.5f));
+   _pushConstants.textureLodBias = 0;
+   _pushConstants.reflectivity = 0;
 
    resetCamera();
 
@@ -112,37 +116,56 @@ TutorialRayTracing::TutorialRayTracing()
    _enabledPhysicalDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
 
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SHADER_CLOCK_EXTENSION_NAME);
+
+   // required for multi-draw
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME);
 }
+
+#define  ADD_NEXT(previous, current) current.pNext = &previous
 
 void TutorialRayTracing::enableFeatures()
 {
    // This is required for 64 bit math
    _physicalDevice->enabledPhysicalDeviceFeatures().shaderInt64 = true;
 
-   // Enable features required for ray tracing using feature chaining via pNext		
+   // This is required for multi draw indirect
+   _physicalDevice->enabledPhysicalDeviceFeatures().multiDrawIndirect = VK_TRUE;
+
+   // Enable anisotropic filtering if supported
+   if (_physicalDevice->physicalDeviceFeatures().samplerAnisotropy)
+   {
+      _physicalDevice->enabledPhysicalDeviceFeatures().samplerAnisotropy = VK_TRUE;
+   }
+
+   // This is required for wireframe display
+   if (_physicalDevice->physicalDeviceFeatures().fillModeNonSolid)
+   {
+      _physicalDevice->enabledPhysicalDeviceFeatures().fillModeNonSolid = VK_TRUE;
+   }
+
    _enabledBufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
    _enabledBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
 
    _enabledRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
    _enabledRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
-   _enabledRayTracingPipelineFeatures.pNext = &_enabledBufferDeviceAddressFeatures;
+   ADD_NEXT(_enabledBufferDeviceAddressFeatures, _enabledRayTracingPipelineFeatures);
 
    _enabledAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
    _enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
-   _enabledAccelerationStructureFeatures.pNext = &_enabledRayTracingPipelineFeatures;
+   ADD_NEXT(_enabledRayTracingPipelineFeatures, _enabledAccelerationStructureFeatures);
 
    _physicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
    _physicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-   _physicalDeviceDescriptorIndexingFeatures.pNext = &_enabledAccelerationStructureFeatures;
+   ADD_NEXT(_enabledAccelerationStructureFeatures, _physicalDeviceDescriptorIndexingFeatures);
 
    _physicalDeviceShaderClockFeaturesKHR.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR;
    _physicalDeviceShaderClockFeaturesKHR.shaderDeviceClock = true;
    _physicalDeviceShaderClockFeaturesKHR.shaderSubgroupClock = true;
-   _physicalDeviceShaderClockFeaturesKHR.pNext = &_physicalDeviceDescriptorIndexingFeatures;
-   
+   ADD_NEXT(_physicalDeviceDescriptorIndexingFeatures, _physicalDeviceShaderClockFeaturesKHR);
+
    deviceCreatepNextChain = &_physicalDeviceShaderClockFeaturesKHR;
 }
 
@@ -494,11 +517,6 @@ void TutorialRayTracing::viewChanged()
    updateSceneUbo();
 }
 
-void TutorialRayTracing::setupRenderPass()
-{
-   _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
-}
-
 void TutorialRayTracing::createScene()
 {
    std::string gltfModel;
@@ -591,4 +609,9 @@ void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer 
    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
    VulkanExampleBase::drawUI(commandBuffer);
    vkCmdEndRenderPass(commandBuffer);
+}
+
+void TutorialRayTracing::setupRenderPass()
+{
+   _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
 }
