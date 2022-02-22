@@ -35,7 +35,7 @@
 //#define VENUS 1
 #define SPONZA 1
 //#define CORNELL 1
-//#define SPHERE
+//#define SPHERE 1
 
 //#define SKYBOX_PISA 1
 #define SKYBOX_YOKOHOMA 1
@@ -45,7 +45,6 @@ using namespace genesis::tools;
 
 void TutorialRayTracing::resetCamera()
 {
-   title = "genesis: path tracer";
    settings.overlay = false;
    camera.type = genesis::Camera::CameraType::lookat;
    camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
@@ -87,6 +86,8 @@ void TutorialRayTracing::resetCamera()
 TutorialRayTracing::TutorialRayTracing()
    : _pushConstants{}
 {
+   title = "genesis: path tracer";
+
    _pushConstants.environmentMapCoordTransform = glm::vec4(1, 1, 1, 1);
 
    _pushConstants.frameIndex = -1;
@@ -175,6 +176,8 @@ TutorialRayTracing::~TutorialRayTracing()
    vkDestroyPipelineLayout(_device->vulkanDevice(), _rayTracingPipelineLayout, nullptr);
    vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rayTracingDescriptorSetLayout, nullptr);
 
+   vkDestroyDescriptorPool(_device->vulkanDevice(), _rayTracingDescriptorPool, nullptr);
+
    deleteStorageImages();
 
    delete _shaderBindingTable;
@@ -232,23 +235,7 @@ void TutorialRayTracing::createStorageImages()
    _device->flushCommandBuffer(commandBuffer);
 }
 
-/*
-Create the Shader Binding Tables that binds the programs and top-level acceleration structure
-
-SBT Layout used in this sample:
-
-/-----------\
-| raygen    |
-|-----------|
-| miss      |
-|-----------|
-| hit       |
-\-----------/
-/*
-Create the descriptor sets used for the ray tracing dispatch
-*/
-
-void TutorialRayTracing::createDescriptorSets()
+void TutorialRayTracing::createAndUpdateDescriptorSets()
 {
    std::vector<VkDescriptorPoolSize> poolSizes = {
    { VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1 },
@@ -257,9 +244,9 @@ void TutorialRayTracing::createDescriptorSets()
    { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1 },
    };
    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::VulkanInitializers::descriptorPoolCreateInfo(poolSizes, 1);
-   VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &descriptorPool));
+   VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &_rayTracingDescriptorPool));
 
-   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::VulkanInitializers::descriptorSetAllocateInfo(descriptorPool, &_rayTracingDescriptorSetLayout, 1);
+   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::VulkanInitializers::descriptorSetAllocateInfo(_rayTracingDescriptorPool, &_rayTracingDescriptorSetLayout, 1);
    VK_CHECK_RESULT(vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &_rayTracingDescriptorSet));
 
    VkWriteDescriptorSetAccelerationStructureKHR descriptorAccelerationStructureInfo = genesis::VulkanInitializers::writeDescriptorSetAccelerationStructureKHR();
@@ -343,92 +330,6 @@ void TutorialRayTracing::createRayTracingPipeline()
 }
 
 /*
-Create the uniform buffer used to pass matrices to the ray tracing ray generation shader
-*/
-
-void TutorialRayTracing::updateSceneUbo()
-{
-   SceneUbo ubo;
-   ubo.viewMatrix = camera.matrices.view;
-   ubo.viewMatrixInverse = glm::inverse(camera.matrices.view);
-
-   ubo.projectionMatrix = camera.matrices.perspective;
-   ubo.projectionMatrixInverse = glm::inverse(camera.matrices.perspective);
-
-   ubo.vertexSizeInBytes = sizeof(genesis::Vertex);
-
-   uint8_t* data = (uint8_t*)_sceneUbo->stagingBuffer();
-   memcpy(data, &ubo, sizeof(SceneUbo));
-   _sceneUbo->syncToGpu(false);
-}
-
-void TutorialRayTracing::createSceneUbo()
-{
-   _sceneUbo = new genesis::Buffer(_device, genesis::BT_UBO, sizeof(SceneUbo), true);
-   updateSceneUbo();
-}
-
-/*
-If the window has been resized, we need to recreate the storage image and it's descriptor
-*/
-void TutorialRayTracing::windowResized()
-{
-   // Delete allocated resources
-   deleteStorageImages();
-   // Recreate image
-   createStorageImages();
-   // Update descriptor
-   writeStorageImageDescriptors();
-   
-   _pushConstants.frameIndex = -1;
-}
-
-void TutorialRayTracing::saveScreenShot(void)
-{
-   using namespace std;
-   using namespace std::chrono;
-
-   time_t tt = system_clock::to_time_t(system_clock::now());
-   tm utc_tm = *gmtime(&tt);
-   tm local_tm = *localtime(&tt);
-
-   std::stringstream ss;
-   ss<< local_tm.tm_year + 1900 << '-';
-   ss<< local_tm.tm_mon + 1 << '-';
-   ss<< local_tm.tm_mday << '_';
-   ss << local_tm.tm_hour;
-   ss << local_tm.tm_min;
-   if (local_tm.tm_sec < 10)
-   {
-      ss << "0";
-   }
-   ss << local_tm.tm_sec;
-
-   std::string fileName = ss.str();
-   
-   genesis::ScreenShotUtility screenShotUtility(_device);
-   screenShotUtility.takeScreenShot("..\\screenshots\\" + fileName + ".png"
-      , swapChain.images[currentBuffer], swapChain.colorFormat
-      , width, height);
-}
-
-void TutorialRayTracing::keyPressed(uint32_t key)
-{
-   if (key == KEY_F5)
-   {
-      saveScreenShot();
-   }
-   else if (key == KEY_SPACE)
-   {
-      resetCamera();
-   }
-   else if (key == KEY_F4)
-   {
-      settings.overlay = !settings.overlay;
-   }
-}
-
-/*
 Command buffer generation
 */
 void TutorialRayTracing::rayTrace(int commandBufferIndex)
@@ -490,6 +391,67 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[commandBufferIndex]));
 }
 
+/*
+If the window has been resized, we need to recreate the storage image and it's descriptor
+*/
+void TutorialRayTracing::windowResized()
+{
+   // Delete allocated resources
+   deleteStorageImages();
+   // Recreate image
+   createStorageImages();
+   // Update descriptor
+   writeStorageImageDescriptors();
+
+   _pushConstants.frameIndex = -1;
+}
+
+
+void TutorialRayTracing::saveScreenShot(void)
+{
+   using namespace std;
+   using namespace std::chrono;
+
+   time_t tt = system_clock::to_time_t(system_clock::now());
+   tm utc_tm = *gmtime(&tt);
+   tm local_tm = *localtime(&tt);
+
+   std::stringstream ss;
+   ss << local_tm.tm_year + 1900 << '-';
+   ss << local_tm.tm_mon + 1 << '-';
+   ss << local_tm.tm_mday << '_';
+   ss << local_tm.tm_hour;
+   ss << local_tm.tm_min;
+   if (local_tm.tm_sec < 10)
+   {
+      ss << "0";
+   }
+   ss << local_tm.tm_sec;
+
+   std::string fileName = ss.str();
+
+   genesis::ScreenShotUtility screenShotUtility(_device);
+   screenShotUtility.takeScreenShot("..\\screenshots\\" + fileName + ".png"
+      , swapChain.images[currentBuffer], swapChain.colorFormat
+      , width, height);
+}
+
+void TutorialRayTracing::keyPressed(uint32_t key)
+{
+   if (key == KEY_F5)
+   {
+      saveScreenShot();
+   }
+   else if (key == KEY_SPACE)
+   {
+      resetCamera();
+   }
+   else if (key == KEY_F4)
+   {
+      settings.overlay = !settings.overlay;
+   }
+}
+
 void TutorialRayTracing::draw()
 {
    VulkanExampleBase::prepareFrame();
@@ -514,6 +476,28 @@ void TutorialRayTracing::render()
 void TutorialRayTracing::viewChanged()
 {
    _pushConstants.frameIndex = -1;
+   updateSceneUbo();
+}
+
+void TutorialRayTracing::updateSceneUbo()
+{
+   SceneUbo ubo;
+   ubo.viewMatrix = camera.matrices.view;
+   ubo.viewMatrixInverse = glm::inverse(camera.matrices.view);
+
+   ubo.projectionMatrix = camera.matrices.perspective;
+   ubo.projectionMatrixInverse = glm::inverse(camera.matrices.perspective);
+
+   ubo.vertexSizeInBytes = sizeof(genesis::Vertex);
+
+   uint8_t* data = (uint8_t*)_sceneUbo->stagingBuffer();
+   memcpy(data, &ubo, sizeof(SceneUbo));
+   _sceneUbo->syncToGpu(false);
+}
+
+void TutorialRayTracing::createSceneUbo()
+{
+   _sceneUbo = new genesis::Buffer(_device, genesis::BT_UBO, sizeof(SceneUbo), true);
    updateSceneUbo();
 }
 
@@ -575,7 +559,7 @@ void TutorialRayTracing::prepare()
    createStorageImages();
    createSceneUbo();
    createRayTracingPipeline();
-   createDescriptorSets();
+   createAndUpdateDescriptorSets();
 
    prepared = true;
 }

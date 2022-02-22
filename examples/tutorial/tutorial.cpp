@@ -77,7 +77,10 @@ void Tutorial::resetCamera(void)
 }
 
 Tutorial::Tutorial()
+: _pushConstants{}
 {
+   title = "genesis: tutorial";
+
    _pushConstants.clearColor = glm::vec4(0, 0, 0, 0);
    _pushConstants.environmentMapCoordTransform = glm::vec4(1, 1, 1, 1);
 
@@ -85,15 +88,31 @@ Tutorial::Tutorial()
    _pushConstants.textureLodBias = 0;
    _pushConstants.reflectivity = 0;
 
-   title = "genesis: tutorial";
-
    resetCamera();
 
    // Require Vulkan 1.2
    apiVersion = VK_API_VERSION_1_2;
 
+   // Ray tracing related extensions required by this sample
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
+
+   // Required by VK_KHR_acceleration_structure
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_DEFERRED_HOST_OPERATIONS_EXTENSION_NAME);
+
+   // Required for VK_KHR_ray_tracing_pipeline
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SPIRV_1_4_EXTENSION_NAME);
+
+   // Required by VK_KHR_spirv_1_4
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME);
+
+   // For descriptor indexing
    _enabledPhysicalDeviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SHADER_CLOCK_EXTENSION_NAME);
+
+   // required for multi-draw
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME);
 }
 
@@ -167,7 +186,9 @@ Tutorial::~Tutorial()
    delete _skyCubeMapTexture;
    delete _skyCubeMapImage;
 
-   vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _setLayout0, nullptr);
+   vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rasterizationDescriptorSetLayout, nullptr);
+
+   vkDestroyDescriptorPool(_device->vulkanDevice(), _rasterizationDescriptorPool, nullptr);
 }
 
 void Tutorial::buildCommandBuffers()
@@ -210,7 +231,7 @@ void Tutorial::buildCommandBuffers()
       // Update dynamic scissor state
       vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
 
-      vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineLayout, 0, 1, &_descriptorSet0, 0, nullptr);
+      vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineLayout, 0, 1, &_rasterizationDescriptorSet, 0, nullptr);
 
       vkCmdPushConstants(drawCmdBuffers[i], _rasterizationPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
 
@@ -250,118 +271,24 @@ void Tutorial::buildCommandBuffers()
    }
 }
 
-void Tutorial::saveScreenShot(void)
-{
-   using namespace std;
-   using namespace std::chrono;
-
-   time_t tt = system_clock::to_time_t(system_clock::now());
-   tm utc_tm = *gmtime(&tt);
-   tm local_tm = *localtime(&tt);
-
-   std::stringstream ss;
-   ss << local_tm.tm_year + 1900 << '-';
-   ss << local_tm.tm_mon + 1 << '-';
-   ss << local_tm.tm_mday << '_';
-   ss << local_tm.tm_hour;
-   ss << local_tm.tm_min;
-   if (local_tm.tm_sec < 10)
-   {
-      ss << "0";
-   }
-   ss << local_tm.tm_sec;
-
-   std::string fileName = ss.str();
-
-   genesis::ScreenShotUtility screenShotUtility(_device);
-   screenShotUtility.takeScreenShot("..\\screenshots\\" + fileName + ".png"
-      , swapChain.images[currentBuffer], swapChain.colorFormat
-      , width, height);
-}
-
-void Tutorial::keyPressed(uint32_t key)
-{
-   if (key == KEY_F5)
-   {
-      saveScreenShot();
-   }
-   else if (key == KEY_SPACE)
-   {
-      resetCamera();
-   }
-   else if (key == KEY_F4)
-   {
-      settings.overlay = !settings.overlay;
-   }
-}
-
-void Tutorial::updateSceneUbo(void)
-{
-   SceneUbo ubo;
-   ubo.viewMatrix = camera.matrices.view;
-   ubo.viewMatrixInverse = glm::inverse(camera.matrices.view);
-
-   ubo.projectionMatrix = camera.matrices.perspective;
-   ubo.projectionMatrixInverse = glm::inverse(camera.matrices.perspective);
-
-   ubo.vertexSizeInBytes = sizeof(genesis::Vertex);
-
-   uint8_t* data = (uint8_t*)_sceneUbo->stagingBuffer();
-   memcpy(data, &ubo, sizeof(SceneUbo));
-   _sceneUbo->syncToGpu(false);
-}
-
-void Tutorial::createSceneUbo()
-{
-   _sceneUbo = new genesis::Buffer(_device, genesis::BT_UBO, sizeof(SceneUbo), true);
-   updateSceneUbo();
-}
-
-void Tutorial::setupDescriptorPool()
+void Tutorial::createAndUpdateDescriptorSets(void)
 {
    std::vector<VkDescriptorPoolSize> poolSizes =
    {
-      genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1)
-   ,  genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
+      {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}
+   ,  {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}
    };
 
    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::VulkanInitializers::descriptorPoolCreateInfo(poolSizes, 1);
-   VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &descriptorPool));
-}
+   VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &_rasterizationDescriptorPool));
 
-void Tutorial::setupDescriptorSetLayout(void)
-{
-   int bindingIndex = 0;
-   std::vector<VkDescriptorSetLayoutBinding> set0Bindings =
-   {
-      genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
-   ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
-   };
-   VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
-   VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set0LayoutInfo, nullptr, &_setLayout0));
-
-   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _setLayout0, _cellManager->cell(0)->layout()->vulkanDescriptorSetLayout() };
-
-   VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::VulkanInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
-
-   VkPushConstantRange pushConstant{ VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants) };
-   pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
-   pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
-
-   VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_rasterizationPipelineLayout));
-   debugmarker::setName(_device->vulkanDevice(), _rasterizationPipelineLayout, "_pipelineLayout");
-}
-
-
-void Tutorial::updateDescriptorSet(void)
-{
-   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::VulkanInitializers::descriptorSetAllocateInfo(descriptorPool, &_setLayout0, 1);
-   vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &_descriptorSet0);
+   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::VulkanInitializers::descriptorSetAllocateInfo(_rasterizationDescriptorPool, &_rasterizationDescriptorSetLayout, 1);
+   vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &_rasterizationDescriptorSet);
 
    int bindingIndex = 0;
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-   genesis::VulkanInitializers::writeDescriptorSet(_descriptorSet0,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++,&_sceneUbo->descriptor())
-,  genesis::VulkanInitializers::writeDescriptorSet(_descriptorSet0,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, bindingIndex++,&_skyCubeMapTexture->descriptor())
+   genesis::VulkanInitializers::writeDescriptorSet(_rasterizationDescriptorSet,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++,&_sceneUbo->descriptor())
+,  genesis::VulkanInitializers::writeDescriptorSet(_rasterizationDescriptorSet,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, bindingIndex++,&_skyCubeMapTexture->descriptor())
    };
 
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
@@ -383,6 +310,27 @@ genesis::Shader* Tutorial::loadShader(const std::string& shaderFile, genesis::Sh
 
 void Tutorial::createRasterizationPipeline()
 {
+
+   int bindingIndex = 0;
+   std::vector<VkDescriptorSetLayoutBinding> set0Bindings =
+   {
+      genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+   ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+   };
+   VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
+   VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set0LayoutInfo, nullptr, &_rasterizationDescriptorSetLayout));
+
+   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _rasterizationDescriptorSetLayout, _cellManager->cell(0)->layout()->vulkanDescriptorSetLayout() };
+
+   VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::VulkanInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
+
+   VkPushConstantRange pushConstant{ VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants) };
+   pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+   pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
+
+   VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_rasterizationPipelineLayout));
+   debugmarker::setName(_device->vulkanDevice(), _rasterizationPipelineLayout, "_pipelineLayout");
+
    // bindings
    std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions = { genesis::VulkanInitializers::vertexInputBindingDescription(0, sizeof(genesis::Vertex), VK_VERTEX_INPUT_RATE_VERTEX) };
 
@@ -461,6 +409,51 @@ void Tutorial::createRasterizationPipeline()
    debugmarker::setName(_device->vulkanDevice(), _skyBoxRasterizationPipelineWireframe, "_skyBoxPipelineWireframe");
 }
 
+void Tutorial::saveScreenShot(void)
+{
+   using namespace std;
+   using namespace std::chrono;
+
+   time_t tt = system_clock::to_time_t(system_clock::now());
+   tm utc_tm = *gmtime(&tt);
+   tm local_tm = *localtime(&tt);
+
+   std::stringstream ss;
+   ss << local_tm.tm_year + 1900 << '-';
+   ss << local_tm.tm_mon + 1 << '-';
+   ss << local_tm.tm_mday << '_';
+   ss << local_tm.tm_hour;
+   ss << local_tm.tm_min;
+   if (local_tm.tm_sec < 10)
+   {
+      ss << "0";
+   }
+   ss << local_tm.tm_sec;
+
+   std::string fileName = ss.str();
+
+   genesis::ScreenShotUtility screenShotUtility(_device);
+   screenShotUtility.takeScreenShot("..\\screenshots\\" + fileName + ".png"
+      , swapChain.images[currentBuffer], swapChain.colorFormat
+      , width, height);
+}
+
+void Tutorial::keyPressed(uint32_t key)
+{
+   if (key == KEY_F5)
+   {
+      saveScreenShot();
+   }
+   else if (key == KEY_SPACE)
+   {
+      resetCamera();
+   }
+   else if (key == KEY_F4)
+   {
+      settings.overlay = !settings.overlay;
+   }
+}
+
 void Tutorial::draw()
 {
    VulkanExampleBase::prepareFrame();
@@ -470,7 +463,6 @@ void Tutorial::draw()
    VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
    VulkanExampleBase::submitFrame();
 }
-
 
 void Tutorial::render()
 {
@@ -483,7 +475,29 @@ void Tutorial::render()
 
 void Tutorial::viewChanged()
 {
-   // This function is called by the base example class each time the view is changed by user input
+   _pushConstants.frameIndex = -1;
+   updateSceneUbo();
+}
+
+void Tutorial::updateSceneUbo(void)
+{
+   SceneUbo ubo;
+   ubo.viewMatrix = camera.matrices.view;
+   ubo.viewMatrixInverse = glm::inverse(camera.matrices.view);
+
+   ubo.projectionMatrix = camera.matrices.perspective;
+   ubo.projectionMatrixInverse = glm::inverse(camera.matrices.perspective);
+
+   ubo.vertexSizeInBytes = sizeof(genesis::Vertex);
+
+   uint8_t* data = (uint8_t*)_sceneUbo->stagingBuffer();
+   memcpy(data, &ubo, sizeof(SceneUbo));
+   _sceneUbo->syncToGpu(false);
+}
+
+void Tutorial::createSceneUbo()
+{
+   _sceneUbo = new genesis::Buffer(_device, genesis::BT_UBO, sizeof(SceneUbo), true);
    updateSceneUbo();
 }
 
@@ -551,10 +565,8 @@ void Tutorial::prepare()
    VulkanExampleBase::prepare();
    createScene();
    createSceneUbo();
-   setupDescriptorSetLayout();
-   setupDescriptorPool();
-   updateDescriptorSet();
    createRasterizationPipeline();
+   createAndUpdateDescriptorSets();
    buildCommandBuffers();
    
    prepared = true;

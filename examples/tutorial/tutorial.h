@@ -36,11 +36,9 @@ public:
    virtual void draw();
    virtual void createSceneUbo();
    virtual void updateSceneUbo(void);
-   
-   virtual void setupDescriptorPool();
-   virtual void setupDescriptorSetLayout(void);
-   virtual void updateDescriptorSet(void);
+
    virtual void createRasterizationPipeline();
+   virtual void createAndUpdateDescriptorSets(void);
 
    virtual void createScene(void);
    virtual genesis::Shader* loadShader(const std::string& shaderFile, genesis::ShaderType shaderType);
@@ -48,6 +46,11 @@ public:
    virtual void saveScreenShot(void);
 
 protected:
+   VkPhysicalDeviceDescriptorIndexingFeatures _physicalDeviceDescriptorIndexingFeatures{};
+   VkPhysicalDeviceBufferDeviceAddressFeatures _enabledBufferDeviceAddressFeatures{};
+   VkPhysicalDeviceRayTracingPipelineFeaturesKHR _enabledRayTracingPipelineFeatures{};
+   VkPhysicalDeviceAccelerationStructureFeaturesKHR _enabledAccelerationStructureFeatures{};
+   VkPhysicalDeviceShaderClockFeaturesKHR _physicalDeviceShaderClockFeaturesKHR{};
 
    VkPipelineLayout _rasterizationPipelineLayout;
    VkPipeline _rasterizationPipeline;
@@ -58,25 +61,14 @@ protected:
 
    genesis::Buffer* _sceneUbo;
 
-   VkDescriptorSetLayout _setLayout0;
-   VkDescriptorSet _descriptorSet0;
+   VkDescriptorSetLayout _rasterizationDescriptorSetLayout;
+   VkDescriptorSet _rasterizationDescriptorSet;
 
    genesis::CellManager* _cellManager = nullptr;
 
    genesis::VulkanGltfModel* _gltfSkyboxModel = nullptr;
    genesis::Image* _skyCubeMapImage = nullptr;
    genesis::Texture* _skyCubeMapTexture = nullptr;
-
-   VkPhysicalDeviceDescriptorIndexingFeatures _physicalDeviceDescriptorIndexingFeatures{};
-
-   VkPhysicalDeviceBufferDeviceAddressFeatures _enabledBufferDeviceAddressFeatures{};
-
-   VkPhysicalDeviceRayTracingPipelineFeaturesKHR _enabledRayTracingPipelineFeatures{};
-   VkPhysicalDeviceAccelerationStructureFeaturesKHR _enabledAccelerationStructureFeatures{};
-
-   VkPhysicalDeviceVulkan11Features _physicalDeviceVulkan11Features{};
-
-   VkPhysicalDeviceShaderClockFeaturesKHR _physicalDeviceShaderClockFeaturesKHR{};
 
    std::vector<genesis::Shader*> _shaders;
 
@@ -87,4 +79,6 @@ protected:
 #if 1
    genesis::IndirectLayout* _skyBoxLayout = nullptr;
 #endif
+
+   VkDescriptorPool _rasterizationDescriptorPool = VK_NULL_HANDLE;
 };

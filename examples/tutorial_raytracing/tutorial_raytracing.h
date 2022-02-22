@@ -42,7 +42,7 @@ public:
    virtual void createStorageImages(void);
    virtual void writeStorageImageDescriptors(void);
    virtual void createScene();
-   virtual void createDescriptorSets();
+   virtual void createAndUpdateDescriptorSets();
    virtual void createRayTracingPipeline();
    virtual void createSceneUbo();
 
@@ -61,18 +61,14 @@ public:
    virtual void drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer);
 
 public:
-
    VkPhysicalDeviceBufferDeviceAddressFeatures _enabledBufferDeviceAddressFeatures{};
    VkPhysicalDeviceRayTracingPipelineFeaturesKHR _enabledRayTracingPipelineFeatures{};
    VkPhysicalDeviceAccelerationStructureFeaturesKHR _enabledAccelerationStructureFeatures{};
-
    VkPhysicalDeviceDescriptorIndexingFeaturesEXT _physicalDeviceDescriptorIndexingFeatures{};
-
    VkPhysicalDeviceShaderClockFeaturesKHR _physicalDeviceShaderClockFeaturesKHR{};
 
    genesis::Image* _skyCubeMapImage = nullptr;
    genesis::Texture* _skyCubeMapTexture = nullptr;
-
 
    genesis::StorageImage* _finalImageToPresent;
    genesis::StorageImage* _intermediateImage;
@@ -89,4 +85,6 @@ public:
    genesis::CellManager* _cellManager = nullptr;
 
    genesis::ShaderBindingTable* _shaderBindingTable = nullptr;
+
+   VkDescriptorPool _rayTracingDescriptorPool = VK_NULL_HANDLE;
 };
