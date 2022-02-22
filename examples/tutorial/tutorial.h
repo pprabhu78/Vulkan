@@ -42,6 +42,7 @@ public:
    virtual void createRasterizationPipeline();
 
    virtual void createScene(void);
+   virtual genesis::Shader* loadShader(const std::string& shaderFile, genesis::ShaderType shaderType);
 
 protected:
 

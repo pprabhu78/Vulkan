@@ -32,10 +32,10 @@ namespace genesis
    }
 
    template<class T>
-   Buffer* createFillAndPush(const std::vector<T>& src, const std::string& name, Device* device, std::vector<Buffer*>& buffers)
+   Buffer* createFillAndPush(const std::vector<T>& src, BufferType bufferType, const std::string& name, Device* device, std::vector<Buffer*>& buffers)
    {
       const int sizeInBytes = (int)(src.size() * sizeof(T));
-      Buffer* buffer = new Buffer(device, BT_SBO, sizeInBytes, true, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, name);
+      Buffer* buffer = new Buffer(device, bufferType, sizeInBytes, true, VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, name);
       void* pDst = buffer->stagingBuffer();
       memcpy(pDst, src.data(), sizeInBytes);
       buffer->syncToGpu(true);
@@ -59,9 +59,9 @@ namespace genesis
 
          const auto& materials = model->materials();
 
-         Buffer* materialIndicesGpu = createFillAndPush(_scratchMaterialIndices, "MaterialsIndicesGpu", _device, _buffersCreatedHere);
-         Buffer* indexIndicesGpu = createFillAndPush(_scratchIndexIndices, "IndexIndicesGpu", _device, _buffersCreatedHere);
-         Buffer* materialsGpu = createFillAndPush(materials, "MaterialsGpu", _device, _buffersCreatedHere);
+         Buffer* materialIndicesGpu = createFillAndPush(_scratchMaterialIndices, BT_SBO, "MaterialsIndicesGpu", _device, _buffersCreatedHere);
+         Buffer* indexIndicesGpu = createFillAndPush(_scratchIndexIndices, BT_SBO, "IndexIndicesGpu", _device, _buffersCreatedHere);
+         Buffer* materialsGpu = createFillAndPush(materials, BT_SBO, "MaterialsGpu", _device, _buffersCreatedHere);
 
          ModelDesc modelDesc;
          modelDesc.textureOffset = currentTextureOffset;
@@ -75,7 +75,7 @@ namespace genesis
          models.push_back(modelDesc);
       }
 
-      _modelsGpu = createFillAndPush(models, "ModelsGpu", _device, _buffersCreatedHere);
+      _modelsGpu = createFillAndPush(models, BT_SBO, "ModelsGpu", _device, _buffersCreatedHere);
    }
 
    void IndirectLayout::destroyGpuSideBuffers(void)
@@ -256,8 +256,8 @@ namespace genesis
 
    void IndirectLayout::createGpuSideDrawBuffers()
    {
-      _indirectBufferGpu = createFillAndPush(_indirectCommands, "IndirectBufferGpu", _device, _buffersCreatedHere);
-      _flattenedInstancesGpu = createFillAndPush(_flattenedInstances, "FlattenedInstances", _device, _buffersCreatedHere);
+      _indirectBufferGpu = createFillAndPush(_indirectCommands, BT_INDIRECT_BUFFER, "IndirectBufferGpu", _device, _buffersCreatedHere);
+      _flattenedInstancesGpu = createFillAndPush(_flattenedInstances, BT_SBO, "FlattenedInstances", _device, _buffersCreatedHere);
    }
 
    void IndirectLayout::fillIndirectCommands(const VulkanGltfModel* model, int firstInstance, int instanceCount)

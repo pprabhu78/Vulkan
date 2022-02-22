@@ -291,104 +291,63 @@ void Tutorial::updateDescriptorSet(void)
 }
 
 
+genesis::Shader* Tutorial::loadShader(const std::string& shaderFile, genesis::ShaderType shaderType)
+{
+   genesis::Shader* shader = new genesis::Shader(_device);
+   shader->loadFromFile(shaderFile, shaderType);
+   if (shader->valid() == false)
+   {
+      std::cout << "error loading shader" << std::endl;
+      delete shader;
+      return nullptr;
+   }
+   _shaders.push_back(shader);
+   return shader;
+}
+
 void Tutorial::createRasterizationPipeline()
 {
    // bindings
-   std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions
-      = { genesis::VulkanInitializers::vertexInputBindingDescription(0, sizeof(genesis::Vertex), VK_VERTEX_INPUT_RATE_VERTEX) };
+   std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions = { genesis::VulkanInitializers::vertexInputBindingDescription(0, sizeof(genesis::Vertex), VK_VERTEX_INPUT_RATE_VERTEX) };
 
    // input descriptions
+   int location = 0;
    std::vector<VkVertexInputAttributeDescription> vertexInputAttributeDescriptions = {
-        genesis::VulkanInitializers::vertexInputAttributeDescription(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, position))
-      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, 1, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, normal))
-      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, 2, VK_FORMAT_R32G32_SFLOAT, offsetof(genesis::Vertex, uv))
-      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, 3, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, color))
+        genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, position))
+      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, normal))
+      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32_SFLOAT, offsetof(genesis::Vertex, uv))
+      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, color))
    };
 
    // input state
-   VkPipelineVertexInputStateCreateInfo vertexInputState
-      = genesis::VulkanInitializers::pipelineVertexInputStateCreateInfo(vertexInputBindingDescriptions, vertexInputAttributeDescriptions);
+   VkPipelineVertexInputStateCreateInfo vertexInputState = genesis::VulkanInitializers::pipelineVertexInputStateCreateInfo(vertexInputBindingDescriptions, vertexInputAttributeDescriptions);
 
    // input assembly
-   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState
-      = genesis::VulkanInitializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-         , 0
-         , VK_FALSE);
+   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = genesis::VulkanInitializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 
    // viewport state
-   VkPipelineViewportStateCreateInfo viewportState =
-      genesis::VulkanInitializers::pipelineViewportStateCreateInfo(1, 1, 0);
+   VkPipelineViewportStateCreateInfo viewportState = genesis::VulkanInitializers::pipelineViewportStateCreateInfo(1, 1, 0);
 
    // rasterization state
-   VkPipelineRasterizationStateCreateInfo rasterizationState =
-      genesis::VulkanInitializers::pipelineRasterizationStateCreateInfo(
-         VK_POLYGON_MODE_FILL,
-         VK_CULL_MODE_BACK_BIT,
-         VK_FRONT_FACE_COUNTER_CLOCKWISE,
-         0);
+   VkPipelineRasterizationStateCreateInfo rasterizationState = genesis::VulkanInitializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
 
    // multisample state
-   VkPipelineMultisampleStateCreateInfo multisampleState =
-      genesis::VulkanInitializers::pipelineMultisampleStateCreateInfo(
-         VK_SAMPLE_COUNT_1_BIT,
-         0);
+   VkPipelineMultisampleStateCreateInfo multisampleState = genesis::VulkanInitializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
 
    // depth stencil
-   VkPipelineDepthStencilStateCreateInfo depthStencilState =
-      genesis::VulkanInitializers::pipelineDepthStencilStateCreateInfo(
-         VK_TRUE,
-         VK_TRUE,
-         VK_COMPARE_OP_LESS_OR_EQUAL);
+   VkPipelineDepthStencilStateCreateInfo depthStencilState = genesis::VulkanInitializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
 
    // blend attachment
-   VkPipelineColorBlendAttachmentState blendAttachmentState =
-      genesis::VulkanInitializers::pipelineColorBlendAttachmentState(
-         0xf,
-         VK_FALSE);
+   VkPipelineColorBlendAttachmentState blendAttachmentState = genesis::VulkanInitializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
 
-   VkPipelineColorBlendStateCreateInfo colorBlendState =
-      genesis::VulkanInitializers::pipelineColorBlendStateCreateInfo(
-         1,
-         &blendAttachmentState);
+   VkPipelineColorBlendStateCreateInfo colorBlendState = genesis::VulkanInitializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
 
    // dynamic states
-   std::vector<VkDynamicState> dynamicStateEnables = {
-   VK_DYNAMIC_STATE_VIEWPORT,
-   VK_DYNAMIC_STATE_SCISSOR
-   };
-   VkPipelineDynamicStateCreateInfo dynamicState =
-      genesis::VulkanInitializers::pipelineDynamicStateCreateInfo(
-         dynamicStateEnables.data(),
-         static_cast<uint32_t>(dynamicStateEnables.size()),
-         0);
+   std::vector<VkDynamicState> dynamicStateEnables = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+   VkPipelineDynamicStateCreateInfo dynamicState = genesis::VulkanInitializers::pipelineDynamicStateCreateInfo(dynamicStateEnables.data(), static_cast<uint32_t>(dynamicStateEnables.size()), 0);
 
-   // shader stages
-   std::vector<std::pair<std::string, genesis::ShaderType>> shadersToLoad =
-   {
-        {getShadersPath() + "tutorial/tutorial.vert.spv", genesis::ST_VERTEX_SHADER}
-      , {getShadersPath() + "tutorial/tutorial.frag.spv", genesis::ST_FRAGMENT_SHADER}
-      , {getShadersPath() + "tutorial/skybox.vert.spv", genesis::ST_VERTEX_SHADER}
-      , {getShadersPath() + "tutorial/skybox.frag.spv", genesis::ST_FRAGMENT_SHADER}
-   };
-   for (auto shaderToLoad : shadersToLoad)
-   {
-      genesis::Shader* shader = new genesis::Shader(_device);
-      shader->loadFromFile(shaderToLoad.first, shaderToLoad.second);
-      if (shader->valid() == false)
-      {
-         std::cout << "error loading shader" << std::endl;
-      }
-      _shaders.push_back(shader);
-   }
    VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::VulkanInitializers::graphicsPipelineCreateInfo(_pipelineLayout, _renderPass->vulkanRenderPass());
 
-   std::array<VkPipelineShaderStageCreateInfo, 2> shaderStageInfos;
-   graphicsPipelineCreateInfo.stageCount = 2;
-   graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();
-
-   // first 2 are the model
-   shaderStageInfos[0] = _shaders[0]->pipelineShaderStageCreateInfo();
-   shaderStageInfos[1] = _shaders[1]->pipelineShaderStageCreateInfo();
    graphicsPipelineCreateInfo.pVertexInputState = &vertexInputState;
    graphicsPipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
    graphicsPipelineCreateInfo.pViewportState = &viewportState;
@@ -398,6 +357,12 @@ void Tutorial::createRasterizationPipeline()
    graphicsPipelineCreateInfo.pColorBlendState = &colorBlendState;
    graphicsPipelineCreateInfo.pDynamicState = &dynamicState;
 
+   Shader* modelVertexShader = loadShader(getShadersPath() + "tutorial/tutorial.vert.spv", genesis::ST_VERTEX_SHADER);
+   Shader* modelPixelShader = loadShader(getShadersPath() + "tutorial/tutorial.frag.spv", genesis::ST_FRAGMENT_SHADER);
+   std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos = { modelVertexShader->pipelineShaderStageCreateInfo(), modelPixelShader->pipelineShaderStageCreateInfo() };
+   graphicsPipelineCreateInfo.stageCount = (uint32_t)shaderStageInfos.size();
+   graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();
+
    VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_pipeline));
 
    rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
@@ -405,8 +370,9 @@ void Tutorial::createRasterizationPipeline()
    rasterizationState.polygonMode = VK_POLYGON_MODE_FILL; // reset
 
    // next 2 are the skybox
-   shaderStageInfos[0] = _shaders[2]->pipelineShaderStageCreateInfo();
-   shaderStageInfos[1] = _shaders[3]->pipelineShaderStageCreateInfo();
+   Shader* skyBoxVertexShader = loadShader(getShadersPath() + "tutorial/skybox.vert.spv", genesis::ST_VERTEX_SHADER);
+   Shader* skyBoxPixelShader = loadShader(getShadersPath() + "tutorial/skybox.frag.spv", genesis::ST_FRAGMENT_SHADER);
+   shaderStageInfos = { skyBoxVertexShader->pipelineShaderStageCreateInfo(), skyBoxPixelShader->pipelineShaderStageCreateInfo() };
 
    rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT; // cull the front facing polygons
    depthStencilState.depthWriteEnable = VK_FALSE;
