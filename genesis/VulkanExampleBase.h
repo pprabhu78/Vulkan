@@ -116,7 +116,7 @@ namespace genesis
 		// Command buffers used for rendering
 		std::vector<VkCommandBuffer> _drawCommandBuffers;
 		// Global render pass for frame buffer writes
-		RenderPass* _renderPass;
+		RenderPass* _renderPass = 0;
 		// List of available frame buffers (same as number of swap chain images)
 		std::vector<VkFramebuffer>frameBuffers;
 		// Active frame buffer index

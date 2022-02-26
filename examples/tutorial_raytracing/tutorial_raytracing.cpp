@@ -45,7 +45,6 @@ using namespace genesis::tools;
 
 void TutorialRayTracing::resetCamera()
 {
-   settings.overlay = false;
    camera.type = genesis::Camera::CameraType::lookat;
    camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
    camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
@@ -86,6 +85,8 @@ void TutorialRayTracing::resetCamera()
 TutorialRayTracing::TutorialRayTracing()
    : _pushConstants{}
 {
+   settings.overlay = false;
+
    title = "genesis: path tracer";
 
    _pushConstants.environmentMapCoordTransform = glm::vec4(1, 1, 1, 1);
@@ -185,7 +186,7 @@ void TutorialRayTracing::destroyRasterizationStuff()
    vkDestroyDescriptorPool(_device->vulkanDevice(), _rasterizationDescriptorPool, nullptr);
 }
 
-void TutorialRayTracing::destroyRayTracingStuff()
+void TutorialRayTracing::destroyRayTracingStuff(bool storageImages)
 {
    vkDestroyPipeline(_device->vulkanDevice(), _rayTracingPipeline, nullptr);
    vkDestroyPipelineLayout(_device->vulkanDevice(), _rayTracingPipelineLayout, nullptr);
@@ -195,7 +196,10 @@ void TutorialRayTracing::destroyRayTracingStuff()
 
    delete _shaderBindingTable;
 
-   deleteStorageImages();
+   if (storageImages)
+   {
+      deleteStorageImages();
+   }
 }
 
 void TutorialRayTracing::destroyCommonStuff()
@@ -212,7 +216,7 @@ void TutorialRayTracing::destroyCommonStuff()
 
 TutorialRayTracing::~TutorialRayTracing()
 {
-   destroyRayTracingStuff();
+   destroyRayTracingStuff(true);
    destroyRasterizationStuff();
    destroyCommonStuff();
 
@@ -277,6 +281,45 @@ void TutorialRayTracing::createAndUpdateDescriptorSets()
 {
    createAndUpdateRayTracingDescriptorSets();
    createAndUpdateRasterizationDescriptorSets();
+}
+
+void TutorialRayTracing::reloadShaders(void)
+{
+   std::string strVulkanDir = getenv("VULKAN_SDK");
+   std::string glslValidator = strVulkanDir + "\\bin\\glslangValidator.exe";
+   
+   std::string command = glslValidator + " " + "--target-env vulkan1.2 -V -o ../data/shaders/glsl/tutorial_raytracing/closesthit.rchit.spv ../data/shaders/glsl/tutorial_raytracing/closesthit.rchit";
+   system(command.c_str());
+
+   command = glslValidator + " " + "--target-env vulkan1.2 -V -o ../data/shaders/glsl/tutorial_raytracing/miss.rmiss.spv ../data/shaders/glsl/tutorial_raytracing/miss.rmiss";
+   system(command.c_str());
+
+   command = glslValidator + " " + "--target-env vulkan1.2 -V -o ../data/shaders/glsl/tutorial_raytracing/raygen.rgen.spv ../data/shaders/glsl/tutorial_raytracing/raygen.rgen";
+   system(command.c_str());
+
+   destroyRayTracingStuff(false);
+   createRayTracingPipeline();
+   createAndUpdateRayTracingDescriptorSets();
+   _pushConstants.frameIndex = -1;
+
+   std::string glslc = strVulkanDir + "\\bin\\glslc.exe";
+
+   command = glslc + " " + "-o ../data/shaders/glsl/tutorial_raytracing/tutorial.vert.spv ../data/shaders/glsl/tutorial_raytracing/tutorial.vert";
+   system(command.c_str());
+
+   command = glslc + " " + "-o ../data/shaders/glsl/tutorial_raytracing/tutorial.frag.spv ../data/shaders/glsl/tutorial_raytracing/tutorial.frag";
+   system(command.c_str());
+
+   command = glslc + " " + "-o ../data/shaders/glsl/tutorial_raytracing/skybox.vert.spv ../data/shaders/glsl/tutorial_raytracing/skybox.vert";
+   system(command.c_str());
+
+   command = glslc + " " + "-o ../data/shaders/glsl/tutorial_raytracing/skybox.frag.spv ../data/shaders/glsl/tutorial_raytracing/skybox.frag";
+   system(command.c_str());
+
+   destroyRasterizationStuff();
+   createRasterizationPipeline();
+   createAndUpdateRasterizationDescriptorSets();
+   buildCommandBuffers();
 }
 
 /*
@@ -794,6 +837,10 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
       if (overlay->sliderFloat("reflectivity", &_pushConstants.reflectivity, 0, 1)) 
       {
          // no op
+      }
+      if (overlay->button("Reload Shaders"))
+      {
+         reloadShaders();
       }
    }
 }

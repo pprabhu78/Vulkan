@@ -43,7 +43,8 @@ public:
    virtual void setupRenderPass() override;
    virtual void prepare() override;
    virtual void buildCommandBuffers() override;
-public:
+   
+protected:
    virtual void draw();
 
    virtual void createSceneUbo();
@@ -57,9 +58,7 @@ public:
    virtual void rayTrace(int commandBufferIndex);
 
    virtual void drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer);
-
-protected:
-   virtual void destroyRayTracingStuff();
+   virtual void destroyRayTracingStuff(bool storageImages);
    virtual void destroyRasterizationStuff();
    virtual void destroyCommonStuff();
 
@@ -76,6 +75,8 @@ protected:
    virtual void writeStorageImageDescriptors(void);
 
    virtual void buildRasterizationCommandBuffers(void);
+
+   virtual void reloadShaders(void);
 
 public:
    VkPhysicalDeviceBufferDeviceAddressFeatures _enabledBufferDeviceAddressFeatures{};
