@@ -42,6 +42,7 @@ public:
    virtual void OnUpdateUIOverlay(genesis::UIOverlay* overlay) override;
    virtual void setupRenderPass() override;
    virtual void prepare() override;
+   virtual void buildCommandBuffers() override;
 public:
    virtual void draw();
 

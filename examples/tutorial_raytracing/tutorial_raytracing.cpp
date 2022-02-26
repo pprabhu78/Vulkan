@@ -635,6 +635,7 @@ void TutorialRayTracing::keyPressed(uint32_t key)
    else if (key == KEY_F4)
    {
       settings.overlay = !settings.overlay;
+      buildCommandBuffers();
    }
    else if (key == KEY_R)
    {
@@ -761,6 +762,11 @@ void TutorialRayTracing::createPipelines()
    createRasterizationPipeline();
 }
 
+void TutorialRayTracing::buildCommandBuffers()
+{
+    buildRasterizationCommandBuffers();
+}
+
 void TutorialRayTracing::prepare()
 {
    VulkanExampleBase::prepare();
@@ -769,10 +775,7 @@ void TutorialRayTracing::prepare()
    createSceneUbo();
    createPipelines();
    createAndUpdateDescriptorSets();
-   if (_mode == RASTERIZATION)
-   {
-      buildRasterizationCommandBuffers();
-   }
+   buildCommandBuffers();
    prepared = true;
 }
 
@@ -780,12 +783,9 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
 {
    if (overlay->header("Settings")) 
    {
-      if (_mode == RASTERIZATION)
+      if (overlay->checkBox("wireframe", &_wireframe))
       {
-         if (overlay->checkBox("wireframe", &_wireframe))
-         {
-            // no op
-         }
+         // no op
       }
       if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f)) 
       {
@@ -800,6 +800,10 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
 
 void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer)
 {
+   if (_mode == RASTERIZATION)
+   {
+      return;
+   }
    VkClearValue clearValues[2];
    clearValues[0].color = defaultClearColor;
    clearValues[1].depthStencil = { 1.0f, 0 };
