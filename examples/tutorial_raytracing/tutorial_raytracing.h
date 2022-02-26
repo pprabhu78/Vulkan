@@ -115,11 +115,14 @@ public:
    genesis::Buffer* _sceneUbo;
    PushConstants _pushConstants;
 
-   genesis::VulkanGltfModel* _gltfSkyboxModel = nullptr;
    genesis::Image* _skyCubeMapImage = nullptr;
    genesis::Texture* _skyCubeMapTexture = nullptr;
 
    genesis::CellManager* _cellManager = nullptr;
+
+   // work around so as to use the same mechanism to render
+   genesis::CellManager* _skyBoxManager = nullptr;
+   VkPipelineLayout _rasterizationSkyBoxPipelineLayout;
 
    enum RenderMode
    { 
@@ -129,5 +132,6 @@ public:
    };
 
    RenderMode _mode = RAYTRACE;
+
    bool _wireframe = false;
 };

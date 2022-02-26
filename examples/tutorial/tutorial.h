@@ -66,19 +66,18 @@ protected:
 
    genesis::CellManager* _cellManager = nullptr;
 
-   genesis::VulkanGltfModel* _gltfSkyboxModel = nullptr;
    genesis::Image* _skyCubeMapImage = nullptr;
    genesis::Texture* _skyCubeMapTexture = nullptr;
 
    std::vector<genesis::Shader*> _shaders;
 
+   // work around so as to use the same mechanism to render
+   genesis::CellManager* _skyBoxManager = nullptr;
+   VkPipelineLayout _rasterizationSkyBoxPipelineLayout;
+
    bool _wireframe = false;
 
    PushConstants _pushConstants;
-
-#if 1
-   genesis::IndirectLayout* _skyBoxLayout = nullptr;
-#endif
 
    VkDescriptorPool _rasterizationDescriptorPool = VK_NULL_HANDLE;
 };

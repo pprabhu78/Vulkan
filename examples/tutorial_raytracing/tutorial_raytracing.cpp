@@ -170,7 +170,6 @@ void TutorialRayTracing::enableFeatures()
    deviceCreatepNextChain = &_physicalDeviceShaderClockFeaturesKHR;
 }
 
-
 void TutorialRayTracing::destroyRasterizationStuff()
 {
    vkDestroyPipeline(_device->vulkanDevice(), _rasterizationPipeline, nullptr);
@@ -180,7 +179,7 @@ void TutorialRayTracing::destroyRasterizationStuff()
    vkDestroyPipeline(_device->vulkanDevice(), _skyBoxRasterizationPipelineWireframe, nullptr);
 
    vkDestroyPipelineLayout(_device->vulkanDevice(), _rasterizationPipelineLayout, nullptr);
-
+   vkDestroyPipelineLayout(_device->vulkanDevice(), _rasterizationSkyBoxPipelineLayout, nullptr);
 
    vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rasterizationDescriptorSetLayout, nullptr);
    vkDestroyDescriptorPool(_device->vulkanDevice(), _rasterizationDescriptorPool, nullptr);
@@ -203,9 +202,10 @@ void TutorialRayTracing::destroyCommonStuff()
 {
    delete _cellManager;
 
+   delete _skyBoxManager;
+
    delete _sceneUbo;
 
-   delete _gltfSkyboxModel;
    delete _skyCubeMapTexture;
    delete _skyCubeMapImage;
 }
@@ -352,7 +352,6 @@ void TutorialRayTracing::createRasterizationPipeline()
    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set0LayoutInfo, nullptr, &_rasterizationDescriptorSetLayout));
 
    std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _rasterizationDescriptorSetLayout, _cellManager->cell(0)->layout()->vulkanDescriptorSetLayout() };
-
    VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::VulkanInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
 
    VkPushConstantRange pushConstant{ VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants) };
@@ -362,6 +361,14 @@ void TutorialRayTracing::createRasterizationPipeline()
    VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_rasterizationPipelineLayout));
    debugmarker::setName(_device->vulkanDevice(), _rasterizationPipelineLayout, "_pipelineLayout");
 
+   // sky box
+   vecDescriptorSetLayout = { _rasterizationDescriptorSetLayout, _skyBoxManager->cell(0)->layout()->vulkanDescriptorSetLayout() };
+   pipelineLayoutCreateInfo.pSetLayouts = vecDescriptorSetLayout.data();
+   pipelineLayoutCreateInfo.setLayoutCount = (uint32_t)vecDescriptorSetLayout.size();
+
+   VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_rasterizationSkyBoxPipelineLayout));
+   debugmarker::setName(_device->vulkanDevice(), _rasterizationSkyBoxPipelineLayout, "_rasterizationSkyBoxPipelineLayout");
+   
    // bindings
    std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions = { genesis::VulkanInitializers::vertexInputBindingDescription(0, sizeof(genesis::Vertex), VK_VERTEX_INPUT_RATE_VERTEX) };
 
@@ -412,8 +419,8 @@ void TutorialRayTracing::createRasterizationPipeline()
    graphicsPipelineCreateInfo.pColorBlendState = &colorBlendState;
    graphicsPipelineCreateInfo.pDynamicState = &dynamicState;
 
-   Shader* modelVertexShader = loadShader(getShadersPath() + "tutorial/tutorial.vert.spv", genesis::ST_VERTEX_SHADER);
-   Shader* modelPixelShader = loadShader(getShadersPath() + "tutorial/tutorial.frag.spv", genesis::ST_FRAGMENT_SHADER);
+   Shader* modelVertexShader = loadShader(getShadersPath() + "tutorial_raytracing/tutorial.vert.spv", genesis::ST_VERTEX_SHADER);
+   Shader* modelPixelShader = loadShader(getShadersPath() + "tutorial_raytracing/tutorial.frag.spv", genesis::ST_FRAGMENT_SHADER);
    std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos = { modelVertexShader->pipelineShaderStageCreateInfo(), modelPixelShader->pipelineShaderStageCreateInfo() };
    graphicsPipelineCreateInfo.stageCount = (uint32_t)shaderStageInfos.size();
    graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();
@@ -425,10 +432,12 @@ void TutorialRayTracing::createRasterizationPipeline()
    rasterizationState.polygonMode = VK_POLYGON_MODE_FILL; // reset
 
    // next 2 are the skybox
-   Shader* skyBoxVertexShader = loadShader(getShadersPath() + "tutorial/skybox.vert.spv", genesis::ST_VERTEX_SHADER);
-   Shader* skyBoxPixelShader = loadShader(getShadersPath() + "tutorial/skybox.frag.spv", genesis::ST_FRAGMENT_SHADER);
+   Shader* skyBoxVertexShader = loadShader(getShadersPath() + "tutorial_raytracing/skybox.vert.spv", genesis::ST_VERTEX_SHADER);
+   Shader* skyBoxPixelShader = loadShader(getShadersPath() + "tutorial_raytracing/skybox.frag.spv", genesis::ST_FRAGMENT_SHADER);
    shaderStageInfos = { skyBoxVertexShader->pipelineShaderStageCreateInfo(), skyBoxPixelShader->pipelineShaderStageCreateInfo() };
 
+   graphicsPipelineCreateInfo.layout = _rasterizationSkyBoxPipelineLayout;
+   
    rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT; // cull the front facing polygons
    depthStencilState.depthWriteEnable = VK_FALSE;
    depthStencilState.depthTestEnable = VK_FALSE;
@@ -542,11 +551,10 @@ void TutorialRayTracing::buildRasterizationCommandBuffers()
       // Update dynamic scissor state
       vkCmdSetScissor(_drawCommandBuffers[i], 0, 1, &scissor);
 
-      vkCmdBindDescriptorSets(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineLayout, 0, 1, &_rasterizationDescriptorSet, 0, nullptr);
-
-      vkCmdPushConstants(_drawCommandBuffers[i], _rasterizationPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
-
       // draw the sky box
+      vkCmdBindDescriptorSets(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationSkyBoxPipelineLayout, 0, 1, &_rasterizationDescriptorSet, 0, nullptr);
+      vkCmdPushConstants(_drawCommandBuffers[i], _rasterizationSkyBoxPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
+
       if (!_wireframe)
       {
          vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipeline);
@@ -555,10 +563,12 @@ void TutorialRayTracing::buildRasterizationCommandBuffers()
       {
          vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipelineWireframe);
       }
-#pragma message("PPP: TO DO: skybox")
-      //_indirectLayout->draw(drawCmdBuffers[i], _pipelineLayout, _gltfModel);
+      _skyBoxManager->cell(0)->draw(_drawCommandBuffers[i], _rasterizationSkyBoxPipelineLayout);
 
       // draw the model
+      vkCmdBindDescriptorSets(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineLayout, 0, 1, &_rasterizationDescriptorSet, 0, nullptr);
+      vkCmdPushConstants(_drawCommandBuffers[i], _rasterizationPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
+
       if (!_wireframe)
       {
          vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipeline);
@@ -726,8 +736,11 @@ void TutorialRayTracing::createScene()
    _cellManager->buildDrawBuffers();
    _cellManager->buildLayouts();
 
-   _gltfSkyboxModel = new genesis::VulkanGltfModel(_device, false);
-   _gltfSkyboxModel->loadFromFile(getAssetsPath() + "models/cube.gltf", glTFLoadingFlags);
+   _skyBoxManager = new genesis::CellManager(_device, glTFLoadingFlags);
+   _skyBoxManager->addInstance(getAssetsPath() + "models/cube.gltf", glm::mat4());
+
+   _skyBoxManager->buildDrawBuffers();
+   _skyBoxManager->buildLayouts();
 
    _skyCubeMapImage = new genesis::Image(_device);
 #if (defined SKYBOX_YOKOHOMA)
@@ -740,13 +753,6 @@ void TutorialRayTracing::createScene()
    _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
 #endif
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
-
-#pragma message("PPP: TO DO: skybox")
-#if 0
-   _indirectLayout = new genesis::IndirectLayout(_device);
-   _indirectLayout->build({ _gltfModel });
-   _indirectLayout->buildDrawBuffers({ _gltfModel });
-#endif
 }
 
 void TutorialRayTracing::createPipelines()
@@ -772,12 +778,22 @@ void TutorialRayTracing::prepare()
 
 void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
 {
-   if (overlay->header("Settings")) {
-      if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f)) \
+   if (overlay->header("Settings")) 
+   {
+      if (_mode == RASTERIZATION)
       {
-         _pushConstants.frameIndex = -1;
+         if (overlay->checkBox("wireframe", &_wireframe))
+         {
+            // no op
+         }
       }
-      if (overlay->sliderFloat("reflectivity", &_pushConstants.reflectivity, 0, 1)) {
+      if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f)) 
+      {
+         _pushConstants.frameIndex = -1; // need to start tracing again if ray tracing
+      }
+      if (overlay->sliderFloat("reflectivity", &_pushConstants.reflectivity, 0, 1)) 
+      {
+         // no op
       }
    }
 }
