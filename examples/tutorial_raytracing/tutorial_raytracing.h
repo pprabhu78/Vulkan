@@ -53,16 +53,28 @@ public:
    virtual void saveScreenShot(void);
    virtual void resetCamera(void);
 
+   virtual void rayTrace(int commandBufferIndex);
+
+   virtual void drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer);
+
+protected:
+   virtual void destroyRayTracingStuff();
+   virtual void destroyRasterizationStuff();
+   virtual void destroyCommonStuff();
+
+   virtual void createAndUpdateDescriptorSets();
+   virtual void createAndUpdateRasterizationDescriptorSets();
    virtual void createAndUpdateRayTracingDescriptorSets();
+
+   virtual void createPipelines();
+   virtual void createRasterizationPipeline();
    virtual void createRayTracingPipeline();
 
    virtual void createStorageImages(void);
    virtual void deleteStorageImages(void);
    virtual void writeStorageImageDescriptors(void);
 
-   virtual void rayTrace(int commandBufferIndex);
-
-   virtual void drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer);
+   virtual void buildRasterizationCommandBuffers(void);
 
 public:
    VkPhysicalDeviceBufferDeviceAddressFeatures _enabledBufferDeviceAddressFeatures{};
@@ -71,25 +83,51 @@ public:
    VkPhysicalDeviceDescriptorIndexingFeaturesEXT _physicalDeviceDescriptorIndexingFeatures{};
    VkPhysicalDeviceShaderClockFeaturesKHR _physicalDeviceShaderClockFeaturesKHR{};
 
-   genesis::VulkanGltfModel* _gltfSkyboxModel = nullptr;
-   genesis::Image* _skyCubeMapImage = nullptr;
-   genesis::Texture* _skyCubeMapTexture = nullptr;
 
-   genesis::StorageImage* _finalImageToPresent;
-   genesis::StorageImage* _intermediateImage;
-
-   genesis::Buffer* _sceneUbo;
-
+   // Ray tracing
    VkPipeline _rayTracingPipeline;
    VkPipelineLayout _rayTracingPipelineLayout;
    VkDescriptorSet _rayTracingDescriptorSet;
    VkDescriptorSetLayout _rayTracingDescriptorSetLayout;
 
-   PushConstants _pushConstants;
-
-   genesis::CellManager* _cellManager = nullptr;
+   VkDescriptorPool _rayTracingDescriptorPool = VK_NULL_HANDLE;
 
    genesis::ShaderBindingTable* _shaderBindingTable = nullptr;
 
-   VkDescriptorPool _rayTracingDescriptorPool = VK_NULL_HANDLE;
+   genesis::StorageImage* _finalImageToPresent;
+   genesis::StorageImage* _intermediateImage;
+
+
+   // Rasterization
+   VkPipelineLayout _rasterizationPipelineLayout;
+   VkPipeline _rasterizationPipeline;
+   VkPipeline _rasterizationPipelineWireframe;
+
+   VkPipeline _skyBoxRasterizationPipeline;
+   VkPipeline _skyBoxRasterizationPipelineWireframe;
+
+   VkDescriptorPool _rasterizationDescriptorPool = VK_NULL_HANDLE;
+
+   VkDescriptorSetLayout _rasterizationDescriptorSetLayout;
+   VkDescriptorSet _rasterizationDescriptorSet;
+   
+   // common
+   genesis::Buffer* _sceneUbo;
+   PushConstants _pushConstants;
+
+   genesis::VulkanGltfModel* _gltfSkyboxModel = nullptr;
+   genesis::Image* _skyCubeMapImage = nullptr;
+   genesis::Texture* _skyCubeMapTexture = nullptr;
+
+   genesis::CellManager* _cellManager = nullptr;
+
+   enum RenderMode
+   { 
+      RAYTRACE = 0
+      , RASTERIZATION = 1 
+      , NUM_MODES = 2
+   };
+
+   RenderMode _mode = RAYTRACE;
+   bool _wireframe = false;
 };

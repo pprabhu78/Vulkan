@@ -337,35 +337,35 @@ void Tutorial::buildCommandBuffers()
    const VkViewport viewport = genesis::VulkanInitializers::viewport((float)width, (float)height, 0.0f, 1.0f);
    const VkRect2D scissor = genesis::VulkanInitializers::rect2D(width, height, 0, 0);
 
-   for (int32_t i = 0; i < drawCmdBuffers.size(); ++i)
+   for (int32_t i = 0; i < _drawCommandBuffers.size(); ++i)
    {
       // Set target frame buffer
       renderPassBeginInfo.framebuffer = frameBuffers[i];
 
-      VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[i], &cmdBufInfo));
+      VK_CHECK_RESULT(vkBeginCommandBuffer(_drawCommandBuffers[i], &cmdBufInfo));
 
       // Start the first sub pass specified in our default render pass setup by the base class
       // This will clear the color and depth attachment
-      vkCmdBeginRenderPass(drawCmdBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+      vkCmdBeginRenderPass(_drawCommandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
       // Update dynamic viewport state
-      vkCmdSetViewport(drawCmdBuffers[i], 0, 1, &viewport);
+      vkCmdSetViewport(_drawCommandBuffers[i], 0, 1, &viewport);
 
       // Update dynamic scissor state
-      vkCmdSetScissor(drawCmdBuffers[i], 0, 1, &scissor);
+      vkCmdSetScissor(_drawCommandBuffers[i], 0, 1, &scissor);
 
-      vkCmdBindDescriptorSets(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineLayout, 0, 1, &_rasterizationDescriptorSet, 0, nullptr);
+      vkCmdBindDescriptorSets(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineLayout, 0, 1, &_rasterizationDescriptorSet, 0, nullptr);
 
-      vkCmdPushConstants(drawCmdBuffers[i], _rasterizationPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
+      vkCmdPushConstants(_drawCommandBuffers[i], _rasterizationPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
 
       // draw the sky box
       if (!_wireframe)
       {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipeline);
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipeline);
       }
       else
       {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipelineWireframe);
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipelineWireframe);
       }
 #pragma message("PPP: TO DO: skybox")
       //_indirectLayout->draw(drawCmdBuffers[i], _pipelineLayout, _gltfModel);
@@ -373,24 +373,24 @@ void Tutorial::buildCommandBuffers()
       // draw the model
       if (!_wireframe)
       {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipeline);
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipeline);
       }
       else
       {
-         vkCmdBindPipeline(drawCmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineWireframe);
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineWireframe);
       }
 
-      _cellManager->cell(0)->draw(drawCmdBuffers[i], _rasterizationPipelineLayout);
+      _cellManager->cell(0)->draw(_drawCommandBuffers[i], _rasterizationPipelineLayout);
 
       // draw the UI
-      drawUI(drawCmdBuffers[i]);
+      drawUI(_drawCommandBuffers[i]);
 
-      vkCmdEndRenderPass(drawCmdBuffers[i]);
+      vkCmdEndRenderPass(_drawCommandBuffers[i]);
 
       // Ending the render pass will add an implicit barrier transitioning the frame buffer color attachment to
       // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR for presenting it to the windowing system
 
-      VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[i]));
+      VK_CHECK_RESULT(vkEndCommandBuffer(_drawCommandBuffers[i]));
    }
 }
 
@@ -445,7 +445,7 @@ void Tutorial::draw()
    VulkanExampleBase::prepareFrame();
 
    submitInfo.commandBufferCount = 1;
-   submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
+   submitInfo.pCommandBuffers = &_drawCommandBuffers[currentBuffer];
    VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
    VulkanExampleBase::submitFrame();
 }
@@ -568,18 +568,3 @@ void Tutorial::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
       }     
    }
 }
-
-genesis::Shader* Tutorial::loadShader(const std::string& shaderFile, genesis::ShaderType shaderType)
-{
-   genesis::Shader* shader = new genesis::Shader(_device);
-   shader->loadFromFile(shaderFile, shaderType);
-   if (shader->valid() == false)
-   {
-      std::cout << "error loading shader" << std::endl;
-      delete shader;
-      return nullptr;
-   }
-   _shaders.push_back(shader);
-   return shader;
-}
-

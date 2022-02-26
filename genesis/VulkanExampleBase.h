@@ -114,7 +114,7 @@ namespace genesis
 		// Contains command buffers and semaphores to be presented to the queue
 		VkSubmitInfo submitInfo;
 		// Command buffers used for rendering
-		std::vector<VkCommandBuffer> drawCmdBuffers;
+		std::vector<VkCommandBuffer> _drawCommandBuffers;
 		// Global render pass for frame buffer writes
 		RenderPass* _renderPass;
 		// List of available frame buffers (same as number of swap chain images)

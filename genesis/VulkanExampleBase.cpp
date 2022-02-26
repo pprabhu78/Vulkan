@@ -45,7 +45,7 @@ namespace genesis
    {
       VulkanExampleBase::prepareFrame();
       submitInfo.commandBufferCount = 1;
-      submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
+      submitInfo.pCommandBuffers = &_drawCommandBuffers[currentBuffer];
       VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
       VulkanExampleBase::submitFrame();
    }
@@ -64,24 +64,24 @@ namespace genesis
    void VulkanExampleBase::createCommandBuffers()
    {
       // Create one command buffer for each swap chain image and reuse for rendering
-      drawCmdBuffers.resize(swapChain.imageCount);
+      _drawCommandBuffers.resize(swapChain.imageCount);
 
       VkCommandBufferAllocateInfo cmdBufAllocateInfo =
          VulkanInitializers::commandBufferAllocateInfo(
             cmdPool,
             VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            static_cast<uint32_t>(drawCmdBuffers.size()));
+            static_cast<uint32_t>(_drawCommandBuffers.size()));
 
-      VK_CHECK_RESULT(vkAllocateCommandBuffers(_device->vulkanDevice(), &cmdBufAllocateInfo, drawCmdBuffers.data()));
+      VK_CHECK_RESULT(vkAllocateCommandBuffers(_device->vulkanDevice(), &cmdBufAllocateInfo, _drawCommandBuffers.data()));
    }
 
    void VulkanExampleBase::destroyCommandBuffers()
    {
-      if (drawCmdBuffers.empty())
+      if (_drawCommandBuffers.empty())
       {
          return;
       }
-      vkFreeCommandBuffers(_device->vulkanDevice(), cmdPool, static_cast<uint32_t>(drawCmdBuffers.size()), drawCmdBuffers.data());
+      vkFreeCommandBuffers(_device->vulkanDevice(), cmdPool, static_cast<uint32_t>(_drawCommandBuffers.size()), _drawCommandBuffers.data());
    }
 
    std::string VulkanExampleBase::getAssetsPath() const
@@ -134,6 +134,12 @@ namespace genesis
    {
       genesis::Shader* shader = new genesis::Shader(_device);
       shader->loadFromFile(fileName, stage);
+      if (shader->valid() == false)
+      {
+         std::cout << "error loading shader" << std::endl;
+         delete shader;
+         return nullptr;
+      }
       _shaders.push_back(shader);
       return shader;
    }
@@ -767,7 +773,7 @@ namespace genesis
    {
       // Wait fences to sync command buffer access
       VkFenceCreateInfo fenceCreateInfo = VulkanInitializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-      waitFences.resize(drawCmdBuffers.size());
+      waitFences.resize(_drawCommandBuffers.size());
       for (auto& fence : waitFences) {
          VK_CHECK_RESULT(vkCreateFence(_device->vulkanDevice(), &fenceCreateInfo, nullptr, &fence));
       }

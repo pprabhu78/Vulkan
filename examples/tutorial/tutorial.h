@@ -45,8 +45,6 @@ public:
    virtual void createRasterizationPipeline();
    virtual void createAndUpdateRasterizationDescriptorSets(void);
 
-   virtual genesis::Shader* loadShader(const std::string& shaderFile, genesis::ShaderType shaderType);
-
 protected:
    VkPhysicalDeviceDescriptorIndexingFeatures _physicalDeviceDescriptorIndexingFeatures{};
    VkPhysicalDeviceBufferDeviceAddressFeatures _enabledBufferDeviceAddressFeatures{};

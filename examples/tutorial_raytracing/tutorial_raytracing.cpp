@@ -170,7 +170,23 @@ void TutorialRayTracing::enableFeatures()
    deviceCreatepNextChain = &_physicalDeviceShaderClockFeaturesKHR;
 }
 
-TutorialRayTracing::~TutorialRayTracing()
+
+void TutorialRayTracing::destroyRasterizationStuff()
+{
+   vkDestroyPipeline(_device->vulkanDevice(), _rasterizationPipeline, nullptr);
+   vkDestroyPipeline(_device->vulkanDevice(), _rasterizationPipelineWireframe, nullptr);
+
+   vkDestroyPipeline(_device->vulkanDevice(), _skyBoxRasterizationPipeline, nullptr);
+   vkDestroyPipeline(_device->vulkanDevice(), _skyBoxRasterizationPipelineWireframe, nullptr);
+
+   vkDestroyPipelineLayout(_device->vulkanDevice(), _rasterizationPipelineLayout, nullptr);
+
+
+   vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rasterizationDescriptorSetLayout, nullptr);
+   vkDestroyDescriptorPool(_device->vulkanDevice(), _rasterizationDescriptorPool, nullptr);
+}
+
+void TutorialRayTracing::destroyRayTracingStuff()
 {
    vkDestroyPipeline(_device->vulkanDevice(), _rayTracingPipeline, nullptr);
    vkDestroyPipelineLayout(_device->vulkanDevice(), _rayTracingPipelineLayout, nullptr);
@@ -178,10 +194,13 @@ TutorialRayTracing::~TutorialRayTracing()
 
    vkDestroyDescriptorPool(_device->vulkanDevice(), _rayTracingDescriptorPool, nullptr);
 
-   deleteStorageImages();
-
    delete _shaderBindingTable;
 
+   deleteStorageImages();
+}
+
+void TutorialRayTracing::destroyCommonStuff()
+{
    delete _cellManager;
 
    delete _sceneUbo;
@@ -189,6 +208,14 @@ TutorialRayTracing::~TutorialRayTracing()
    delete _gltfSkyboxModel;
    delete _skyCubeMapTexture;
    delete _skyCubeMapImage;
+}
+
+TutorialRayTracing::~TutorialRayTracing()
+{
+   destroyRayTracingStuff();
+   destroyRasterizationStuff();
+   destroyCommonStuff();
+
 }
 
 void TutorialRayTracing::createAndUpdateRayTracingDescriptorSets()
@@ -222,6 +249,34 @@ void TutorialRayTracing::createAndUpdateRayTracingDescriptorSets()
    };
 
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
+}
+
+void TutorialRayTracing::createAndUpdateRasterizationDescriptorSets()
+{
+   std::vector<VkDescriptorPoolSize> poolSizes = {
+   {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}
+,  {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}
+   };
+
+   VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::VulkanInitializers::descriptorPoolCreateInfo(poolSizes, 1);
+   VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &_rasterizationDescriptorPool));
+
+   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::VulkanInitializers::descriptorSetAllocateInfo(_rasterizationDescriptorPool, &_rasterizationDescriptorSetLayout, 1);
+   vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &_rasterizationDescriptorSet);
+
+   int bindingIndex = 0;
+   std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
+   genesis::VulkanInitializers::writeDescriptorSet(_rasterizationDescriptorSet,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++,&_sceneUbo->descriptor())
+,  genesis::VulkanInitializers::writeDescriptorSet(_rasterizationDescriptorSet,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, bindingIndex++,&_skyCubeMapTexture->descriptor())
+   };
+
+   vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+}
+
+void TutorialRayTracing::createAndUpdateDescriptorSets()
+{
+   createAndUpdateRayTracingDescriptorSets();
+   createAndUpdateRasterizationDescriptorSets();
 }
 
 /*
@@ -285,6 +340,106 @@ void TutorialRayTracing::createRayTracingPipeline()
    _shaderBindingTable->build(_rayTracingPipeline);
 }
 
+void TutorialRayTracing::createRasterizationPipeline()
+{
+   int bindingIndex = 0;
+   std::vector<VkDescriptorSetLayoutBinding> set0Bindings =
+   {
+      genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+   ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+   };
+   VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
+   VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set0LayoutInfo, nullptr, &_rasterizationDescriptorSetLayout));
+
+   std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _rasterizationDescriptorSetLayout, _cellManager->cell(0)->layout()->vulkanDescriptorSetLayout() };
+
+   VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::VulkanInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
+
+   VkPushConstantRange pushConstant{ VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants) };
+   pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
+   pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
+
+   VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_rasterizationPipelineLayout));
+   debugmarker::setName(_device->vulkanDevice(), _rasterizationPipelineLayout, "_pipelineLayout");
+
+   // bindings
+   std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions = { genesis::VulkanInitializers::vertexInputBindingDescription(0, sizeof(genesis::Vertex), VK_VERTEX_INPUT_RATE_VERTEX) };
+
+   // input descriptions
+   int location = 0;
+   std::vector<VkVertexInputAttributeDescription> vertexInputAttributeDescriptions = {
+        genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, position))
+      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, normal))
+      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32_SFLOAT, offsetof(genesis::Vertex, uv))
+      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, color))
+   };
+
+   // input state
+   VkPipelineVertexInputStateCreateInfo vertexInputState = genesis::VulkanInitializers::pipelineVertexInputStateCreateInfo(vertexInputBindingDescriptions, vertexInputAttributeDescriptions);
+
+   // input assembly
+   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = genesis::VulkanInitializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
+
+   // viewport state
+   VkPipelineViewportStateCreateInfo viewportState = genesis::VulkanInitializers::pipelineViewportStateCreateInfo(1, 1, 0);
+
+   // rasterization state
+   VkPipelineRasterizationStateCreateInfo rasterizationState = genesis::VulkanInitializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
+
+   // multisample state
+   VkPipelineMultisampleStateCreateInfo multisampleState = genesis::VulkanInitializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
+
+   // depth stencil
+   VkPipelineDepthStencilStateCreateInfo depthStencilState = genesis::VulkanInitializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
+
+   // blend attachment
+   VkPipelineColorBlendAttachmentState blendAttachmentState = genesis::VulkanInitializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
+
+   VkPipelineColorBlendStateCreateInfo colorBlendState = genesis::VulkanInitializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
+
+   // dynamic states
+   std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+   VkPipelineDynamicStateCreateInfo dynamicState = genesis::VulkanInitializers::pipelineDynamicStateCreateInfo(dynamicStateEnables.data(), static_cast<uint32_t>(dynamicStateEnables.size()), 0);
+
+   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::VulkanInitializers::graphicsPipelineCreateInfo(_rasterizationPipelineLayout, _renderPass->vulkanRenderPass());
+
+   graphicsPipelineCreateInfo.pVertexInputState = &vertexInputState;
+   graphicsPipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
+   graphicsPipelineCreateInfo.pViewportState = &viewportState;
+   graphicsPipelineCreateInfo.pRasterizationState = &rasterizationState;
+   graphicsPipelineCreateInfo.pMultisampleState = &multisampleState;
+   graphicsPipelineCreateInfo.pDepthStencilState = &depthStencilState;
+   graphicsPipelineCreateInfo.pColorBlendState = &colorBlendState;
+   graphicsPipelineCreateInfo.pDynamicState = &dynamicState;
+
+   Shader* modelVertexShader = loadShader(getShadersPath() + "tutorial/tutorial.vert.spv", genesis::ST_VERTEX_SHADER);
+   Shader* modelPixelShader = loadShader(getShadersPath() + "tutorial/tutorial.frag.spv", genesis::ST_FRAGMENT_SHADER);
+   std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos = { modelVertexShader->pipelineShaderStageCreateInfo(), modelPixelShader->pipelineShaderStageCreateInfo() };
+   graphicsPipelineCreateInfo.stageCount = (uint32_t)shaderStageInfos.size();
+   graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();
+
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipeline));
+
+   rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipelineWireframe));
+   rasterizationState.polygonMode = VK_POLYGON_MODE_FILL; // reset
+
+   // next 2 are the skybox
+   Shader* skyBoxVertexShader = loadShader(getShadersPath() + "tutorial/skybox.vert.spv", genesis::ST_VERTEX_SHADER);
+   Shader* skyBoxPixelShader = loadShader(getShadersPath() + "tutorial/skybox.frag.spv", genesis::ST_FRAGMENT_SHADER);
+   shaderStageInfos = { skyBoxVertexShader->pipelineShaderStageCreateInfo(), skyBoxPixelShader->pipelineShaderStageCreateInfo() };
+
+   rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT; // cull the front facing polygons
+   depthStencilState.depthWriteEnable = VK_FALSE;
+   depthStencilState.depthTestEnable = VK_FALSE;
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxRasterizationPipeline));
+   debugmarker::setName(_device->vulkanDevice(), _skyBoxRasterizationPipeline, "_skyBoxPipeline");
+
+   rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxRasterizationPipelineWireframe));
+   debugmarker::setName(_device->vulkanDevice(), _skyBoxRasterizationPipelineWireframe, "_skyBoxPipelineWireframe");
+}
+
 /*
 Command buffer generation
 */
@@ -292,18 +447,18 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
 {
    VkCommandBufferBeginInfo cmdBufInfo = genesis::VulkanInitializers::commandBufferBeginInfo();
 
-   VK_CHECK_RESULT(vkBeginCommandBuffer(drawCmdBuffers[commandBufferIndex], &cmdBufInfo));
+   VK_CHECK_RESULT(vkBeginCommandBuffer(_drawCommandBuffers[commandBufferIndex], &cmdBufInfo));
 
-   vkCmdBindPipeline(drawCmdBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipeline);
-   vkCmdBindDescriptorSets(drawCmdBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipelineLayout, 0, 1, &_rayTracingDescriptorSet, 0, 0);
+   vkCmdBindPipeline(_drawCommandBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipeline);
+   vkCmdBindDescriptorSets(_drawCommandBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipelineLayout, 0, 1, &_rayTracingDescriptorSet, 0, 0);
 
    std::uint32_t firstSet = 1;
-   vkCmdBindDescriptorSets(drawCmdBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipelineLayout, firstSet, std::uint32_t(_cellManager->cell(0)->layout()->descriptorSets().size()), _cellManager->cell(0)->layout()->descriptorSets().data(), 0, nullptr);
+   vkCmdBindDescriptorSets(_drawCommandBuffers[commandBufferIndex], VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, _rayTracingPipelineLayout, firstSet, std::uint32_t(_cellManager->cell(0)->layout()->descriptorSets().size()), _cellManager->cell(0)->layout()->descriptorSets().data(), 0, nullptr);
 
    ++_pushConstants.frameIndex;
    _pushConstants.clearColor = genesis::Vector4_32(1, 1, 1, 1);
    vkCmdPushConstants(
-      drawCmdBuffers[commandBufferIndex],
+      _drawCommandBuffers[commandBufferIndex],
       _rayTracingPipelineLayout,
       VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
       0,
@@ -311,7 +466,7 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
       &_pushConstants);
 
    genesis::vkCmdTraceRaysKHR(
-      drawCmdBuffers[commandBufferIndex]
+      _drawCommandBuffers[commandBufferIndex]
       , &_shaderBindingTable->raygenEntry()
       , &_shaderBindingTable->missEntry()
       , &_shaderBindingTable->hitEntry()
@@ -323,10 +478,10 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    genesis::ImageTransitions transitions;
    // Prepare current swap chain image as transfer destination
    VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-   transitions.setImageLayout(drawCmdBuffers[commandBufferIndex],swapChain.images[commandBufferIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
+   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex],swapChain.images[commandBufferIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
    // Prepare ray tracing output image as transfer source
-   transitions.setImageLayout(drawCmdBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange);
+   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange);
 
    VkImageCopy copyRegion{};
    copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
@@ -334,17 +489,97 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    copyRegion.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
    copyRegion.dstOffset = { 0, 0, 0 };
    copyRegion.extent = { width, height, 1 };
-   vkCmdCopyImage(drawCmdBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapChain.images[commandBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+   vkCmdCopyImage(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapChain.images[commandBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
    // Transition swap chain image back for presentation
-   transitions.setImageLayout(drawCmdBuffers[commandBufferIndex], swapChain.images[commandBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subresourceRange);
+   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], swapChain.images[commandBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subresourceRange);
 
    // Transition ray tracing output image back to general layout
-   transitions.setImageLayout(drawCmdBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
+   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
 
-   drawImgui(drawCmdBuffers[commandBufferIndex], frameBuffers[commandBufferIndex]);
+   drawImgui(_drawCommandBuffers[commandBufferIndex], frameBuffers[commandBufferIndex]);
 
-   VK_CHECK_RESULT(vkEndCommandBuffer(drawCmdBuffers[commandBufferIndex]));
+   VK_CHECK_RESULT(vkEndCommandBuffer(_drawCommandBuffers[commandBufferIndex]));
+}
+
+void TutorialRayTracing::buildRasterizationCommandBuffers()
+{
+   VkCommandBufferBeginInfo cmdBufInfo = {};
+   cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+   cmdBufInfo.pNext = nullptr;
+
+   // Set clear values for all framebuffer attachments with loadOp set to clear
+   // We use two attachments (color and depth) that are cleared at the start of the subpass and as such we need to set clear values for both
+   VkClearValue clearValues[2];
+   clearValues[0].color = { { 0.0f, 0.0f, 0.2f, 1.0f } };
+   clearValues[1].depthStencil = { 1.0f, 0 };
+
+   VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
+   renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
+   renderPassBeginInfo.renderArea.offset = { 0, 0 };
+   renderPassBeginInfo.renderArea.extent = { width, height };
+
+   renderPassBeginInfo.clearValueCount = 2;
+   renderPassBeginInfo.pClearValues = clearValues;
+
+   const VkViewport viewport = genesis::VulkanInitializers::viewport((float)width, (float)height, 0.0f, 1.0f);
+   const VkRect2D scissor = genesis::VulkanInitializers::rect2D(width, height, 0, 0);
+
+   for (int32_t i = 0; i < _drawCommandBuffers.size(); ++i)
+   {
+      // Set target frame buffer
+      renderPassBeginInfo.framebuffer = frameBuffers[i];
+
+      VK_CHECK_RESULT(vkBeginCommandBuffer(_drawCommandBuffers[i], &cmdBufInfo));
+
+      // Start the first sub pass specified in our default render pass setup by the base class
+      // This will clear the color and depth attachment
+      vkCmdBeginRenderPass(_drawCommandBuffers[i], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+      // Update dynamic viewport state
+      vkCmdSetViewport(_drawCommandBuffers[i], 0, 1, &viewport);
+
+      // Update dynamic scissor state
+      vkCmdSetScissor(_drawCommandBuffers[i], 0, 1, &scissor);
+
+      vkCmdBindDescriptorSets(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineLayout, 0, 1, &_rasterizationDescriptorSet, 0, nullptr);
+
+      vkCmdPushConstants(_drawCommandBuffers[i], _rasterizationPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
+
+      // draw the sky box
+      if (!_wireframe)
+      {
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipeline);
+      }
+      else
+      {
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipelineWireframe);
+      }
+#pragma message("PPP: TO DO: skybox")
+      //_indirectLayout->draw(drawCmdBuffers[i], _pipelineLayout, _gltfModel);
+
+      // draw the model
+      if (!_wireframe)
+      {
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipeline);
+      }
+      else
+      {
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineWireframe);
+      }
+
+      _cellManager->cell(0)->draw(_drawCommandBuffers[i], _rasterizationPipelineLayout);
+
+      // draw the UI
+      drawUI(_drawCommandBuffers[i]);
+
+      vkCmdEndRenderPass(_drawCommandBuffers[i]);
+
+      // Ending the render pass will add an implicit barrier transitioning the frame buffer color attachment to
+      // VK_IMAGE_LAYOUT_PRESENT_SRC_KHR for presenting it to the windowing system
+
+      VK_CHECK_RESULT(vkEndCommandBuffer(_drawCommandBuffers[i]));
+   }
 }
 
 void TutorialRayTracing::saveScreenShot(void)
@@ -385,10 +620,20 @@ void TutorialRayTracing::keyPressed(uint32_t key)
    else if (key == KEY_SPACE)
    {
       resetCamera();
+      viewChanged();
    }
    else if (key == KEY_F4)
    {
       settings.overlay = !settings.overlay;
+   }
+   else if (key == KEY_R)
+   {
+      _mode = (RenderMode)((_mode + 1) % NUM_MODES);
+      setupRenderPass();
+      if (_mode == RASTERIZATION)
+      {
+         buildRasterizationCommandBuffers();
+      }
    }
 }
 
@@ -396,10 +641,13 @@ void TutorialRayTracing::draw()
 {
    VulkanExampleBase::prepareFrame();
 
-   rayTrace(currentBuffer);
-
+   if (_mode == RAYTRACE)
+   {
+      rayTrace(currentBuffer);
+   }
+   
    submitInfo.commandBufferCount = 1;
-   submitInfo.pCommandBuffers = &drawCmdBuffers[currentBuffer];
+   submitInfo.pCommandBuffers = &_drawCommandBuffers[currentBuffer];
    VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
    VulkanExampleBase::submitFrame();
 }
@@ -467,7 +715,7 @@ void TutorialRayTracing::createScene()
 
    _cellManager->addInstance(gltfModel, mat4());
 
-#if 1
+#if 0
    gltfModel2 = getAssetsPath() + "../../glTF-Sample-Models/2.0//WaterBottle//glTF/WaterBottle.gltf";
 
    _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-2, -1.0f, 0.0f)));
@@ -501,15 +749,24 @@ void TutorialRayTracing::createScene()
 #endif
 }
 
+void TutorialRayTracing::createPipelines()
+{
+   createRayTracingPipeline();
+   createRasterizationPipeline();
+}
+
 void TutorialRayTracing::prepare()
 {
    VulkanExampleBase::prepare();
    createScene();
    createStorageImages();
    createSceneUbo();
-   createRayTracingPipeline();
-   createAndUpdateRayTracingDescriptorSets();
-
+   createPipelines();
+   createAndUpdateDescriptorSets();
+   if (_mode == RASTERIZATION)
+   {
+      buildRasterizationCommandBuffers();
+   }
    prepared = true;
 }
 
@@ -546,7 +803,15 @@ void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer 
 
 void TutorialRayTracing::setupRenderPass()
 {
-   _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
+   delete _renderPass;
+   if (_mode == RAYTRACE)
+   {
+      _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
+   }
+   else
+   {
+      VulkanExampleBase::setupRenderPass();
+   }
 }
 
 void TutorialRayTracing::writeStorageImageDescriptors()
