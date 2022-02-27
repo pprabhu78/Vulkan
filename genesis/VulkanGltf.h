@@ -8,6 +8,9 @@
 
 #include <vulkan/vulkan.h>
 
+#define CPU_SIDE_COMPILATION 1
+#include "../data/shaders/glsl/common/gltfMaterial.h"
+
 namespace tinygltf
 {
    class Model;
@@ -22,15 +25,6 @@ namespace genesis
    class Texture;
    class Buffer;
    class AccelerationStructure;
-
-   class Material
-   {
-   public:
-      Vector4_32 baseColorFactor = Vector4_32(1.0f);
-      Vector4_32 emissiveFactor = Vector4_32(0.0f);
-      Vector3_32 padding = { 0,0,0 };
-      std::uint32_t baseColorTextureIndex = 0;
-   };
 
    struct Vertex
    {
