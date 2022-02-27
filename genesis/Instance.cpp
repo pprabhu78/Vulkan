@@ -108,6 +108,22 @@ namespace genesis
 
    void setupDebugging(VkInstance instance, VkDebugReportFlagsEXT flags, VkDebugReportCallbackEXT callBack)
    {
+      bool nSightOn = false;
+      // turn on debug groups if nsight is on
+#if _WIN32
+      HMODULE nsightModule = GetModuleHandle("Nvda.Graphics.Interception.dll");
+      nSightOn = (nsightModule != 0);
+#endif
+
+#ifdef __linux__
+      dl_iterate_phdr(findNsight, &nSightOn);
+#endif
+      // If nsight is on, don't install the callback
+      if (nSightOn)
+      {
+         return;
+      }
+
       vkCreateDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
       vkDestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
 
