@@ -65,14 +65,15 @@ function(buildExample EXAMPLE_NAME)
 	if(WIN32)	
 		# Add shaders
 		set(SHADER_DIR_GLSL "../data/shaders/glsl/${EXAMPLE_NAME}")
+		set(SHADER_DIR_GLSL_COMMON "../data/shaders/glsl/common")
 		# Find all shaders.
 
 		file(GLOB vertex-shaders ${SHADER_DIR_GLSL}/*.vert)
 		file(GLOB fragment-shaders ${SHADER_DIR_GLSL}/*.frag)
 		file(GLOB compute-shaders ${SHADER_DIR_GLSL}/*.comp)
 		file(GLOB raytracing-shaders ${SHADER_DIR_GLSL}/*.rchit ${SHADER_DIR_GLSL}/*.rgen ${SHADER_DIR_GLSL}/*.rmiss)
-		file(GLOB other-shaders ${SHADER_DIR_GLSL}/*.glsl ${SHADER_DIR_GLSL}/*.h)
-		file(GLOB SHADERS ${SHADER_DIR_GLSL}/*.*)
+		file(GLOB other-shaders ${SHADER_DIR_GLSL}/*.glsl ${SHADER_DIR_GLSL}/*.h ${SHADER_DIR_GLSL_COMMON}/*.*)
+		file(GLOB SHADERS ${SHADER_DIR_GLSL}/*.* ${SHADER_DIR_GLSL_COMMON}/*.*)
 
 		source_group("Shaders" FILES ${vertex-shaders} ${fragment-shaders} ${compute-shaders} ${raytracing-shaders} ${other-shaders})
 		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
@@ -223,7 +224,6 @@ set(EXAMPLES
 #	texturemipmapgen
 #	texturesparseresidency
 #	triangle
-	tutorial
 	tutorial_raytracing
 #	variablerateshading
 #	viewportarray
