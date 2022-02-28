@@ -32,11 +32,6 @@
 #include <chrono>
 #include <sstream>
 
-//#define VENUS 1
-#define SPONZA 1
-//#define CORNELL 1
-//#define SPHERE 1
-
 //#define SKYBOX_PISA 1
 #define SKYBOX_YOKOHOMA 1
 
@@ -50,42 +45,56 @@ void TutorialRayTracing::resetCamera()
    camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
    camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.5f));
 
-#if VENUS
-   camera.type = Camera::CameraType::lookat;
-   camera.setPosition(glm::vec3(0.0f, 0.0f, -8.5f));
-   camera.setRotation(glm::vec3(0.0f));
-   camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
-#endif
-
-#if CORNELL
-   camera.type = Camera::CameraType::lookat;
-   camera.setPosition(glm::vec3(0.0f, 0.0f, -14.5f));
-   camera.setRotation(glm::vec3(0.0f));
-   camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
-   _pushConstants.contributionFromEnvironment = 0.01f;
-#endif
-
-#if (defined SPHERE)
-   camera.type = Camera::CameraType::lookat;
-   camera.setPosition(glm::vec3(0.0f, 0.0f, -10.5f));
-   camera.setRotation(glm::vec3(0.0f));
-   camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
-#endif
-
-#if (defined SPONZA)
-   camera.type = genesis::Camera::CameraType::firstperson;
-   camera.rotationSpeed = 0.2f;
-   camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
-   camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
-   camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
-   _pushConstants.contributionFromEnvironment = 10;
-#endif
+   if (_mainModel == "venus")
+   {
+      camera.type = Camera::CameraType::lookat;
+      camera.setPosition(glm::vec3(0.0f, 0.0f, -2.5f));
+      camera.setRotation(glm::vec3(0.0f));
+      camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+   }
+   else if (_mainModel == "cornell")
+   {
+      camera.type = Camera::CameraType::lookat;
+      camera.setPosition(glm::vec3(0.0f, 0.0f, -14.5f));
+      camera.setRotation(glm::vec3(0.0f));
+      camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+      _pushConstants.contributionFromEnvironment = 0.01f;
+   }
+   else if (_mainModel == "sphere")
+   {
+      camera.type = Camera::CameraType::lookat;
+      camera.setPosition(glm::vec3(0.0f, 0.0f, -10.5f));
+      camera.setRotation(glm::vec3(0.0f));
+      camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+   }
+   else if (_mainModel == "sponza")
+   {
+      camera.type = genesis::Camera::CameraType::firstperson;
+      camera.rotationSpeed = 0.2f;
+      camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
+      camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
+      camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+      _pushConstants.contributionFromEnvironment = 10;
+   }
 }
 
 TutorialRayTracing::TutorialRayTracing()
    : _pushConstants{}
 {
    settings.overlay = false;
+
+   for (int i = 0; i < args.size(); ++i)
+   {
+      const std::string arg = args[i];
+      if (arg == "--autoTest")
+      {
+         _autoTest = true;
+      }
+      else if (arg == "--model" && (i+1) < args.size())
+      {
+         _mainModel = args[i + 1];
+      }
+   }
 
    title = "genesis: path tracer";
 
@@ -94,6 +103,8 @@ TutorialRayTracing::TutorialRayTracing()
    _pushConstants.frameIndex = -1;
    _pushConstants.textureLodBias = 0;
    _pushConstants.reflectivity = 0;
+
+   _pushConstants.pathTracer = 1;
 
    resetCamera();
 
@@ -283,7 +294,7 @@ void TutorialRayTracing::createAndUpdateDescriptorSets()
    createAndUpdateRasterizationDescriptorSets();
 }
 
-void TutorialRayTracing::reloadShaders(void)
+void TutorialRayTracing::reloadShaders(bool destroyExistingStuff)
 {
    std::string strVulkanDir = getenv("VULKAN_SDK");
    std::string glslValidator = strVulkanDir + "\\bin\\glslangValidator.exe";
@@ -296,11 +307,6 @@ void TutorialRayTracing::reloadShaders(void)
 
    command = glslValidator + " " + "--target-env vulkan1.2 -V -o ../data/shaders/glsl/tutorial_raytracing/raygen.rgen.spv ../data/shaders/glsl/tutorial_raytracing/raygen.rgen";
    system(command.c_str());
-
-   destroyRayTracingStuff(false);
-   createRayTracingPipeline();
-   createAndUpdateRayTracingDescriptorSets();
-   _pushConstants.frameIndex = -1;
 
    std::string glslc = strVulkanDir + "\\bin\\glslc.exe";
 
@@ -316,10 +322,18 @@ void TutorialRayTracing::reloadShaders(void)
    command = glslc + " " + "-o ../data/shaders/glsl/tutorial_raytracing/skybox.frag.spv ../data/shaders/glsl/tutorial_raytracing/skybox.frag";
    system(command.c_str());
 
-   destroyRasterizationStuff();
-   createRasterizationPipeline();
-   createAndUpdateRasterizationDescriptorSets();
-   buildCommandBuffers();
+   if (destroyExistingStuff)
+   {
+      destroyRayTracingStuff(false);
+      createRayTracingPipeline();
+      createAndUpdateRayTracingDescriptorSets();
+      _pushConstants.frameIndex = -1;
+
+      destroyRasterizationStuff();
+      createRasterizationPipeline();
+      createAndUpdateRasterizationDescriptorSets();
+      buildCommandBuffers();
+   }
 }
 
 /*
@@ -635,7 +649,7 @@ void TutorialRayTracing::buildRasterizationCommandBuffers()
    }
 }
 
-void TutorialRayTracing::saveScreenShot(void)
+std::string TutorialRayTracing::generateTimeStampedFileName(void)
 {
    using namespace std;
    using namespace std::chrono;
@@ -656,19 +670,33 @@ void TutorialRayTracing::saveScreenShot(void)
    }
    ss << local_tm.tm_sec;
 
-   std::string fileName = ss.str();
+   std::string fileName = "..\\screenshots\\" + ss.str() + ".png";
+   return fileName;
+}
 
+void TutorialRayTracing::saveScreenShot(const std::string& fileName)
+{
    genesis::ScreenShotUtility screenShotUtility(_device);
-   screenShotUtility.takeScreenShot("..\\screenshots\\" + fileName + ".png"
-      , swapChain.images[currentBuffer], swapChain.colorFormat
+   screenShotUtility.takeScreenShot(fileName, swapChain.images[currentBuffer], swapChain.colorFormat
       , width, height);
+}
+
+void TutorialRayTracing::nextRenderingMode(void)
+{
+   _mode = (RenderMode)((_mode + 1) % NUM_MODES);
+   setupRenderPass();
+   if (_mode == RASTERIZATION)
+   {
+      buildRasterizationCommandBuffers();
+   }
+   _pushConstants.frameIndex = -1;
 }
 
 void TutorialRayTracing::keyPressed(uint32_t key)
 {
    if (key == KEY_F5)
    {
-      saveScreenShot();
+      saveScreenShot(generateTimeStampedFileName());
    }
    else if (key == KEY_SPACE)
    {
@@ -682,12 +710,7 @@ void TutorialRayTracing::keyPressed(uint32_t key)
    }
    else if (key == KEY_R)
    {
-      _mode = (RenderMode)((_mode + 1) % NUM_MODES);
-      setupRenderPass();
-      if (_mode == RASTERIZATION)
-      {
-         buildRasterizationCommandBuffers();
-      }
+      nextRenderingMode();
    }
 }
 
@@ -699,11 +722,49 @@ void TutorialRayTracing::draw()
    {
       rayTrace(currentBuffer);
    }
+   else if (_mode == RASTERIZATION)
+   {
+      ++_pushConstants.frameIndex;
+   }
    
    submitInfo.commandBufferCount = 1;
    submitInfo.pCommandBuffers = &_drawCommandBuffers[currentBuffer];
    VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
    VulkanExampleBase::submitFrame();
+
+   if (_autoTest)
+   {
+      static int currentScreenshot = 0;
+      if (_pushConstants.frameIndex == 1000)
+      {
+         std::string fileName;
+         if (currentScreenshot==0)
+         {
+            fileName = "..\\autotest\\" + _mainModel + "_raytrace" + ".png";
+         }
+         else if (currentScreenshot == 1)
+         {
+            fileName = "..\\autotest\\" + _mainModel + "_rasterization" + ".png";
+         }
+         else if (currentScreenshot == 2)
+         {
+            fileName = "..\\autotest\\" + _mainModel + "_rasterization_emulated_by_raytrace" + ".png";
+         }
+         saveScreenShot(fileName);
+         ++currentScreenshot;
+         // If the last for this model, switch to n.v single bounce path tracer
+         if (currentScreenshot == 2)
+         {
+            _pushConstants.pathTracer = 0;
+         }
+         // last one. send quit message
+         else if (currentScreenshot == 3)
+         {
+            onKeyboard(256, -1, 1, -1);
+         }
+         nextRenderingMode();
+      }
+   }
 }
 
 void TutorialRayTracing::render()
@@ -748,21 +809,22 @@ void TutorialRayTracing::createScene()
    std::string gltfModel;
    std::string gltfModel2;
 
-#if (defined SPONZA)
-   gltfModel = getAssetsPath() + "models/sponza/sponza.gltf";
-#endif
-
-#if defined VENUS
-   gltfModel = getAssetsPath() + "models/venus.gltf";
-#endif
-
-#if defined CORNELL
-   gltfModel = getAssetsPath() + "models/cornellBox.gltf";
-#endif
-
-#if defined SPHERE
-   gltfModel = getAssetsPath() + "models/sphere.gltf";
-#endif
+   if (_mainModel == "sponza")
+   {
+      gltfModel = getAssetsPath() + "models/sponza/sponza.gltf";
+   }
+   else if (_mainModel == "venus")
+   {
+      gltfModel = getAssetsPath() + "models/venus.gltf";
+   }
+   else if (_mainModel == "cornell")
+   {
+      gltfModel = getAssetsPath() + "models/cornellBox.gltf";
+   }
+   else if (_mainModel == "sphere")
+   {
+      gltfModel = getAssetsPath() + "models/sphere.gltf";
+   }
 
    const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
    _cellManager = new genesis::CellManager(_device, glTFLoadingFlags);
@@ -813,6 +875,7 @@ void TutorialRayTracing::buildCommandBuffers()
 void TutorialRayTracing::prepare()
 {
    VulkanExampleBase::prepare();
+   reloadShaders(false);
    createScene();
    createStorageImages();
    createSceneUbo();
@@ -840,7 +903,7 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
       }
       if (overlay->button("Reload Shaders"))
       {
-         reloadShaders();
+         reloadShaders(true);
       }
    }
 }

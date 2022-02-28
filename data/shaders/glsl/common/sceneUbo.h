@@ -12,6 +12,8 @@ struct PushConstants
    float textureLodBias;
    float reflectivity;
    float contributionFromEnvironment;
+   int pathTracer;
+   vec3 pad;
 };
 
 struct SceneUbo

@@ -1,6 +1,4 @@
 
-// switch between path tracer and N dot V lighting
-#define PATH_TRACER 1
 
 #if CPU_SIDE_COMPILATION
 using namespace glm;

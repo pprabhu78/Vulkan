@@ -734,33 +734,6 @@ namespace genesis
       return window;
    }
 
-   void VulkanExampleBase::handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
-   {
-      switch (uMsg)
-      {
-      case WM_CLOSE:
-         prepared = false;
-         DestroyWindow(hWnd);
-         PostQuitMessage(0);
-         break;
-
-      case WM_GETMINMAXINFO:
-      {
-         LPMINMAXINFO minMaxInfo = (LPMINMAXINFO)lParam;
-         minMaxInfo->ptMinTrackSize.x = 64;
-         minMaxInfo->ptMinTrackSize.y = 64;
-         break;
-      }
-      case WM_ENTERSIZEMOVE:
-         resizing = true;
-         break;
-      case WM_EXITSIZEMOVE:
-         resizing = false;
-         break;
-      }
-   }
-
-
    void VulkanExampleBase::viewChanged() {}
 
    void VulkanExampleBase::keyPressed(uint32_t) {}

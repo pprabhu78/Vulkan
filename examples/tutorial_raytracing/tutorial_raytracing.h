@@ -52,8 +52,9 @@ protected:
 
    virtual void createScene();
 
-   virtual void saveScreenShot(void);
+   virtual void saveScreenShot(const std::string& fileName);
    virtual void resetCamera(void);
+   std::string generateTimeStampedFileName(void);
 
    virtual void rayTrace(int commandBufferIndex);
 
@@ -76,9 +77,11 @@ protected:
 
    virtual void buildRasterizationCommandBuffers(void);
 
-   virtual void reloadShaders(void);
+   virtual void reloadShaders(bool destroyExistingStuff);
 
-public:
+   virtual void nextRenderingMode(void);
+
+protected:
    VkPhysicalDeviceBufferDeviceAddressFeatures _enabledBufferDeviceAddressFeatures{};
    VkPhysicalDeviceRayTracingPipelineFeaturesKHR _enabledRayTracingPipelineFeatures{};
    VkPhysicalDeviceAccelerationStructureFeaturesKHR _enabledAccelerationStructureFeatures{};
@@ -128,7 +131,7 @@ public:
 
    enum RenderMode
    { 
-      RAYTRACE = 0
+        RAYTRACE = 0
       , RASTERIZATION = 1 
       , NUM_MODES = 2
    };
@@ -136,4 +139,7 @@ public:
    RenderMode _mode = RAYTRACE;
 
    bool _wireframe = false;
+
+   std::string _mainModel;
+   bool _autoTest = false;
 };

@@ -66,57 +66,58 @@ void main()
 	const Material material = materialBuffer._materials[materialIndicesBuffer._materialIndices[gl_GeometryIndexEXT]];
 	const uint samplerIndex = uint(textureOffset) + material.baseColorTextureIndex;
 
-#if PATH_TRACER
-	// pick a random position around this tbn
-	const vec3 worldPosition = vec3(gl_ObjectToWorldEXT * vec4(position, 1.0));
-	const vec3 worldNormal = normalize(vec3(normal * gl_WorldToObjectEXT));
-
-	vec3 worldTangent, worldBiNormal;
-	createCoordinateSystem(worldNormal, worldTangent, worldBiNormal);
-	
-	vec3 rayOrigin = worldPosition;
-	vec3 rayDirection = samplingHemisphere(payLoad.seed, worldTangent, worldBiNormal, worldNormal);
-
-#if 0
-	vec3 decal = texture(samplers[samplerIndex], uv).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
-#else
-	float maxLod = floor(log2(textureSize(samplers[samplerIndex], 0))).x;
-	float lod = pushConstants.textureLodBias * maxLod;
-	vec3 decal = textureLod(samplers[samplerIndex], uv, lod).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
-#endif
-
-	payLoad.rayOrigin = rayOrigin;
-	payLoad.rayDirection = rayDirection;
-	payLoad.hitValue = material.emissiveFactor.xyz;
-
-	const float p = 1;
-	float cosTheta = dot(rayDirection, worldNormal);
-	payLoad.weight = decal * cosTheta;
-#else
-	vec3 normalViewSpace = (transpose(inverse(sceneUbo.viewMatrix))*vec4(normal.x,normal.y, normal.z, 1)).xyz;
-	vec3 vertexViewSpace = (sceneUbo.viewMatrix * vec4(position, 1.0)).xyz;
-
-
-	// the base color is decreasing the lighting to a very low value.
-	// therefore, exclude it for now
-	vec3 decal = texture(samplers[samplerIndex], uv).rgb /** material.baseColorFactor.xyz*/ * vertexColor.rgb;
-
-	vec3 lit = vec3(dot(normalize(normalViewSpace), normalize(-vertexViewSpace)));
-
-	vec3 final = decal*lit;
-	if(pushConstants.reflectivity>0)
+	if (pushConstants.pathTracer > 0)
 	{
-		vec3 incidentVector = normalize(vertexViewSpace);
-		vec3 reflectedVector = reflect(incidentVector, normalViewSpace);
-		vec3 reflectedVectorWorldSpace = normalize(vec3(sceneUbo.viewMatrixInverse * vec4(reflectedVector, 0)));
+		// pick a random position around this tbn
+		const vec3 worldPosition = vec3(gl_ObjectToWorldEXT * vec4(position, 1.0));
+		const vec3 worldNormal = normalize(vec3(normal * gl_WorldToObjectEXT));
 
-		// use the lod to sample an lod to simulate roughness
-		float maxLod = floor(log2(textureSize(environmentMap, 0))).x;
+		vec3 worldTangent, worldBiNormal;
+		createCoordinateSystem(worldNormal, worldTangent, worldBiNormal);
+	
+		vec3 rayOrigin = worldPosition;
+		vec3 rayDirection = samplingHemisphere(payLoad.seed, worldTangent, worldBiNormal, worldNormal);
+
+	#if 0
+		vec3 decal = texture(samplers[samplerIndex], uv).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
+	#else
+		float maxLod = floor(log2(textureSize(samplers[samplerIndex], 0))).x;
 		float lod = pushConstants.textureLodBias * maxLod;
-		vec3 reflectedColor = textureLod(environmentMap, reflectedVectorWorldSpace.xyz*vec3(pushConstants.environmentMapCoordTransform.xy,1), lod).xyz;
-		final = mix(final, reflectedColor, pushConstants.reflectivity);
-	}
+		vec3 decal = textureLod(samplers[samplerIndex], uv, lod).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
+	#endif
 
-	payLoad.hitValue = final;
-#endif
+		payLoad.rayOrigin = rayOrigin;
+		payLoad.rayDirection = rayDirection;
+		payLoad.hitValue = material.emissiveFactor.xyz;
+
+		const float p = 1;
+		float cosTheta = dot(rayDirection, worldNormal);
+		payLoad.weight = decal * cosTheta;
+	}
+	else
+	{
+		vec3 normalViewSpace = (transpose(inverse(sceneUbo.viewMatrix))*vec4(normal.x,normal.y, normal.z, 1)).xyz;
+		vec3 vertexViewSpace = (sceneUbo.viewMatrix * vec4(position, 1.0)).xyz;
+
+		// the base color is decreasing the lighting to a very low value.
+		// therefore, exclude it for now
+		vec3 decal = texture(samplers[samplerIndex], uv).rgb /** material.baseColorFactor.xyz*/ * vertexColor.rgb;
+
+		vec3 lit = vec3(dot(normalize(normalViewSpace), normalize(-vertexViewSpace)));
+
+		vec3 final = decal*lit;
+		if(pushConstants.reflectivity>0)
+		{
+			vec3 incidentVector = normalize(vertexViewSpace);
+			vec3 reflectedVector = reflect(incidentVector, normalViewSpace);
+			vec3 reflectedVectorWorldSpace = normalize(vec3(sceneUbo.viewMatrixInverse * vec4(reflectedVector, 0)));
+
+			// use the lod to sample an lod to simulate roughness
+			float maxLod = floor(log2(textureSize(environmentMap, 0))).x;
+			float lod = pushConstants.textureLodBias * maxLod;
+			vec3 reflectedColor = textureLod(environmentMap, reflectedVectorWorldSpace.xyz*vec3(pushConstants.environmentMapCoordTransform.xy,1), lod).xyz;
+			final = mix(final, reflectedColor, pushConstants.reflectivity);
+		}
+		payLoad.hitValue = final;
+	}
 }

@@ -206,8 +206,7 @@ namespace genesis
 		bool initVulkan();
 
 		GLFWwindow* setupWindow();
-		void handleMessages(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
+		
 		/** @brief (Virtual) Creates the application wide Vulkan instance */
 		virtual VkResult createInstance(bool enableValidation);
 		/** @brief (Pure virtual) Render function to be implemented by the sample application */
