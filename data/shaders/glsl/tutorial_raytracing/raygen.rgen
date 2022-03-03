@@ -16,8 +16,11 @@ layout(location = 0) rayPayloadEXT HitPayload payLoad;
 
 void main() 
 {
-	const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
-	const vec2 inUV = pixelCenter/vec2(gl_LaunchSizeEXT.xy);
+	const ivec2 imageCoords = ivec2(gl_LaunchIDEXT.xy);
+	const ivec2 imageSize = ivec2(gl_LaunchSizeEXT.xy);
+
+	const vec2 pixelCenter = imageCoords + vec2(0.5);
+	const vec2 inUV = pixelCenter/imageSize;
 	vec2 d = inUV * 2.0 - 1.0;
 
 	vec4 rayOrigin = sceneUbo.viewMatrixInverse * vec4(0,0,0,1);
@@ -29,7 +32,7 @@ void main()
 
 	if (pushConstants.pathTracer > 0)
 	{
-		uint seed = tea(gl_LaunchIDEXT.y * gl_LaunchSizeEXT.x + gl_LaunchIDEXT.x, int(clockARB()));
+		uint seed = tea(imageCoords.y * gl_LaunchSizeEXT.x + imageCoords.x, int(clockARB()));
 
 		payLoad.hitValue = vec3(0.0);
 		payLoad.seed = seed;
@@ -54,21 +57,21 @@ void main()
 		if (pushConstants.frameIndex > 0)
 		{
 			float a         = 1.0f / float(pushConstants.frameIndex + 1);
-			vec3  oldColor = imageLoad(intermediateImage, ivec2(gl_LaunchIDEXT.xy)).xyz;
+			vec3  oldColor = imageLoad(intermediateImage, imageCoords).xyz;
 
 			valueToWrite = vec4(mix(oldColor, radiance, a), 1.f);
-			imageStore(intermediateImage, ivec2(gl_LaunchIDEXT.xy),valueToWrite );
+			imageStore(intermediateImage, imageCoords,valueToWrite );
 		}
 		else
 		{
 			valueToWrite = vec4(radiance, 0.0);
-			imageStore(intermediateImage, ivec2(gl_LaunchIDEXT.xy), valueToWrite);
+			imageStore(intermediateImage, imageCoords, valueToWrite);
 		}
 
 		// write the final value to the 8 bit resolution after tonemapping, etc
 		float one_by_gamma = 1.0/2.2f;
 		valueToWrite = pow(valueToWrite, vec4(one_by_gamma));
-		imageStore(finalImage, ivec2(gl_LaunchIDEXT.xy), valueToWrite);
+		imageStore(finalImage, imageCoords, valueToWrite);
 	}
 	else
 	{
@@ -80,6 +83,6 @@ void main()
 		payLoad.weight = vec3(0.0);
 
 		traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, payLoad.rayOrigin, tmin, payLoad.rayDirection, tmax, 0);
-		imageStore(finalImage, ivec2(gl_LaunchIDEXT.xy), vec4(payLoad.hitValue, 0.0));
+		imageStore(finalImage, imageCoords, vec4(payLoad.hitValue, 0.0));
 	}
 }
