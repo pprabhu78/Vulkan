@@ -1,8 +1,18 @@
 #if CPU_SIDE_COMPILATION
 using namespace glm;
-
 #else
 #endif
+
+#define Viz_None              0 
+#define Viz_Albedo            1
+#define Viz_Emissive          2
+#define Viz_Roughness         3
+#define Viz_Metalness         4
+#define Viz_Occlusion         5
+
+#define Viz_NormalMap         6
+#define Viz_GeometryNormals   7
+#define Viz_NormalNormals     8
 
 struct PushConstants
 {
@@ -13,7 +23,23 @@ struct PushConstants
    float reflectivity;
    float contributionFromEnvironment;
    int pathTracer;
-   vec3 pad;
+   int materialComponentViz;
+   vec2 pad;
+
+#if CPU_SIDE_COMPILATION
+   PushConstants()
+   {
+      environmentMapCoordTransform = vec4(1, 1, 1, 1);
+
+      frameIndex = -1;
+      textureLodBias = 0;
+      reflectivity = 0;
+
+      pathTracer = 1;
+
+      materialComponentViz = 0;
+   }
+#endif
 };
 
 struct SceneUbo

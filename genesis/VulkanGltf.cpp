@@ -133,27 +133,40 @@ namespace genesis
       int index = 0;
       for (const auto& glTfMaterial : glTfModel.materials)
       {
+         auto& currentMaterial = _materials[index];
+
          // We only read the most basic properties required for our sample
          // Get the base color factor
          auto baseColorFactorIter = glTfMaterial.values.find("baseColorFactor");
          if (baseColorFactorIter != glTfMaterial.values.end())
          {
-            _materials[index].baseColorFactor = glm::make_vec4(baseColorFactorIter->second.ColorFactor().data());
+            currentMaterial.baseColorFactor = glm::make_vec4(baseColorFactorIter->second.ColorFactor().data());
          }
-
-         _materials[index].emissiveFactor = Vector4_32(glTfMaterial.emissiveFactor[0], glTfMaterial.emissiveFactor[1], glTfMaterial.emissiveFactor[2], 1);
 
          // Get base color texture index
          auto baseColorTextureIter = glTfMaterial.values.find("baseColorTexture");
          if (baseColorTextureIter != glTfMaterial.values.end())
          {
-            _materials[index].baseColorTextureIndex = glTfModel.textures[baseColorTextureIter->second.TextureIndex()].source;
+            currentMaterial.baseColorTextureIndex = glTfModel.textures[baseColorTextureIter->second.TextureIndex()].source;
          }
          else
          {
             // assign the last (white) texture
-            _materials[index].baseColorTextureIndex = (int)(_textures.size() - 1);
+            currentMaterial.baseColorTextureIndex = (int)(_textures.size() - 1);
          }
+
+         // emissive
+         currentMaterial.emissiveFactor = glm::vec3(glTfMaterial.emissiveFactor[0], glTfMaterial.emissiveFactor[1], glTfMaterial.emissiveFactor[2]);
+         currentMaterial.emissiveTextureIndex = glTfMaterial.emissiveTexture.index;
+
+         // Roughness and Metallic
+         currentMaterial.roughness = (float)glTfMaterial.pbrMetallicRoughness.roughnessFactor;
+         currentMaterial.metalness = (float)glTfMaterial.pbrMetallicRoughness.metallicFactor;
+         currentMaterial.occlusionRoughnessMetalnessTextureIndex = glTfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
+
+         // Normals
+         currentMaterial.normalTextureIndex = glTfMaterial.normalTexture.index;
+
          ++index;
       }
    }

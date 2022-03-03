@@ -66,6 +66,33 @@ void main()
 	const Material material = materialBuffer._materials[materialIndicesBuffer._materialIndices[gl_GeometryIndexEXT]];
 	const uint samplerIndex = uint(textureOffset) + material.baseColorTextureIndex;
 
+	vec3 emissive = material.emissiveFactor.xyz;
+	if (material.emissiveTextureIndex != -1)
+	{
+		const uint emissiveSamplerIndex = uint(textureOffset) + material.emissiveTextureIndex;
+		emissive *= texture(samplers[emissiveSamplerIndex], uv).xyz;
+	}
+
+	float occlusion = 1.0; // no occlusion
+	float roughness = material.roughness;
+	float metalness = material.metalness;
+	if (material.occlusionRoughnessMetalnessTextureIndex != -1)
+	{
+		const uint ormTextureIndex = uint(textureOffset) + material.occlusionRoughnessMetalnessTextureIndex;
+		const vec3 omr = texture(samplers[ormTextureIndex], uv).rgb;
+
+		occlusion *= omr.r;		
+		roughness *= omr.g;
+		metalness *= omr.b;
+	}
+
+	vec3 normalMapNormals = vec3(1,1,1);
+	if (material.normalTextureIndex != -1)
+	{
+		const uint normalTextureIndex = uint(textureOffset) + material.normalTextureIndex;
+		normalMapNormals = texture(samplers[normalTextureIndex], uv).rgb;
+	}
+
 	if (pushConstants.pathTracer > 0)
 	{
 		// pick a random position around this tbn
@@ -88,9 +115,8 @@ void main()
 
 		payLoad.rayOrigin = rayOrigin;
 		payLoad.rayDirection = rayDirection;
-		payLoad.hitValue = material.emissiveFactor.xyz;
+		payLoad.hitValue = emissive;
 
-		const float p = 1;
 		float cosTheta = dot(rayDirection, worldNormal);
 		payLoad.weight = decal * cosTheta;
 	}
@@ -119,5 +145,33 @@ void main()
 			final = mix(final, reflectedColor, pushConstants.reflectivity);
 		}
 		payLoad.hitValue = final;
+
+		if (pushConstants.materialComponentViz>0)
+		{
+			if (pushConstants.materialComponentViz==Viz_Albedo)
+			{
+				payLoad.hitValue = decal;
+			}
+			else if (pushConstants.materialComponentViz==Viz_Emissive)
+			{
+				payLoad.hitValue = emissive;
+			}
+			else if (pushConstants.materialComponentViz==Viz_Roughness)
+			{
+				payLoad.hitValue = vec3(roughness);
+			}
+			else if (pushConstants.materialComponentViz==Viz_Metalness)
+			{
+				payLoad.hitValue = vec3(metalness);
+			}
+			else if (pushConstants.materialComponentViz==Viz_Occlusion)
+			{
+				payLoad.hitValue = vec3(occlusion);
+			}
+			else if (pushConstants.materialComponentViz==Viz_NormalMap)
+			{
+				payLoad.hitValue = normalMapNormals;
+			}
+		}
 	}
 }

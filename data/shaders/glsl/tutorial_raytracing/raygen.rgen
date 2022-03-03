@@ -38,15 +38,15 @@ void main()
 		payLoad.depth = 0;
 		payLoad.weight = vec3(0.0);
 
-		vec3 curWeight = vec3(1);
-		vec3 hitValue  = vec3(0);
+		vec3 throughput = vec3(1);
+		vec3 radiance  = vec3(0);
 
 		for(; payLoad.depth < 10; payLoad.depth++)
 		{
 			traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, payLoad.rayOrigin, tmin, payLoad.rayDirection, tmax, 0);
 
-			hitValue += payLoad.hitValue * curWeight;
-			curWeight *= payLoad.weight;
+			radiance += payLoad.hitValue * throughput;
+			throughput *= payLoad.weight;
 		}
 
 		vec4 valueToWrite = vec4(0,0,0,0);
@@ -56,12 +56,12 @@ void main()
 			float a         = 1.0f / float(pushConstants.frameIndex + 1);
 			vec3  oldColor = imageLoad(intermediateImage, ivec2(gl_LaunchIDEXT.xy)).xyz;
 
-			valueToWrite = vec4(mix(oldColor, hitValue, a), 1.f);
+			valueToWrite = vec4(mix(oldColor, radiance, a), 1.f);
 			imageStore(intermediateImage, ivec2(gl_LaunchIDEXT.xy),valueToWrite );
 		}
 		else
 		{
-			valueToWrite = vec4(hitValue, 0.0);
+			valueToWrite = vec4(radiance, 0.0);
 			imageStore(intermediateImage, ivec2(gl_LaunchIDEXT.xy), valueToWrite);
 		}
 

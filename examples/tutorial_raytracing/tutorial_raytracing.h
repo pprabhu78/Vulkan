@@ -142,4 +142,6 @@ protected:
 
    std::string _mainModel;
    bool _autoTest = false;
+
+   int _materialComponentViz;
 };

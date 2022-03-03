@@ -96,15 +96,13 @@ TutorialRayTracing::TutorialRayTracing()
       }
    }
 
+   if (_mainModel == "")
+   {
+      _mainModel = "sponza";
+   }
+
    title = "genesis: path tracer";
 
-   _pushConstants.environmentMapCoordTransform = glm::vec4(1, 1, 1, 1);
-
-   _pushConstants.frameIndex = -1;
-   _pushConstants.textureLodBias = 0;
-   _pushConstants.reflectivity = 0;
-
-   _pushConstants.pathTracer = 1;
 
    resetCamera();
 
@@ -834,7 +832,7 @@ void TutorialRayTracing::createScene()
 #if 0
    gltfModel2 = getAssetsPath() + "../../glTF-Sample-Models/2.0//WaterBottle//glTF/WaterBottle.gltf";
 
-   _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-2, -1.0f, 0.0f)));
+   _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-1, -1, 0.0f)));
    _cellManager->addInstance(gltfModel2, glm::translate(glm::mat4(), glm::vec3(-3, -2.0f, 0.0f)));
 #endif
 
@@ -904,6 +902,12 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
       if (overlay->button("Reload Shaders"))
       {
          reloadShaders(true);
+      }
+      static std::vector<std::string> items = 
+      { "none", "albedo", "emissive", "roughness", "metalness", "ao", "normal map", "geometry normals", "normal map normals" };
+      if (overlay->comboBox("component", &_pushConstants.materialComponentViz, items))
+      {
+         // no op
       }
    }
 }

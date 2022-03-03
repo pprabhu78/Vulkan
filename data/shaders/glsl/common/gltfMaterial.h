@@ -6,9 +6,22 @@ namespace genesis{
 struct Material
 {
    vec4 baseColorFactor;
-   vec4 emissiveFactor;
+   vec3 emissiveFactor;
+   int emissiveTextureIndex;
+
    vec3 padding;
-   uint baseColorTextureIndex;
+   int baseColorTextureIndex;
+
+   float roughness;
+   float metalness;
+
+   // When using an image, glTF expects the 
+   // metallic values to be encoded in the blue(B) channel
+   // and roughness to be encoded in the green(G) channel of the same image
+   // https://docs.blender.org/manual/en/2.80/addons/io_scene_gltf2.html
+   int occlusionRoughnessMetalnessTextureIndex;
+
+   int normalTextureIndex;
 
 #if CPU_SIDE_COMPILATION
    Material::Material()
