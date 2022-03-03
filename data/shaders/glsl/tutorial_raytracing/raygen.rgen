@@ -19,6 +19,9 @@ void main()
 	const ivec2 imageCoords = ivec2(gl_LaunchIDEXT.xy);
 	const ivec2 imageSize = ivec2(gl_LaunchSizeEXT.xy);
 
+	const uint seed = tea(imageCoords.y * gl_LaunchSizeEXT.x + imageCoords.x, int(clockARB()));
+	payLoad.seed = seed;
+
 	const vec2 pixelCenter = imageCoords + vec2(0.5);
 	const vec2 inUV = pixelCenter/imageSize;
 	vec2 d = inUV * 2.0 - 1.0;
@@ -32,10 +35,7 @@ void main()
 
 	if (pushConstants.pathTracer > 0)
 	{
-		uint seed = tea(imageCoords.y * gl_LaunchSizeEXT.x + imageCoords.x, int(clockARB()));
-
 		payLoad.hitValue = vec3(0.0);
-		payLoad.seed = seed;
 		payLoad.rayOrigin = rayOrigin.xyz;
 		payLoad.rayDirection = rayDirection.xyz;
 		payLoad.depth = 0;
@@ -76,7 +76,6 @@ void main()
 	else
 	{
 		payLoad.hitValue = vec3(0.0);
-		payLoad.seed = 0;
 		payLoad.rayOrigin = rayOrigin.xyz;
 		payLoad.rayDirection = rayDirection.xyz;
 		payLoad.depth = 0;
