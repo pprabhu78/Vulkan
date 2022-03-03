@@ -25,15 +25,23 @@ vec3 samplePixel(const ivec2 imageCoords, const ivec2 imageSize)
 	payLoad.hitValue = vec3(0.0);
 	payLoad.rayOrigin = rayOrigin.xyz;
 	payLoad.rayDirection = rayDirection.xyz;
-	payLoad.depth = 0;
 	payLoad.weight = vec3(0.0);
 
 	vec3 throughput = vec3(1);
 	vec3 radiance = vec3(0);
 
-	for (; payLoad.depth < 10; payLoad.depth++)
+	for (int depth = 0; depth < 10; ++depth)
 	{
+		payLoad.hitT = INFINITY;
 		traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, payLoad.rayOrigin, tmin, payLoad.rayDirection, tmax, 0);
+
+		if (payLoad.hitT == INFINITY)
+		{
+			vec3 sampleCoords = normalize(payLoad.rayDirection);
+			sampleCoords.xy *= pushConstants.environmentMapCoordTransform.xy;
+			vec3 env = /*texture(environmentMap, sampleCoords).xyz**/vec3(pushConstants.contributionFromEnvironment);
+			return radiance + (env * throughput);
+		}
 
 		radiance += payLoad.hitValue * throughput;
 		throughput *= payLoad.weight;
@@ -56,13 +64,20 @@ vec3 samplePixel2(const ivec2 imageCoords, const ivec2 imageSize)
 	const float tmin = 0.001;
 	const float tmax = 10000.0;
 
+	payLoad.hitT = INFINITY;
 	payLoad.hitValue = vec3(0.0);
 	payLoad.rayOrigin = rayOrigin.xyz;
 	payLoad.rayDirection = rayDirection.xyz;
-	payLoad.depth = 0;
 	payLoad.weight = vec3(0.0);
 
 	traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, payLoad.rayOrigin, tmin, payLoad.rayDirection, tmax, 0);
+
+	if (payLoad.hitT == INFINITY)
+	{
+		vec3 sampleCoords = normalize(payLoad.rayDirection);
+		sampleCoords.xy *= pushConstants.environmentMapCoordTransform.xy;
+		payLoad.hitValue = texture(environmentMap, sampleCoords).xyz;
+	}
 
 	return vec3(0.0);
 }

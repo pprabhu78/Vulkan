@@ -14,22 +14,5 @@ layout(location = 0) rayPayloadInEXT HitPayload payLoad;
 
 void main()
 {
-    if (pushConstants.pathTracer > 0)
-    {
-        if(payLoad.depth == 0)
-        {
-            payLoad.hitValue = pushConstants.clearColor.xyz * 0.8;
-        }
-        else
-        {
-            payLoad.hitValue = vec3(pushConstants.contributionFromEnvironment);  // No contribution from environment
-        }
-        payLoad.depth = 100;              // Ending trace
-    }
-    else
-    {
-        vec3 sampleCoords = normalize(payLoad.rayDirection);
-        sampleCoords.xy *= pushConstants.environmentMapCoordTransform.xy;
-        payLoad.hitValue = texture(environmentMap, sampleCoords).xyz;
-    }
+	// no op
 }

@@ -38,6 +38,7 @@ Vertex unpack(uint index, int vertexSizeInBytes, VertexBuffer vertexBuffer)
 
 void main()
 {
+	payLoad.hitT = gl_HitTEXT;
 	const Model model = models._models[gl_InstanceCustomIndexEXT];
 
 	VertexBuffer vertexBuffer = VertexBuffer(model.vertexBufferAddress);
