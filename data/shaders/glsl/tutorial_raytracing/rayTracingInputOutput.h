@@ -49,12 +49,20 @@ layout(set = 1, binding = 2) uniform sampler2D samplers[];
 
 struct HitPayload
 {
-   float  hitT;
    vec3 hitValue;
+   vec3 weight;
+
    uint seed;
    vec3 rayOrigin;
    vec3 rayDirection;
-   vec3 weight;
+
+   float  hitT;
+   int instanceCustomIndex;
+   int geometryIndex;
+   int primitiveID;
+   mat4x3 objectToWorld;
+   mat4x3 worldToObject;
+   vec2 attribs;
 };
 
 struct Vertex
