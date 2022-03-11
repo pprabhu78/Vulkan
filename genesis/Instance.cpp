@@ -127,12 +127,13 @@ namespace genesis
       vkCreateDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT"));
       vkDestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT"));
 
-      VkDebugUtilsMessengerCreateInfoEXT debugUtilsMessengerCI{};
-      debugUtilsMessengerCI.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-      debugUtilsMessengerCI.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-      debugUtilsMessengerCI.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
-      debugUtilsMessengerCI.pfnUserCallback = debugUtilsMessengerCallback;
-      VkResult result = vkCreateDebugUtilsMessengerEXT(instance, &debugUtilsMessengerCI, nullptr, &debugUtilsMessenger);
+      VkDebugUtilsMessengerCreateInfoEXT debugUtilsMessengerCreateInfo{};
+      debugUtilsMessengerCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+      debugUtilsMessengerCreateInfo.pNext = nullptr;
+      debugUtilsMessengerCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+      debugUtilsMessengerCreateInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
+      debugUtilsMessengerCreateInfo.pfnUserCallback = debugUtilsMessengerCallback;
+      VkResult result = vkCreateDebugUtilsMessengerEXT(instance, &debugUtilsMessengerCreateInfo, nullptr, &debugUtilsMessenger);
       assert(result == VK_SUCCESS);
    }
 
@@ -248,6 +249,12 @@ namespace genesis
          }
       }
       _createResult = vkCreateInstance(&instanceCreateInfo, nullptr, &_instance);
+      if (_createResult != VK_SUCCESS)
+      {
+         std::cerr << __FUNCTION__ << "Could not create instance successfully, error:";
+         std::cerr << "\t " << VulkanErrorToString::toString(_createResult) << std::endl;
+         return;
+      }
 
       // The report flags determine what type of messages for the layers will be displayed
       // For validating (debugging) an application the error and warning bits should suffice
