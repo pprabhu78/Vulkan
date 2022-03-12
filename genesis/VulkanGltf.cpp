@@ -128,12 +128,10 @@ namespace genesis
 
    void VulkanGltfModel::loadMaterials(tinygltf::Model& glTfModel)
    {
-      _materials.resize(glTfModel.materials.size());
-
-      int index = 0;
+      _materials.reserve(_materials.size() + 1); // 1 for the default
       for (const auto& glTfMaterial : glTfModel.materials)
       {
-         auto& currentMaterial = _materials[index];
+         Material currentMaterial;
 
          // We only read the most basic properties required for our sample
          // Get the base color factor
@@ -167,8 +165,12 @@ namespace genesis
          // Normals
          currentMaterial.normalTextureIndex = glTfMaterial.normalTexture.index;
 
-         ++index;
+         _materials.push_back(currentMaterial);
       }
+
+      // default material
+      Material material;
+      _materials.push_back(material);
    }
 
    void VulkanGltfModel::loadLights(tinygltf::Model& gltfModel)
@@ -305,7 +307,7 @@ namespace genesis
          primitive.indexCount = indexCount;
          primitive.firstVertex = vertexStart;
          primitive.vertexCount = (uint32_t)vertexCount;
-         primitive.materialIndex = glTFPrimitive.material;
+         primitive.materialIndex = (glTFPrimitive.material == -1)? (uint32_t)_materials.size()-1 : glTFPrimitive.material;
          node->_mesh->primitives.push_back(primitive);
       }
    }

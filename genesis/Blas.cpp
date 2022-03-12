@@ -51,40 +51,19 @@ namespace genesis
       std::vector<VkAccelerationStructureBuildRangeInfoKHR> vecAccelerationStructureBuildRangeInfos;
       std::vector<uint32_t> primitiveCounts;
 
-      const auto& linearNodes = _model->linearNodes();
-      std::deque<const Node*> nodesToProcess;
-      for (const Node* node : linearNodes)
-      {
-         nodesToProcess.push_back(node);
-      }
-
-      while (!nodesToProcess.empty())
-      {
-         const Node* node = nodesToProcess.front(); nodesToProcess.pop_front();
-
-         if (node->_mesh)
+      _model->forEachPrimitive(
+         [&](const Primitive& primitive)
          {
-            for (const Primitive& primitive : node->_mesh->primitives)
-            {
-               if (primitive.indexCount > 0)
-               {
-                  accelerationStructureBuildRangeInfo.primitiveCount = primitive.indexCount / 3;
-                  accelerationStructureBuildRangeInfo.primitiveOffset = primitive.firstIndex * sizeof(uint32_t);
-                  accelerationStructureBuildRangeInfo.firstVertex = 0;
-                  accelerationStructureBuildRangeInfo.transformOffset = 0;
+            accelerationStructureBuildRangeInfo.primitiveCount = primitive.indexCount / 3;
+            accelerationStructureBuildRangeInfo.primitiveOffset = primitive.firstIndex * sizeof(uint32_t);
+            accelerationStructureBuildRangeInfo.firstVertex = 0;
+            accelerationStructureBuildRangeInfo.transformOffset = 0;
 
-                  vecAccelerationStructureGeometries.push_back(accelerationStructureGeometry);
-                  vecAccelerationStructureBuildRangeInfos.push_back(accelerationStructureBuildRangeInfo);
-                  primitiveCounts.push_back(accelerationStructureBuildRangeInfo.primitiveCount);
-               }
-            }
+            vecAccelerationStructureGeometries.push_back(accelerationStructureGeometry);
+            vecAccelerationStructureBuildRangeInfos.push_back(accelerationStructureBuildRangeInfo);
+            primitiveCounts.push_back(accelerationStructureBuildRangeInfo.primitiveCount);
          }
-
-         for (const auto& child : node->_children)
-         {
-            nodesToProcess.push_back(node);
-         }
-      }
+      );
 
       // Get size info
       VkAccelerationStructureBuildGeometryInfoKHR accelerationStructureBuildGeometryInfo = VulkanInitializers::accelerationStructureBuildGeometryInfoKHR();

@@ -28,7 +28,9 @@ struct Material
       : baseColorFactor(vec4(1.0f))
       , emissiveFactor(vec4(0.0f))
       , padding(vec3(0, 0, 0))
-      , baseColorTextureIndex(0)
+      , baseColorTextureIndex(-1)
+      , roughness(0)
+      , metalness(0)
    {
       // nothing else
 }
