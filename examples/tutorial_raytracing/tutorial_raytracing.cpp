@@ -76,6 +76,19 @@ void TutorialRayTracing::resetCamera()
       camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
       _pushConstants.contributionFromEnvironment = 10;
    }
+   else if (_mainModel == "bathroom")
+   {
+      camera.type = genesis::Camera::CameraType::firstperson;
+      camera.rotationSpeed = 0.2f;
+      camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
+      camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
+      camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+      _pushConstants.contributionFromEnvironment = 10;
+
+      camera.setRotation(glm::vec3(-19.6f, -303.601227, 0.0f));
+      camera.setPosition(glm::vec3(2.42036271f, 1.83941388, -5.26105785));
+      camera.viewPos = glm::vec4(-2.42036271, 1.83941388, 5.26105785,1);
+   }
 }
 
 TutorialRayTracing::TutorialRayTracing()
@@ -710,6 +723,11 @@ void TutorialRayTracing::keyPressed(uint32_t key)
    {
       nextRenderingMode();
    }
+   else if (key == KEY_P)
+   {
+      _pushConstants.pathTracer = (_pushConstants.pathTracer + 1)%2;
+      _pushConstants.frameIndex = -1;
+   }
 }
 
 void TutorialRayTracing::draw()
@@ -822,6 +840,10 @@ void TutorialRayTracing::createScene()
    else if (_mainModel == "sphere")
    {
       gltfModel = getAssetsPath() + "models/sphere.gltf";
+   }
+   else if (_mainModel == "bathroom")
+   {
+      gltfModel = getAssetsPath() + "models/bathroom/LAZIENKA.gltf";
    }
 
    const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
