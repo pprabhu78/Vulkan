@@ -104,7 +104,10 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 #endif
 
 		newRayOrigin = worldPosition;
-		newRayDirection = samplingHemisphere(payLoad.seed, worldTangent, worldBiNormal, worldNormal);
+		newRayDirection = cosineSampleHemisphere(payLoad.seed);
+
+		newRayDirection = newRayDirection.x * worldTangent + newRayDirection.y * worldBiNormal + newRayDirection.z * worldNormal;
+
 		hitValue = emissive;
 
 		float cosTheta = dot(newRayDirection, worldNormal);

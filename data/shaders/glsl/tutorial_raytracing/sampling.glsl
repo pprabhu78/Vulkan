@@ -58,7 +58,7 @@ float rnd(inout uint prev)
 //-------------------------------------------------------------------------------------------------
 
 // Randomly sampling around +Z
-vec3 samplingHemisphere(inout uint seed, in vec3 x, in vec3 y, in vec3 z)
+vec3 cosineSampleHemisphere(inout uint seed)
 {
 #define M_PI 3.141592
 
@@ -67,7 +67,6 @@ vec3 samplingHemisphere(inout uint seed, in vec3 x, in vec3 y, in vec3 z)
   float sq = sqrt(1.0 - r2);
 
   vec3 direction = vec3(cos(2 * M_PI * r1) * sq, sin(2 * M_PI * r1) * sq, sqrt(r2));
-  direction      = direction.x * x + direction.y * y + direction.z * z;
 
   return direction;
 }
