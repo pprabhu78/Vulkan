@@ -51,6 +51,7 @@ void TutorialRayTracing::resetCamera()
       camera.setPosition(glm::vec3(0.0f, 0.0f, -2.5f));
       camera.setRotation(glm::vec3(0.0f));
       camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+      _pushConstants.contributionFromEnvironment = 1;
    }
    else if (_mainModel == "cornell")
    {
@@ -66,6 +67,7 @@ void TutorialRayTracing::resetCamera()
       camera.setPosition(glm::vec3(0.0f, 0.0f, -10.5f));
       camera.setRotation(glm::vec3(0.0f));
       camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+      _pushConstants.contributionFromEnvironment = 1;
    }
    else if (_mainModel == "sponza")
    {
