@@ -54,7 +54,7 @@ void main()
 	}
 	else
 	{
-		samplePixel2(imageCoords, imageSize);
-		imageStore(finalImage, imageCoords, vec4(payLoad.hitValue, 0.0));
+		vec3 radiance = samplePixel2(imageCoords, imageSize);
+		imageStore(finalImage, imageCoords, vec4(radiance, 0.0));
 	}
 }

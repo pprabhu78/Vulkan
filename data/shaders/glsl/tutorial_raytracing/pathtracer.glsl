@@ -27,9 +27,9 @@ Vertex unpack(uint index, int vertexSizeInBytes, VertexBuffer vertexBuffer)
 	return v;
 }
 
-void computeHitValueAndWeight(inout HitPayload payLoad
-, out vec3 newRayOrigin
-, out vec3 newRayDirection)
+void computeHitValueWeightAndNewRay(inout HitPayload payLoad
+, out vec3 hitValue, out vec3 weight
+, out vec3 newRayOrigin, out vec3 newRayDirection)
 {
 	const Model model = models._models[payLoad.instanceCustomIndex];
 
@@ -105,10 +105,10 @@ void computeHitValueAndWeight(inout HitPayload payLoad
 
 		newRayOrigin = worldPosition;
 		newRayDirection = samplingHemisphere(payLoad.seed, worldTangent, worldBiNormal, worldNormal);
-		payLoad.hitValue = emissive;
+		hitValue = emissive;
 
 		float cosTheta = dot(newRayDirection, worldNormal);
-		payLoad.weight = decal * cosTheta;
+		weight = decal * cosTheta;
 	}
 	else
 	{
@@ -134,33 +134,33 @@ void computeHitValueAndWeight(inout HitPayload payLoad
 			vec3 reflectedColor = textureLod(environmentMap, reflectedVectorWorldSpace.xyz * vec3(pushConstants.environmentMapCoordTransform.xy, 1), lod).xyz;
 			final = mix(final, reflectedColor, pushConstants.reflectivity);
 		}
-		payLoad.hitValue = final;
+		hitValue = final;
 
 		if (pushConstants.materialComponentViz > 0)
 		{
 			if (pushConstants.materialComponentViz == Viz_Albedo)
 			{
-				payLoad.hitValue = decal;
+				hitValue = decal;
 			}
 			else if (pushConstants.materialComponentViz == Viz_Emissive)
 			{
-				payLoad.hitValue = emissive;
+				hitValue = emissive;
 			}
 			else if (pushConstants.materialComponentViz == Viz_Roughness)
 			{
-				payLoad.hitValue = vec3(roughness);
+				hitValue = vec3(roughness);
 			}
 			else if (pushConstants.materialComponentViz == Viz_Metalness)
 			{
-				payLoad.hitValue = vec3(metalness);
+				hitValue = vec3(metalness);
 			}
 			else if (pushConstants.materialComponentViz == Viz_Occlusion)
 			{
-				payLoad.hitValue = vec3(occlusion);
+				hitValue = vec3(occlusion);
 			}
 			else if (pushConstants.materialComponentViz == Viz_NormalMap)
 			{
-				payLoad.hitValue = normalMapNormals;
+				hitValue = normalMapNormals;
 			}
 		}
 	}
@@ -185,8 +185,8 @@ vec3 samplePixel(const ivec2 imageCoords, const ivec2 imageSize)
 	vec3 rayOrigin = rayOrigin4.xyz;
 	vec3 rayDirection = rayDirection4.xyz;
 
-	payLoad.hitValue = vec3(0.0);
-	payLoad.weight = vec3(0.0);
+	vec3 hitValue = vec3(0.0);
+	vec3 weight = vec3(0.0);
 
 	vec3 throughput = vec3(1);
 	vec3 radiance = vec3(0);
@@ -204,10 +204,12 @@ vec3 samplePixel(const ivec2 imageCoords, const ivec2 imageSize)
 			return radiance + (env * throughput);
 		}
 
-		computeHitValueAndWeight(payLoad, rayOrigin, rayDirection);
+		computeHitValueWeightAndNewRay(payLoad
+			, hitValue, weight
+			, rayOrigin, rayDirection);
 
-		radiance += payLoad.hitValue * throughput;
-		throughput *= payLoad.weight;
+		radiance += hitValue * throughput;
+		throughput *= weight;
 	}
 	return radiance;
 }
@@ -229,8 +231,8 @@ vec3 samplePixel2(const ivec2 imageCoords, const ivec2 imageSize)
 	vec3 rayOrigin = rayOrigin4.xyz;
 	vec3 rayDirection = rayDirection4.xyz;
 
-	payLoad.hitValue = vec3(0.0);
-	payLoad.weight = vec3(0.0);
+	vec3 hitValue = vec3(0.0);
+	vec3 weight = vec3(0.0);
 
 	traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, rayOrigin, tmin, rayDirection, tmax, 0);
 
@@ -238,8 +240,13 @@ vec3 samplePixel2(const ivec2 imageCoords, const ivec2 imageSize)
 	{
 		vec3 sampleCoords = normalize(rayDirection);
 		sampleCoords.xy *= pushConstants.environmentMapCoordTransform.xy;
-		payLoad.hitValue = texture(environmentMap, sampleCoords).xyz;
+		hitValue = texture(environmentMap, sampleCoords).xyz;
+		return hitValue;
 	}
 
-	return vec3(0.0);
+	computeHitValueWeightAndNewRay(payLoad
+		, hitValue, weight
+		, rayOrigin, rayDirection);
+
+	return hitValue;
 }

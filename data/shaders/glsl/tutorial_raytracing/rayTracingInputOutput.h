@@ -49,11 +49,7 @@ layout(set = 1, binding = 2) uniform sampler2D samplers[];
 
 struct HitPayload
 {
-   vec3 hitValue;
-   vec3 weight;
-
    uint seed;
-
 
    float  hitT;
    int instanceCustomIndex;
