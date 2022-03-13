@@ -104,14 +104,39 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 #endif
 
 		newRayOrigin = worldPosition;
-		newRayDirection = cosineSampleHemisphere(payLoad.seed);
-
+		float pdf = 0;
+		if (pushConstants.cosineSampling > 0)
+		{
+			newRayDirection = cosineSampleHemisphere(payLoad.seed, pdf);
+		}
+		else
+		{
+			newRayDirection = uniformSampleHemisphere(payLoad.seed, pdf);
+		}
 		newRayDirection = newRayDirection.x * worldTangent + newRayDirection.y * worldBiNormal + newRayDirection.z * worldNormal;
 
 		hitValue = emissive;
 
-		float cosTheta = dot(newRayDirection, worldNormal);
-		weight = decal * cosTheta;
+		if (pushConstants.cosineSampling > 0)
+		{
+			// Crash Course in BRDF Implementation
+			// https://boksajak.github.io/blog/BRDF
+			// 3.1 Lambertian diffuse BRDF
+			//   (brdf * cosTheta)/pdf
+			// ->((decal/pi) * cosTheta)/ (cosTheta/Pi))
+			// -> decal
+			weight = decal;
+		}
+		else
+		{
+			//   (brdf * cosTheta)/pdf
+			// ->((decal/pi) * cosTheta)/ (1/(2*Pi))
+			// -> decal * cosTheta * 2
+			// Multiplication by 2 is correct. See here:
+			// https://graphicscompendium.com/raytracing/19-monte-carlo
+			float cosTheta = dot(newRayDirection, worldNormal);
+			weight = decal * cosTheta * 2.0f;
+		}
 	}
 	else
 	{

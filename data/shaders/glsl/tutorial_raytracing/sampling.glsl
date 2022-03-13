@@ -57,18 +57,43 @@ float rnd(inout uint prev)
 // Sampling
 //-------------------------------------------------------------------------------------------------
 
-// Randomly sampling around +Z
-vec3 cosineSampleHemisphere(inout uint seed)
+#define PI 3.141592
+// Ray Tracing Gems 1
+// 16.6.1 Cosine-Weighted Hemisphere oriented to the z-axis
+vec3 cosineSampleHemisphere(inout uint seed, out float pdf)
 {
-#define M_PI 3.141592
+   float u0 = rnd(seed);
+   float u1 = rnd(seed);
 
-  float r1 = rnd(seed);
-  float r2 = rnd(seed);
-  float sq = sqrt(1.0 - r2);
+   float sqrt_u0 = sqrt(u0);
+   float two_pi_u1 = 2 * PI * u1;
 
-  vec3 direction = vec3(cos(2 * M_PI * r1) * sq, sin(2 * M_PI * r1) * sq, sqrt(r2));
+   vec3 direction = vec3(
+      sqrt_u0 * cos(two_pi_u1),
+      sqrt_u0 * sin(two_pi_u1),
+      sqrt(1.0f - u0));
 
-  return direction;
+   // pdf = costTheta/ PI
+   // pdf = z/PI
+   pdf = direction.z / PI;
+
+   return direction;
+}
+
+// https://www.pbr-book.org/3ed-2018/Monte_Carlo_Integration/2D_Sampling_with_Multidimensional_Transformations#UniformlySamplingaHemisphere
+vec3 uniformSampleHemisphere(inout uint seed, out float pdf)
+{
+   float u0 = rnd(seed);
+   float u1 = rnd(seed);
+
+   float r = sqrt(max(0.0f, 1.0f - u0 * u0));
+   float phi = 2 * PI * u1;
+
+   vec3 direction = vec3(r * cos(phi), r * sin(phi), u0);
+
+   pdf = 1 / (2.0f * PI);
+
+   return direction;
 }
 
 // Return the tangent and binormal from the incoming normal

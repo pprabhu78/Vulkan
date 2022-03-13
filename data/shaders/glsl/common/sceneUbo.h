@@ -24,7 +24,8 @@ struct PushConstants
    float contributionFromEnvironment;
    int pathTracer;
    int materialComponentViz;
-   vec2 pad;
+   int cosineSampling;
+   float pad;
 
 #if CPU_SIDE_COMPILATION
    PushConstants()
@@ -38,6 +39,8 @@ struct PushConstants
       pathTracer = 1;
 
       materialComponentViz = 0;
+
+      cosineSampling = 1;
    }
 #endif
 };

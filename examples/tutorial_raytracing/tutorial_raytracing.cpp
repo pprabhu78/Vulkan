@@ -730,6 +730,11 @@ void TutorialRayTracing::keyPressed(uint32_t key)
       _pushConstants.pathTracer = (_pushConstants.pathTracer + 1)%2;
       _pushConstants.frameIndex = -1;
    }
+   else if (key == KEY_C)
+   {
+      _pushConstants.cosineSampling = (_pushConstants.cosineSampling + 1) % 2;
+      _pushConstants.frameIndex = -1;
+   }
 }
 
 void TutorialRayTracing::draw()
