@@ -53,8 +53,7 @@ struct HitPayload
    vec3 weight;
 
    uint seed;
-   vec3 rayOrigin;
-   vec3 rayDirection;
+
 
    float  hitT;
    int instanceCustomIndex;
