@@ -1,5 +1,7 @@
 #include "globals.glsl"
 
+#include "brdf.glsl"
+
 layout(location = 0) rayPayloadEXT HitPayload payLoad;
 
 vec3 pathTrace()
@@ -108,40 +110,19 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 		u.x = rnd(payLoad.seed);
 		u.y = rnd(payLoad.seed);
 
+		MaterialProperties materialProperties;
+		materialProperties.baseColor = decal;
+		materialProperties.metalness = metalness;
+		materialProperties.roughness = roughness;
+
+		evaluateBrdf(DIFFUSE_TYPE, pushConstants.cosineSampling, u
+			, materialProperties, worldNormal
+			, worldTangent, worldBiNormal, worldNormal
+			, newRayDirection, weight);
+
 		newRayOrigin = worldPosition;
-		float pdf = 0;
-		if (pushConstants.cosineSampling > 0)
-		{
-			newRayDirection = cosineSampleHemisphere(u, pdf);
-		}
-		else
-		{
-			newRayDirection = uniformSampleHemisphere(u, pdf);
-		}
-		newRayDirection = newRayDirection.x * worldTangent + newRayDirection.y * worldBiNormal + newRayDirection.z * worldNormal;
 
 		hitValue = emissive;
-
-		if (pushConstants.cosineSampling > 0)
-		{
-			// Crash Course in BRDF Implementation
-			// https://boksajak.github.io/blog/BRDF
-			// 3.1 Lambertian diffuse BRDF
-			//   (brdf * cosTheta)/pdf
-			// ->((decal/pi) * cosTheta)/ (cosTheta/Pi))
-			// -> decal
-			weight = decal;
-		}
-		else
-		{
-			//   (brdf * cosTheta)/pdf
-			// ->((decal/pi) * cosTheta)/ (1/(2*Pi))
-			// -> decal * cosTheta * 2
-			// Multiplication by 2 is correct. See here:
-			// https://graphicscompendium.com/raytracing/19-monte-carlo
-			float cosTheta = dot(newRayDirection, worldNormal);
-			weight = decal * cosTheta * 2.0f;
-		}
 	}
 	else
 	{
