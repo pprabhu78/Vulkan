@@ -1,3 +1,8 @@
+#ifndef SAMPLING_GLSL
+#define SAMPLING_GLSL
+
+#include "globals.glsl"
+
 /*
  * Copyright (c) 2019-2021, NVIDIA CORPORATION.  All rights reserved.
  *
@@ -57,13 +62,12 @@ float rnd(inout uint prev)
 // Sampling
 //-------------------------------------------------------------------------------------------------
 
-#define PI 3.141592
 // Ray Tracing Gems 1
 // 16.6.1 Cosine-Weighted Hemisphere oriented to the z-axis
-vec3 cosineSampleHemisphere(inout uint seed, out float pdf)
+vec3 cosineSampleHemisphere(vec2 u, out float pdf)
 {
-   float u0 = rnd(seed);
-   float u1 = rnd(seed);
+   float u0 = u.x;
+   float u1 = u.y;
 
    float sqrt_u0 = sqrt(u0);
    float two_pi_u1 = 2 * PI * u1;
@@ -81,10 +85,10 @@ vec3 cosineSampleHemisphere(inout uint seed, out float pdf)
 }
 
 // https://www.pbr-book.org/3ed-2018/Monte_Carlo_Integration/2D_Sampling_with_Multidimensional_Transformations#UniformlySamplingaHemisphere
-vec3 uniformSampleHemisphere(inout uint seed, out float pdf)
+vec3 uniformSampleHemisphere(vec2 u, out float pdf)
 {
-   float u0 = rnd(seed);
-   float u1 = rnd(seed);
+   float u0 = u.x;
+   float u1 = u.y;
 
    float r = sqrt(max(0.0f, 1.0f - u0 * u0));
    float phi = 2 * PI * u1;
@@ -105,3 +109,5 @@ void createCoordinateSystem(in vec3 N, out vec3 Nt, out vec3 Nb)
     Nt = vec3(0, -N.z, N.y) / sqrt(N.y * N.y + N.z * N.z);
   Nb = cross(N, Nt);
 }
+
+#endif

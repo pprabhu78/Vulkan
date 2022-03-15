@@ -1,3 +1,4 @@
+#include "globals.glsl"
 
 layout(location = 0) rayPayloadEXT HitPayload payLoad;
 
@@ -103,15 +104,19 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 		vec3 decal = textureLod(samplers[samplerIndex], uv, lod).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
 #endif
 
+		vec2 u;
+		u.x = rnd(payLoad.seed);
+		u.y = rnd(payLoad.seed);
+
 		newRayOrigin = worldPosition;
 		float pdf = 0;
 		if (pushConstants.cosineSampling > 0)
 		{
-			newRayDirection = cosineSampleHemisphere(payLoad.seed, pdf);
+			newRayDirection = cosineSampleHemisphere(u, pdf);
 		}
 		else
 		{
-			newRayDirection = uniformSampleHemisphere(payLoad.seed, pdf);
+			newRayDirection = uniformSampleHemisphere(u, pdf);
 		}
 		newRayDirection = newRayDirection.x * worldTangent + newRayDirection.y * worldBiNormal + newRayDirection.z * worldNormal;
 
@@ -194,10 +199,6 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 	}
 }
 
-
-const float tmin = 0.001;
-const float tmax = 10000.0;
-
 vec3 samplePixel(const ivec2 imageCoords, const ivec2 imageSize)
 {
 	// compute the sampling position
@@ -222,7 +223,7 @@ vec3 samplePixel(const ivec2 imageCoords, const ivec2 imageSize)
 	for (int depth = 0; depth < 10; ++depth)
 	{
 		payLoad.hitT = INFINITY;
-		traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, rayOrigin, tmin, rayDirection, tmax, 0);
+		traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, rayOrigin, T_MIN, rayDirection, T_MAX, 0);
 
 		if (payLoad.hitT == INFINITY)
 		{
@@ -262,7 +263,7 @@ vec3 samplePixel2(const ivec2 imageCoords, const ivec2 imageSize)
 	vec3 hitValue = vec3(0.0);
 	vec3 weight = vec3(0.0);
 
-	traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, rayOrigin, tmin, rayDirection, tmax, 0);
+	traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, rayOrigin, T_MIN, rayDirection, T_MAX, 0);
 
 	if (payLoad.hitT == INFINITY)
 	{
