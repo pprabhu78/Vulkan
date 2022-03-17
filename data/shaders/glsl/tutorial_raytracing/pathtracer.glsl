@@ -1,6 +1,7 @@
 #include "globals.glsl"
 
 #include "brdf.glsl"
+#include "math.glsl"
 
 layout(location = 0) rayPayloadEXT HitPayload payLoad;
 
@@ -31,6 +32,7 @@ Vertex unpack(uint index, int vertexSizeInBytes, VertexBuffer vertexBuffer)
 }
 
 void computeHitValueWeightAndNewRay(inout HitPayload payLoad
+, vec3 currentRayOrigin, vec3 currentRayDirection
 , out vec3 hitValue, out vec3 weight
 , out vec3 newRayOrigin, out vec3 newRayDirection)
 {
@@ -115,8 +117,9 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 		materialProperties.metalness = metalness;
 		materialProperties.roughness = roughness;
 
-		evaluateBrdf(DIFFUSE_TYPE, pushConstants.cosineSampling, u
-			, materialProperties, worldNormal
+		vec3 V = -currentRayDirection;
+		evaluateBrdf(SPECULAR_TYPE, pushConstants.cosineSampling, u
+			, materialProperties, worldNormal, V
 			, worldTangent, worldBiNormal, worldNormal
 			, newRayDirection, weight);
 
@@ -214,7 +217,10 @@ vec3 samplePixel(const ivec2 imageCoords, const ivec2 imageSize)
 			return radiance + (env * throughput);
 		}
 
+		vec3 currentRayOrigin = rayOrigin;
+		vec3 currentRayDirection = rayDirection;
 		computeHitValueWeightAndNewRay(payLoad
+			, currentRayOrigin, currentRayDirection
 			, hitValue, weight
 			, rayOrigin, rayDirection);
 
@@ -254,7 +260,10 @@ vec3 samplePixel2(const ivec2 imageCoords, const ivec2 imageSize)
 		return hitValue;
 	}
 
+	vec3 currentRayOrigin = rayOrigin;
+	vec3 currentRayDirection = rayDirection;
 	computeHitValueWeightAndNewRay(payLoad
+		, currentRayOrigin, currentRayDirection
 		, hitValue, weight
 		, rayOrigin, rayDirection);
 

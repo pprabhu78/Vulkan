@@ -15,6 +15,7 @@
 #extension GL_EXT_buffer_reference2 : require
 
 #include "globals.glsl"
+#include "math.glsl"
 #include "sampling.glsl"
 #include "rayTracingInputOutput.h"
 #include "pathtracer.glsl"
