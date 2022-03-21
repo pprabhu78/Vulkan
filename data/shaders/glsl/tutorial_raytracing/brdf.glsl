@@ -76,8 +76,8 @@ float Smith_G1_GGX(float alpha, float alphaSquared, float NdotS, float NdotSSqua
 // page 6/appendix A, (9)
 float Smith_G2_Over_G1_Height_Correlated(float alpha, float alphaSquared, float NdotL, float NdotV) 
 {
-   float G1V = Smith_G1_GGX(alpha, NdotV, alphaSquared, NdotV * NdotV);
-   float G1L = Smith_G1_GGX(alpha, NdotL, alphaSquared, NdotL * NdotL);
+   float G1V = Smith_G1_GGX(alpha, alphaSquared, NdotV, NdotV * NdotV);
+   float G1L = Smith_G1_GGX(alpha, alphaSquared, NdotL, NdotL * NdotL);
    return G1L / (G1V + G1L - G1V * G1L);
 }
 
