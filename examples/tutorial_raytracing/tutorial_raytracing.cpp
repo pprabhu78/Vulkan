@@ -853,7 +853,7 @@ void TutorialRayTracing::createScene()
       gltfModel = getAssetsPath() + "models/bathroom/LAZIENKA.gltf";
    }
 
-   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices | genesis::VulkanGltfModel::PreMultiplyVertexColors;
+   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices;
    _cellManager = new genesis::CellManager(_device, glTFLoadingFlags);
 
    _cellManager->addInstance(gltfModel, mat4());
