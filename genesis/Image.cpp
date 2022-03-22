@@ -216,6 +216,14 @@ namespace genesis
       return true;
    }
 
+   static void roundUptoOne(int32_t& val)
+   {
+      if (val == 0)
+      {
+         val = 1;
+      }
+   }
+
    void Image::generateMipMaps(void)
    {
       genesis::ImageTransitions transitions;
@@ -233,6 +241,9 @@ namespace genesis
          imageBlit.srcOffsets[1].x = int32_t(_width >> (i - 1));
          imageBlit.srcOffsets[1].y = int32_t(_height >> (i - 1));
          imageBlit.srcOffsets[1].z = 1;
+         
+         roundUptoOne(imageBlit.srcOffsets[1].x);
+         roundUptoOne(imageBlit.srcOffsets[1].y);
 
          // This is the destination level
          imageBlit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -241,6 +252,9 @@ namespace genesis
          imageBlit.dstOffsets[1].x = int32_t(_width >> i);
          imageBlit.dstOffsets[1].y = int32_t(_height >> i);
          imageBlit.dstOffsets[1].z = 1;
+
+         roundUptoOne(imageBlit.dstOffsets[1].x);
+         roundUptoOne(imageBlit.dstOffsets[1].y);
 
          VkImageSubresourceRange mipSubRange = {};
          mipSubRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;

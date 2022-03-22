@@ -85,7 +85,7 @@ void TutorialRayTracing::resetCamera()
       camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
       camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
       camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
-      _pushConstants.contributionFromEnvironment = 8;
+      _pushConstants.contributionFromEnvironment = 1;
 
       camera.setRotation(glm::vec3(-19.6f, -303.601227, 0.0f));
       camera.setPosition(glm::vec3(2.42036271f, 1.83941388, -5.26105785));
