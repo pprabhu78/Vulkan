@@ -758,7 +758,7 @@ void TutorialRayTracing::draw()
    if (_autoTest)
    {
       static int currentScreenshot = 0;
-      if (_pushConstants.frameIndex == 1000)
+      if (_pushConstants.frameIndex == 5000)
       {
          std::string fileName;
          if (currentScreenshot==0)

@@ -118,7 +118,7 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 		materialProperties.roughness = roughness;
 
 		vec3 V = -currentRayDirection;
-		evaluateBrdf(SPECULAR_TYPE, pushConstants.cosineSampling, u
+		evaluateBrdf(DIFFUSE_TYPE, pushConstants.cosineSampling, u
 			, materialProperties, worldNormal, V
 			, worldTangent, worldBiNormal, worldNormal
 			, newRayDirection, weight);
@@ -134,7 +134,7 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 
 		// the base color is decreasing the lighting to a very low value.
 		// therefore, exclude it for now
-		vec3 decal = texture(samplers[samplerIndex], uv).rgb /** material.baseColorFactor.xyz*/ * vertexColor.rgb;
+		vec3 decal = texture(samplers[samplerIndex], uv).rgb * material.baseColorFactor.xyz * vertexColor.rgb;
 
 		vec3 lit = vec3(dot(normalize(normalViewSpace), normalize(-vertexViewSpace)));
 
