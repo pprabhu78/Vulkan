@@ -198,20 +198,47 @@ vec3 pathTrace(const ivec2 imageCoords, const ivec2 imageSize)
 			return materialComponentViz(materialProperties);
 		}
 
+		// add emissive at this hit
+		radiance += materialProperties.emissive * throughput;
+
+		Ray currentRay = ray;
+		vec3 V = -currentRay.direction;
+
+		int brdfType = 0;
+#if 1
+		if (materialProperties.metalness == 1.0f && materialProperties.roughness == 0.0f) {
+			// Fast path for mirrors
+			brdfType = SPECULAR_TYPE;
+		}
+		else {
+
+			// Decide whether to sample diffuse or specular BRDF (based on Fresnel term)
+			float brdfProbability = getBrdfProbability(materialProperties, V, worldNormal);
+
+			if (rnd(payLoad.seed) < brdfProbability) {
+				brdfType = SPECULAR_TYPE;
+				throughput /= brdfProbability; // modulate throughput by the probability
+			}
+			else {
+				brdfType = DIFFUSE_TYPE;
+				throughput /= (1.0f - brdfProbability); // modulate throughput by the probability
+			}
+		}
+#else
+		int brdfType = DIFFUSE_TYPE;
+#endif
+
 		vec2 u;
 		u.x = rnd(payLoad.seed);
 		u.y = rnd(payLoad.seed);
 
-		Ray currentRay = ray;
-		vec3 V = -currentRay.direction;
-		evaluateBrdf(DIFFUSE_TYPE, pushConstants.cosineSampling, u
+		evaluateBrdf(brdfType, pushConstants.cosineSampling, u
 			, materialProperties, worldNormal, V
 			, worldTangent, worldBiNormal, worldNormal
 			, ray.direction, weight); // the new sampling direction will be in ray.direction
 
 		ray.origin = worldPosition;
 
-		radiance += materialProperties.emissive * throughput;
 		throughput *= weight;
 	}
 	return radiance;
