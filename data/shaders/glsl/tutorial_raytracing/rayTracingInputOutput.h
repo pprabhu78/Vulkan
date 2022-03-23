@@ -68,4 +68,10 @@ struct Vertex
    vec4 color;
 };
 
+struct Ray
+{
+   vec3 origin;
+   vec3 direction;
+};
+
 #endif

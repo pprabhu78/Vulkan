@@ -32,9 +32,9 @@ Vertex unpack(uint index, int vertexSizeInBytes, VertexBuffer vertexBuffer)
 }
 
 void computeHitValueWeightAndNewRay(inout HitPayload payLoad
-, vec3 currentRayOrigin, vec3 currentRayDirection
+, in Ray currentRay
 , out vec3 hitValue, out vec3 weight
-, out vec3 newRayOrigin, out vec3 newRayDirection)
+, out Ray newRay)
 {
 	const Model model = models._models[payLoad.instanceCustomIndex];
 
@@ -117,13 +117,13 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 		materialProperties.metalness = metalness;
 		materialProperties.roughness = roughness;
 
-		vec3 V = -currentRayDirection;
+		vec3 V = -currentRay.direction;
 		evaluateBrdf(DIFFUSE_TYPE, pushConstants.cosineSampling, u
 			, materialProperties, worldNormal, V
 			, worldTangent, worldBiNormal, worldNormal
-			, newRayDirection, weight);
+			, newRay.direction, weight);
 
-		newRayOrigin = worldPosition;
+		newRay.origin = worldPosition;
 
 		hitValue = emissive;
 	}
@@ -183,7 +183,7 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 	}
 }
 
-vec3 samplePixel(const ivec2 imageCoords, const ivec2 imageSize)
+Ray calculateRay(const ivec2 imageCoords, const ivec2 imageSize)
 {
 	// compute the sampling position
 	const vec2 pixelCenter = imageCoords + vec2(0.5);
@@ -195,8 +195,16 @@ vec3 samplePixel(const ivec2 imageCoords, const ivec2 imageSize)
 	vec4 target = sceneUbo.projectionMatrixInverse * vec4(d.x, d.y, 1, 1);
 	vec4 rayDirection4 = sceneUbo.viewMatrixInverse * vec4(normalize(target.xyz), 0);
 
-	vec3 rayOrigin = rayOrigin4.xyz;
-	vec3 rayDirection = rayDirection4.xyz;
+	Ray ray;
+	ray.origin = rayOrigin4.xyz;
+	ray.direction = rayDirection4.xyz;
+
+	return ray;
+}
+
+vec3 samplePixel(const ivec2 imageCoords, const ivec2 imageSize)
+{
+	Ray ray = calculateRay(imageCoords, imageSize);
 
 	vec3 hitValue = vec3(0.0);
 	vec3 weight = vec3(0.0);
@@ -207,22 +215,21 @@ vec3 samplePixel(const ivec2 imageCoords, const ivec2 imageSize)
 	for (int depth = 0; depth < 10; ++depth)
 	{
 		payLoad.hitT = INFINITY;
-		traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, rayOrigin, T_MIN, rayDirection, T_MAX, 0);
+		traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, ray.origin, T_MIN, ray.direction, T_MAX, 0);
 
 		if (payLoad.hitT == INFINITY)
 		{
-			vec3 sampleCoords = normalize(rayDirection);
+			vec3 sampleCoords = normalize(ray.direction);
 			sampleCoords.xy *= pushConstants.environmentMapCoordTransform.xy;
 			vec3 env = /*texture(environmentMap, sampleCoords).xyz**/vec3(pushConstants.contributionFromEnvironment);
 			return radiance + (env * throughput);
 		}
 
-		vec3 currentRayOrigin = rayOrigin;
-		vec3 currentRayDirection = rayDirection;
+		Ray currentRay = ray;
 		computeHitValueWeightAndNewRay(payLoad
-			, currentRayOrigin, currentRayDirection
+			, currentRay
 			, hitValue, weight
-			, rayOrigin, rayDirection);
+			, ray);
 
 		radiance += hitValue * throughput;
 		throughput *= weight;
@@ -232,40 +239,27 @@ vec3 samplePixel(const ivec2 imageCoords, const ivec2 imageSize)
 
 vec3 samplePixel2(const ivec2 imageCoords, const ivec2 imageSize)
 {
-	// compute the sampling position
-	const vec2 pixelCenter = imageCoords + vec2(0.5);
-	const vec2 inUV = pixelCenter / imageSize;
-	vec2 d = inUV * 2.0 - 1.0;
-
-	// compute the ray origina and direction
-	vec4 rayOrigin4 = sceneUbo.viewMatrixInverse * vec4(0, 0, 0, 1);
-	vec4 target = sceneUbo.projectionMatrixInverse * vec4(d.x, d.y, 1, 1);
-	vec4 rayDirection4 = sceneUbo.viewMatrixInverse * vec4(normalize(target.xyz), 0);
-
-	payLoad.hitT = INFINITY;
-	
-	vec3 rayOrigin = rayOrigin4.xyz;
-	vec3 rayDirection = rayDirection4.xyz;
+	Ray ray = calculateRay(imageCoords, imageSize);
 
 	vec3 hitValue = vec3(0.0);
 	vec3 weight = vec3(0.0);
 
-	traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, rayOrigin, T_MIN, rayDirection, T_MAX, 0);
+	payLoad.hitT = INFINITY;
+	traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, ray.origin, T_MIN, ray.direction, T_MAX, 0);
 
 	if (payLoad.hitT == INFINITY)
 	{
-		vec3 sampleCoords = normalize(rayDirection);
+		vec3 sampleCoords = normalize(ray.direction);
 		sampleCoords.xy *= pushConstants.environmentMapCoordTransform.xy;
 		hitValue = texture(environmentMap, sampleCoords).xyz;
 		return hitValue;
 	}
 
-	vec3 currentRayOrigin = rayOrigin;
-	vec3 currentRayDirection = rayDirection;
+	Ray currentRay = ray;
 	computeHitValueWeightAndNewRay(payLoad
-		, currentRayOrigin, currentRayDirection
+		, currentRay
 		, hitValue, weight
-		, rayOrigin, rayDirection);
+		, ray);
 
 	return hitValue;
 }
