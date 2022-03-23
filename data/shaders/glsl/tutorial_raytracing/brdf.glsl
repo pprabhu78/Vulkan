@@ -10,8 +10,10 @@
 struct MaterialProperties
 {
    vec3 baseColor;
+   vec3 emissive;
    float metalness;
    float roughness;
+   float occlusion;
 };
 
 vec3 sampleHemisphere(float samplingType, vec2 u, out float pdf)

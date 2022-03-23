@@ -30,7 +30,7 @@ void main()
 
 	if (pushConstants.pathTracer > 0)
 	{
-		vec3 radiance = samplePixel(imageCoords, imageSize);
+		vec3 radiance = pathTrace(imageCoords, imageSize);
 
 		vec4 valueToWrite = vec4(0,0,0,0);
 		// do all computations at 32 bit resolution
@@ -55,7 +55,7 @@ void main()
 	}
 	else
 	{
-		vec3 radiance = samplePixel2(imageCoords, imageSize);
+		vec3 radiance = rasterizationEmulatedByRayTrace(imageCoords, imageSize);
 		imageStore(finalImage, imageCoords, vec4(radiance, 0.0));
 	}
 }
