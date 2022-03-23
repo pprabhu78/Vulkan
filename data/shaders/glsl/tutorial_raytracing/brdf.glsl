@@ -123,6 +123,23 @@ float3 sampleGGXVNDF(float3 Ve, float2 alpha2D, float2 u)
    return normalize(float3(alpha2D.x * Nh.x, alpha2D.y * Nh.y, max(0.0f, Nh.z)));
 }
 
+vec3 calculateSpecularF0(MaterialProperties material)
+{
+   return mix(vec3(F0_DIELECTRICS, F0_DIELECTRICS, F0_DIELECTRICS)
+      , material.baseColor, material.metalness);
+}
+
+float calculateSpecularF90(vec3 specularF0)
+{
+   // This scalar value is somewhat arbitrary, Schuler used 60 in his article. In here, we derive it from MIN_DIELECTRICS_F0 so
+   // that it takes effect for any reflectance lower than least reflective dielectrics
+   //const float t = 60.0f;
+   const float t = (1.0f / F0_DIELECTRICS);
+   float specularF90 = min(1.0f, t * luminance(specularF0));
+
+   return specularF90;
+}
+
 vec3 specularBrdfWeightAndDirection(int samplingType, MaterialProperties material
    , vec3 N, vec3 V, vec2 u, out vec3 newRayDirection)
 {
@@ -166,14 +183,8 @@ vec3 specularBrdfWeightAndDirection(int samplingType, MaterialProperties materia
    // calculate g2/gl, height correlated
    float G2_over_G1 = Smith_G2_Over_G1_Height_Correlated(alpha, alphaSquared, NdotL, NdotV);
 
-   vec3 specularF0 = mix(vec3(F0_DIELECTRICS, F0_DIELECTRICS, F0_DIELECTRICS)
-      , material.baseColor, material.metalness);
-
-   // This scalar value is somewhat arbitrary, Schuler used 60 in his article. In here, we derive it from MIN_DIELECTRICS_F0 so
-   // that it takes effect for any reflectance lower than least reflective dielectrics
-   //const float t = 60.0f;
-   const float t = (1.0f / F0_DIELECTRICS);
-   float specularF90 = min(1.0f, t * luminance(specularF0));
+   vec3 specularF0 = calculateSpecularF0(material);
+   float specularF90 = calculateSpecularF90(specularF0);
 
    // https://en.wikipedia.org/wiki/Schlick%27s_approximation
    // In microfacet models it is assumed that there is always a perfect reflection, 
