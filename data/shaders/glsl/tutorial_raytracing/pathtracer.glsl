@@ -91,6 +91,19 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 		normalMapNormals = texture(samplers[normalTextureIndex], uv).rgb;
 	}
 
+	MaterialProperties materialProperties;
+
+#if 0
+	materialProperties.baseColor = texture(samplers[samplerIndex], uv).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
+#else
+	float maxLod = floor(log2(textureSize(samplers[samplerIndex], 0))).x;
+	float lod = pushConstants.textureLodBias * maxLod;
+	materialProperties.baseColor = textureLod(samplers[samplerIndex], uv, lod).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
+#endif
+
+	materialProperties.metalness = metalness;
+	materialProperties.roughness = roughness;
+
 	if (pushConstants.pathTracer > 0)
 	{
 		// pick a random position around this tbn
@@ -100,22 +113,9 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 		vec3 worldTangent, worldBiNormal;
 		createCoordinateSystem(worldNormal, worldTangent, worldBiNormal);
 
-#if 0
-		vec3 decal = texture(samplers[samplerIndex], uv).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
-#else
-		float maxLod = floor(log2(textureSize(samplers[samplerIndex], 0))).x;
-		float lod = pushConstants.textureLodBias * maxLod;
-		vec3 decal = textureLod(samplers[samplerIndex], uv, lod).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
-#endif
-
 		vec2 u;
 		u.x = rnd(payLoad.seed);
 		u.y = rnd(payLoad.seed);
-
-		MaterialProperties materialProperties;
-		materialProperties.baseColor = decal;
-		materialProperties.metalness = metalness;
-		materialProperties.roughness = roughness;
 
 		vec3 V = -currentRay.direction;
 		evaluateBrdf(DIFFUSE_TYPE, pushConstants.cosineSampling, u
@@ -132,13 +132,9 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 		vec3 normalViewSpace = (transpose(inverse(sceneUbo.viewMatrix)) * vec4(normal.x, normal.y, normal.z, 1)).xyz;
 		vec3 vertexViewSpace = (sceneUbo.viewMatrix * vec4(position, 1.0)).xyz;
 
-		// the base color is decreasing the lighting to a very low value.
-		// therefore, exclude it for now
-		vec3 decal = texture(samplers[samplerIndex], uv).rgb * material.baseColorFactor.xyz * vertexColor.rgb;
-
 		vec3 lit = vec3(dot(normalize(normalViewSpace), normalize(-vertexViewSpace)));
 
-		vec3 final = decal * lit;
+		vec3 final = materialProperties.baseColor * lit;
 		if (pushConstants.reflectivity > 0)
 		{
 			vec3 incidentVector = normalize(vertexViewSpace);
@@ -157,7 +153,7 @@ void computeHitValueWeightAndNewRay(inout HitPayload payLoad
 		{
 			if (pushConstants.materialComponentViz == Viz_Albedo)
 			{
-				hitValue = decal;
+				hitValue = materialProperties.baseColor;
 			}
 			else if (pushConstants.materialComponentViz == Viz_Emissive)
 			{
