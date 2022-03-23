@@ -32,6 +32,12 @@ vec3 sampleHemisphere(float samplingType, vec2 u, out float pdf)
    return newRayDirection;
 }
 
+
+float3 diffuseReflectance(MaterialProperties material)
+{
+   return material.baseColor * (1.0f - material.metalness);
+}
+
 vec3 diffuseBrdfWeight(int samplingType, MaterialProperties material
 , vec3 N, vec3 L)
 {
@@ -44,7 +50,7 @@ vec3 diffuseBrdfWeight(int samplingType, MaterialProperties material
       //   (brdf * cosTheta)/pdf
       // ->((decal/pi) * cosTheta)/ (cosTheta/Pi))
       // -> decal
-      weight = material.baseColor;
+      weight = diffuseReflectance(material);
    }
    else if (samplingType == UNIFORM_SAMPLING)
    {
@@ -54,7 +60,7 @@ vec3 diffuseBrdfWeight(int samplingType, MaterialProperties material
       // Multiplication by 2 is correct. See here:
       // https://graphicscompendium.com/raytracing/19-monte-carlo
       float cosTheta = dot(N, L);
-      weight = material.baseColor * cosTheta * 2.0f;
+      weight = diffuseReflectance(material) * cosTheta * 2.0f;
    }
    else
    {
@@ -198,6 +204,29 @@ vec3 specularBrdfWeightAndDirection(int samplingType, MaterialProperties materia
 
    return weight;
 }
+
+// Calculates probability of selecting BRDF (specular or diffuse) using the approximate Fresnel term
+float getBrdfProbability(MaterialProperties material, float3 V, float3 shadingNormal) {
+
+   // Evaluate Fresnel term using the shading normal
+   // Note: we use the shading normal instead of the microfacet normal (half-vector) for Fresnel term here. That's suboptimal for rough surfaces at grazing angles, but half-vector is yet unknown at this point
+   float specularF0 = luminance(calculateSpecularF0(material));
+   float NdotV = max(0.0f, dot(V, shadingNormal));
+   float fresnel = saturate(luminance(fresnelSchlick(vec3(specularF0), calculateSpecularF90(vec3(specularF0)), NdotV)));
+
+   // Approximate relative contribution of BRDFs using the Fresnel term
+   float specular = fresnel;
+
+   float diffuseReflectance = luminance(diffuseReflectance(material));
+   float diffuse = diffuseReflectance * (1.0f - fresnel); //< If diffuse term is weighted by Fresnel, apply it here as well
+
+   // Return probability of selecting specular BRDF over diffuse BRDF
+   float p = (specular / max(0.0001f, (specular + diffuse)));
+
+   // Clamp probability to avoid undersampling of less prominent BRDF
+   return clamp(p, 0.1f, 0.9f);
+}
+
 
 bool evaluateBrdf(int brdfType, int samplingType, vec2 u
    , MaterialProperties material, vec3 shadingNormal, vec3 V
