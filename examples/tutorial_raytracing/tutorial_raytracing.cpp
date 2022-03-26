@@ -118,7 +118,6 @@ TutorialRayTracing::TutorialRayTracing()
 
    title = "genesis: path tracer";
 
-
    resetCamera();
 
    // Require Vulkan 1.2
@@ -199,26 +198,41 @@ void TutorialRayTracing::destroyRasterizationStuff()
 {
    vkDestroyPipeline(_device->vulkanDevice(), _rasterizationPipeline, nullptr);
    vkDestroyPipeline(_device->vulkanDevice(), _rasterizationPipelineWireframe, nullptr);
+   _rasterizationPipeline = 0;
+   _rasterizationPipelineWireframe = 0;
 
    vkDestroyPipeline(_device->vulkanDevice(), _skyBoxRasterizationPipeline, nullptr);
    vkDestroyPipeline(_device->vulkanDevice(), _skyBoxRasterizationPipelineWireframe, nullptr);
+   _skyBoxRasterizationPipeline = 0;
+   _skyBoxRasterizationPipelineWireframe = 0;
 
    vkDestroyPipelineLayout(_device->vulkanDevice(), _rasterizationPipelineLayout, nullptr);
    vkDestroyPipelineLayout(_device->vulkanDevice(), _rasterizationSkyBoxPipelineLayout, nullptr);
+   _rasterizationPipelineLayout = 0;
+   _rasterizationSkyBoxPipelineLayout = 0;
 
    vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rasterizationDescriptorSetLayout, nullptr);
    vkDestroyDescriptorPool(_device->vulkanDevice(), _rasterizationDescriptorPool, nullptr);
+   _rasterizationDescriptorSetLayout = 0;
+   _rasterizationDescriptorPool = 0;
 }
 
 void TutorialRayTracing::destroyRayTracingStuff(bool storageImages)
 {
    vkDestroyPipeline(_device->vulkanDevice(), _rayTracingPipeline, nullptr);
+   _rayTracingPipeline = 0;
+
    vkDestroyPipelineLayout(_device->vulkanDevice(), _rayTracingPipelineLayout, nullptr);
+   _rayTracingPipelineLayout = 0;
+
    vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rayTracingDescriptorSetLayout, nullptr);
+   _rayTracingDescriptorSetLayout = 0;
 
    vkDestroyDescriptorPool(_device->vulkanDevice(), _rayTracingDescriptorPool, nullptr);
+   _rayTracingDescriptorPool = 0;
 
    delete _shaderBindingTable;
+   _shaderBindingTable = nullptr;
 
    if (storageImages)
    {
@@ -243,7 +257,6 @@ TutorialRayTracing::~TutorialRayTracing()
    destroyRayTracingStuff(true);
    destroyRasterizationStuff();
    destroyCommonStuff();
-
 }
 
 void TutorialRayTracing::createAndUpdateRayTracingDescriptorSets()
@@ -835,7 +848,7 @@ void TutorialRayTracing::createSceneUbo()
    updateSceneUbo();
 }
 
-void TutorialRayTracing::createScene()
+void TutorialRayTracing::createCells(void)
 {
    std::string gltfModel;
    std::string gltfModel2;
@@ -860,6 +873,10 @@ void TutorialRayTracing::createScene()
    {
       gltfModel = getAssetsPath() + "models/bathroom/LAZIENKA.gltf";
    }
+   else
+   {
+      gltfModel = _mainModel;
+   }
 
    const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices;
    _cellManager = new genesis::CellManager(_device, glTFLoadingFlags);
@@ -876,7 +893,11 @@ void TutorialRayTracing::createScene()
    _cellManager->buildTlases();
    _cellManager->buildDrawBuffers();
    _cellManager->buildLayouts();
+}
 
+void TutorialRayTracing::createSkyBox(void)
+{
+   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices;
    _skyBoxManager = new genesis::CellManager(_device, glTFLoadingFlags);
    _skyBoxManager->addInstance(getAssetsPath() + "models/cube.gltf", glm::mat4());
 
@@ -894,6 +915,12 @@ void TutorialRayTracing::createScene()
    _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/hdr/pisa_cube.ktx");
 #endif
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
+}
+
+void TutorialRayTracing::createScene()
+{
+   createCells();
+   createSkyBox();
 }
 
 void TutorialRayTracing::createPipelines()
@@ -1043,4 +1070,33 @@ void TutorialRayTracing::windowResized()
    writeStorageImageDescriptors();
 
    _pushConstants.frameIndex = -1;
+}
+
+void TutorialRayTracing::onDrop(const std::vector<std::string>& filesDropped)
+{
+   if (filesDropped.size() == 0)
+   {
+      return;
+   }
+   const std::string& fileName = filesDropped[0];
+   if (fileName.find(".gltf") == std::string::npos)
+   {
+      return;
+   }
+   destroyRayTracingStuff(false);
+   destroyRasterizationStuff();
+
+   delete _cellManager;
+   _cellManager = nullptr;
+
+   _mainModel = fileName;
+   createCells();
+   createRayTracingPipeline();
+   createAndUpdateRayTracingDescriptorSets();
+   _pushConstants.frameIndex = -1;
+
+   createRasterizationPipeline();
+   createAndUpdateRasterizationDescriptorSets();
+   buildCommandBuffers();
+   resetCamera();
 }

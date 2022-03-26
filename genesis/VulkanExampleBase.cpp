@@ -568,7 +568,19 @@ namespace genesis
 
    static void drop_cb(GLFWwindow* window, int count, const char** paths)
    {
-
+      std::vector<std::string> filesDropped;
+      for (int i = 0; i < count; ++i)
+      {
+         if (paths[i])
+         {
+            filesDropped.push_back(paths[i]);
+         }
+      }
+      if (filesDropped.size()>0)
+      {
+         auto app = reinterpret_cast<VulkanExampleBase*>(glfwGetWindowUserPointer(window));
+         app->onDrop(filesDropped);
+      }
    }
 
    void VulkanExampleBase::onKeyboard(int key, int scancode, int action, int mods)
@@ -689,12 +701,17 @@ namespace genesis
 
    void VulkanExampleBase::onFramebufferSize(int w, int h)
    {
-      if ((prepared))
+      if ((prepared && w != 0 && h != 0))
       {
          destWidth = w;
          destHeight = h;
          windowResize();
       }
+   }
+
+   void VulkanExampleBase::onDrop(const std::vector<std::string>& filesDropped)
+   {
+      // no op
    }
 
    static void setupGlfwCallbacks(GLFWwindow* window)
@@ -703,7 +720,7 @@ namespace genesis
       glfwSetMouseButtonCallback(window, &mousebutton_cb);
       glfwSetCursorPosCallback(window, &cursorpos_cb);
       glfwSetScrollCallback(window, &scroll_cb);
-
+      
       glfwSetCharCallback(window, &char_cb);
       glfwSetFramebufferSizeCallback(window, &framebuffersize_cb);
       glfwSetDropCallback(window, &drop_cb);
@@ -845,7 +862,13 @@ namespace genesis
          return;
       }
       prepared = false;
-      resized = true;
+
+      if (width == destWidth && height == destHeight)
+      {
+         prepared = true;
+         viewChanged();
+         return;
+      }
 
       // Ensure all operations on the device have been finished before destroying resources
       vkDeviceWaitIdle(_device->vulkanDevice());

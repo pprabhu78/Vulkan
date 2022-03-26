@@ -43,6 +43,7 @@ public:
    virtual void setupRenderPass() override;
    virtual void prepare() override;
    virtual void buildCommandBuffers() override;
+   virtual void onDrop(const std::vector<std::string>& filesDropped) override;
    
 protected:
    virtual void draw();
@@ -51,6 +52,8 @@ protected:
    virtual void updateSceneUbo();
 
    virtual void createScene();
+   virtual void createCells(void);
+   virtual void createSkyBox(void);
 
    virtual void saveScreenShot(const std::string& fileName);
    virtual void resetCamera(void);

@@ -139,7 +139,6 @@ namespace genesis
 		std::vector<VkFence> waitFences;
 	public:
 		bool prepared = false;
-		bool resized = false;
 		uint32_t width = 1280 * 2;
 		uint32_t height = 720 * 2;
 
@@ -258,6 +257,7 @@ namespace genesis
 		virtual void onMouseMotion(int x, int y);
 		virtual void onMouseWheel(int delta);
 		virtual void onFramebufferSize(int w, int h);
+		virtual void onDrop(const std::vector<std::string>& filesDropped);
 	};
 
 	// OS specific macros for the example main entry points

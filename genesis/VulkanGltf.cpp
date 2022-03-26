@@ -482,7 +482,7 @@ namespace genesis
          return;
       }
 
-      _basePath = fileName.substr(0, fileName.find_last_of('/'));
+      _basePath = fileName.substr(0, fileName.find_last_of("/\\"));
 
       if (!(fileLoadingFlags & FileLoadingFlags::DontLoadImages))
       {
