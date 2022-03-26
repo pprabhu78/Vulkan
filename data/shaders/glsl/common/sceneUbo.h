@@ -25,7 +25,7 @@ struct PushConstants
    int pathTracer;
    int materialComponentViz;
    int cosineSampling;
-   float pad;
+   int maxBounces;
 
 #if CPU_SIDE_COMPILATION
    PushConstants()
@@ -41,6 +41,8 @@ struct PushConstants
       materialComponentViz = 0;
 
       cosineSampling = 1;
+
+      maxBounces = 10;
    }
 #endif
 };

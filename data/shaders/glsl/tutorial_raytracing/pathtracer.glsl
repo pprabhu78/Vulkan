@@ -3,6 +3,8 @@
 #include "brdf.glsl"
 #include "math.glsl"
 
+#define MIN_BOUNCES_FOR_RUSSIAN_ROULETTE 3
+
 layout(location = 0) rayPayloadEXT HitPayload payLoad;
 
 vec3 pathTrace()
@@ -31,7 +33,7 @@ Vertex unpack(uint index, int vertexSizeInBytes, VertexBuffer vertexBuffer)
 	return v;
 }
 
-Vertex loadVertex(in Model model)
+Vertex loadVertex(in Model model, out vec3 geometryNormal)
 {
 	VertexBuffer vertexBuffer = VertexBuffer(model.vertexBufferAddress);
 	IndexBuffer indexBuffer = IndexBuffer(model.indexBufferAddress);
@@ -52,6 +54,11 @@ Vertex loadVertex(in Model model)
 	vertex.position = v0.position * barycentricCoords.x + v1.position * barycentricCoords.y + v2.position * barycentricCoords.z;
 	vertex.uv = v0.uv * barycentricCoords.x + v1.uv * barycentricCoords.y + v2.uv * barycentricCoords.z;
 	vertex.color = v0.color * barycentricCoords.x + v1.color * barycentricCoords.y + v2.color * barycentricCoords.z;
+
+	vec3 edge01 = v1.position - v0.position;
+	vec3 edge02 = v2.position - v0.position;
+
+	geometryNormal = normalize(cross(edge02, edge01));
 
 	return vertex;
 }
@@ -169,7 +176,8 @@ vec3 pathTrace(const ivec2 imageCoords, const ivec2 imageSize)
 	vec3 throughput = vec3(1);
 	vec3 radiance = vec3(0);
 
-	for (int depth = 0; depth < 10; ++depth)
+	int maxBounces = pushConstants.maxBounces;
+	for (int depth = 0; depth < maxBounces; ++depth)
 	{
 		payLoad.hitT = INFINITY;
 		traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xff, 0, 0, 0, ray.origin, T_MIN, ray.direction, T_MAX, 0);
@@ -183,12 +191,14 @@ vec3 pathTrace(const ivec2 imageCoords, const ivec2 imageSize)
 		}
 
 		const Model model = models._models[payLoad.instanceCustomIndex];
-		const Vertex vertex = loadVertex(model);
+
+		vec3 geometryNormal;
+		const Vertex vertex = loadVertex(model, geometryNormal);
 		const MaterialProperties materialProperties = loadMaterialProperties(model, vertex);
 
 		const vec3 worldPosition = vec3(payLoad.objectToWorld * vec4(vertex.position, 1.0));
-		const vec3 worldNormal = normalize(vec3(vertex.normal * payLoad.worldToObject));
-
+		vec3 worldNormal = normalize(vec3(vertex.normal * payLoad.worldToObject));
+		
 		vec3 worldTangent, worldBiNormal;
 		createCoordinateSystem(worldNormal, worldTangent, worldBiNormal);
 
@@ -201,11 +211,39 @@ vec3 pathTrace(const ivec2 imageCoords, const ivec2 imageSize)
 		// add emissive at this hit
 		radiance += materialProperties.emissive * throughput;
 
+		// If we are on the last bounce, we don't need to evaluate the brdf, so just terminate
+		if (depth == maxBounces - 1)
+		{
+			break;
+		}
+
+		if (depth > MIN_BOUNCES_FOR_RUSSIAN_ROULETTE)
+		{
+			float rrProbability = min(0.95f, luminance(throughput));
+			if (rrProbability < rnd(payLoad.seed))
+			{
+				break;
+			}
+			else
+			{
+				throughput /= rrProbability;
+			}
+		}
+
 		Ray currentRay = ray;
 		vec3 V = -currentRay.direction;
 
-		int brdfType = 0;
-#if 1
+		vec3 worldGeometryNormal = normalize(vec3(geometryNormal * payLoad.worldToObject));
+		if (dot(worldGeometryNormal, V) < 0.0f)
+		{
+			worldGeometryNormal = -geometryNormal;
+		}
+		if (dot(worldGeometryNormal, worldNormal) < 0.0f)
+		{
+			worldNormal = -worldNormal;
+		}
+
+		int brdfType = DIFFUSE_TYPE;
 		if (materialProperties.metalness == 1.0f && materialProperties.roughness == 0.0f) {
 			// Fast path for mirrors
 			brdfType = SPECULAR_TYPE;
@@ -224,18 +262,20 @@ vec3 pathTrace(const ivec2 imageCoords, const ivec2 imageSize)
 				throughput /= (1.0f - brdfProbability); // modulate throughput by the probability
 			}
 		}
-#else
-		int brdfType = DIFFUSE_TYPE;
-#endif
-
+		
 		vec2 u;
 		u.x = rnd(payLoad.seed);
 		u.y = rnd(payLoad.seed);
 
-		evaluateBrdf(brdfType, pushConstants.cosineSampling, u
-			, materialProperties, worldNormal, V
+		bool ok = evaluateBrdf(brdfType, pushConstants.cosineSampling, u
+			, materialProperties, worldNormal, worldGeometryNormal, V
 			, worldTangent, worldBiNormal, worldNormal
 			, ray.direction, weight); // the new sampling direction will be in ray.direction
+
+		if (ok == false)
+		{
+			break;
+		}
 
 		ray.origin = worldPosition;
 
@@ -263,7 +303,9 @@ vec3 rasterizationEmulatedByRayTrace(const ivec2 imageCoords, const ivec2 imageS
 	}
 
 	const Model model = models._models[payLoad.instanceCustomIndex];
-	const Vertex vertex = loadVertex(model);
+
+	vec3 geometryNormal;
+	const Vertex vertex = loadVertex(model, geometryNormal);
 	const MaterialProperties materialProperties = loadMaterialProperties(model, vertex);
 
 	// early out

@@ -159,52 +159,52 @@ vec3 specularBrdfWeightAndDirection(int samplingType, MaterialProperties materia
    // get the rotation quaternian that takes this shading normal to (0,0,1) 
    float4 qRotationToZ = getRotationToZAxis(N);
    // transform the viewing direction (point) by this rotation to get into the same space
-   float3 Vlocal = rotatePoint(qRotationToZ, V);
+float3 Vlocal = rotatePoint(qRotationToZ, V);
 
-   // Sample a microfacet normal (H) in local space
-   float3 Hlocal;
-   if (alpha == 0.0f) 
-   {
-      // Fast path for zero roughness (perfect reflection), also prevents NaNs appearing due to divisions by zeroes
-      Hlocal = float3(0.0f, 0.0f, 1.0f);
-   }
-   else 
-   {
-      // For non-zero roughness, this calls VNDF sampling for GG-X distribution or Walter's sampling for Beckmann distribution
-      Hlocal = sampleGGXVNDF(Vlocal, float2(alpha, alpha), u);
-   }
+// Sample a microfacet normal (H) in local space
+float3 Hlocal;
+if (alpha == 0.0f)
+{
+   // Fast path for zero roughness (perfect reflection), also prevents NaNs appearing due to divisions by zeroes
+   Hlocal = float3(0.0f, 0.0f, 1.0f);
+}
+else
+{
+   // For non-zero roughness, this calls VNDF sampling for GG-X distribution or Walter's sampling for Beckmann distribution
+   Hlocal = sampleGGXVNDF(Vlocal, float2(alpha, alpha), u);
+}
 
-   // Reflect view direction to obtain light vector
-   float3 Llocal = reflect(-Vlocal, Hlocal);
-   newRayDirection = normalize(rotatePoint(invertRotation(qRotationToZ), Llocal));
+// Reflect view direction to obtain light vector
+float3 Llocal = reflect(-Vlocal, Hlocal);
+newRayDirection = normalize(rotatePoint(invertRotation(qRotationToZ), Llocal));
 
-   // Note: HdotL is same as HdotV here
-   // Clamp dot products here to small value to prevent numerical instability. Assume that rays incident from below the hemisphere have been filtered
-   float HdotL = max(0.00001f, min(1.0f, dot(Hlocal, Llocal)));
-   const float3 Nlocal = float3(0.0f, 0.0f, 1.0f);
-   float NdotL = max(0.00001f, min(1.0f, dot(Nlocal, Llocal)));
-   float NdotV = max(0.00001f, min(1.0f, dot(Nlocal, Vlocal)));
+// Note: HdotL is same as HdotV here
+// Clamp dot products here to small value to prevent numerical instability. Assume that rays incident from below the hemisphere have been filtered
+float HdotL = max(0.00001f, min(1.0f, dot(Hlocal, Llocal)));
+const float3 Nlocal = float3(0.0f, 0.0f, 1.0f);
+float NdotL = max(0.00001f, min(1.0f, dot(Nlocal, Llocal)));
+float NdotV = max(0.00001f, min(1.0f, dot(Nlocal, Vlocal)));
 
-   // https://boksajak.github.io/blog/BRDF, section 4.4
-   // weight for vndf sampling is F*(G2/G1(H,V))
+// https://boksajak.github.io/blog/BRDF, section 4.4
+// weight for vndf sampling is F*(G2/G1(H,V))
 
-   // calculate g2/gl, height correlated
-   float G2_over_G1 = Smith_G2_Over_G1_Height_Correlated(alpha, alphaSquared, NdotL, NdotV);
+// calculate g2/gl, height correlated
+float G2_over_G1 = Smith_G2_Over_G1_Height_Correlated(alpha, alphaSquared, NdotL, NdotV);
 
-   vec3 specularF0 = calculateSpecularF0(material);
-   float specularF90 = calculateSpecularF90(specularF0);
+vec3 specularF0 = calculateSpecularF0(material);
+float specularF90 = calculateSpecularF90(specularF0);
 
-   // https://en.wikipedia.org/wiki/Schlick%27s_approximation
-   // In microfacet models it is assumed that there is always a perfect reflection, 
-   // but the normal changes according to a certain distribution, resulting in a non-perfect overall reflection. 
-   // When using Schlick’s approximation, the normal in the above computation is replaced by the halfway vector. 
-   // Either the viewing or light direction can be used as the second vector.
-   // so, NdoV is actually HdotV and since HdotL is same as HdotV, we pass in HdotL
-   vec3 F = fresnelSchlick(specularF0, specularF90, HdotL);
+// https://en.wikipedia.org/wiki/Schlick%27s_approximation
+// In microfacet models it is assumed that there is always a perfect reflection, 
+// but the normal changes according to a certain distribution, resulting in a non-perfect overall reflection. 
+// When using Schlick’s approximation, the normal in the above computation is replaced by the halfway vector. 
+// Either the viewing or light direction can be used as the second vector.
+// so, NdoV is actually HdotV and since HdotL is same as HdotV, we pass in HdotL
+vec3 F = fresnelSchlick(specularF0, specularF90, HdotL);
 
-   vec3 weight = F * G2_over_G1;
+vec3 weight = F * G2_over_G1;
 
-   return weight;
+return weight;
 }
 
 // Calculates probability of selecting BRDF (specular or diffuse) using the approximate Fresnel term
@@ -231,7 +231,7 @@ float getBrdfProbability(MaterialProperties material, float3 V, float3 shadingNo
 
 
 bool evaluateBrdf(int brdfType, int samplingType, vec2 u
-   , MaterialProperties material, vec3 shadingNormal, vec3 V
+   , MaterialProperties material, vec3 shadingNormal, vec3 geometryNormal, vec3 V
    , vec3 T, vec3 B, vec3 N
    , out vec3 newRayDirection, out vec3 weight)
 {
@@ -258,5 +258,11 @@ bool evaluateBrdf(int brdfType, int samplingType, vec2 u
       newRayDirection = vec3(0, 0, 0);
    }
 
+   // Prevent tracing direction "under" the hemisphere (behind the triangle)
+   if (dot(geometryNormal, newRayDirection) <= 0.0f)
+   {
+      return false;
+   }
+  
    return true;
 }
