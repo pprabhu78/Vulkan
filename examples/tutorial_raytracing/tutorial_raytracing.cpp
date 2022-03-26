@@ -89,7 +89,7 @@ void TutorialRayTracing::resetCamera()
 
       camera.setRotation(glm::vec3(-19.6f, -303.601227, 0.0f));
       camera.setPosition(glm::vec3(2.42036271f, 1.83941388, -5.26105785));
-      camera.viewPos = glm::vec4(-2.42036271, 1.83941388, 5.26105785,1);
+      camera.viewPos = glm::vec4(-2.42036271, 1.83941388, 5.26105785, 1);
    }
 }
 
@@ -105,7 +105,7 @@ TutorialRayTracing::TutorialRayTracing()
       {
          _autoTest = true;
       }
-      else if (arg == "--model" && (i+1) < args.size())
+      else if (arg == "--model" && (i + 1) < args.size())
       {
          _mainModel = args[i + 1];
       }
@@ -268,7 +268,7 @@ void TutorialRayTracing::createAndUpdateRayTracingDescriptorSets()
    VkDescriptorImageInfo finalImageDescriptor = genesis::VulkanInitializers::descriptorImageInfo(VK_NULL_HANDLE, _finalImageToPresent->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL);
 
    int bindingIndex = 0;
-   std::vector<VkWriteDescriptorSet> writeDescriptorSets = { 
+   std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
         genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, bindingIndex++, &descriptorAccelerationStructureInfo)
       , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &intermediateImageDescriptor)
       , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &finalImageDescriptor)
@@ -311,7 +311,7 @@ void TutorialRayTracing::reloadShaders(bool destroyExistingStuff)
 {
    std::string strVulkanDir = getenv("VULKAN_SDK");
    std::string glslValidator = strVulkanDir + "\\bin\\glslangValidator.exe";
-   
+
    std::string command = glslValidator + " " + "--target-env vulkan1.2 -V -o ../data/shaders/glsl/tutorial_raytracing/closesthit.rchit.spv ../data/shaders/glsl/tutorial_raytracing/closesthit.rchit";
    system(command.c_str());
 
@@ -360,7 +360,7 @@ void TutorialRayTracing::createRayTracingPipeline()
       genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR, bindingIndex++)
    ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR, bindingIndex++)
    ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR, bindingIndex++)
-   ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR| VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++)
+   ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++)
    ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR, bindingIndex++)
    };
 
@@ -438,7 +438,7 @@ void TutorialRayTracing::createRasterizationPipeline()
 
    VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_rasterizationSkyBoxPipelineLayout));
    debugmarker::setName(_device->vulkanDevice(), _rasterizationSkyBoxPipelineLayout, "_rasterizationSkyBoxPipelineLayout");
-   
+
    // bindings
    std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions = { genesis::VulkanInitializers::vertexInputBindingDescription(0, sizeof(genesis::Vertex), VK_VERTEX_INPUT_RATE_VERTEX) };
 
@@ -507,7 +507,7 @@ void TutorialRayTracing::createRasterizationPipeline()
    shaderStageInfos = { skyBoxVertexShader->pipelineShaderStageCreateInfo(), skyBoxPixelShader->pipelineShaderStageCreateInfo() };
 
    graphicsPipelineCreateInfo.layout = _rasterizationSkyBoxPipelineLayout;
-   
+
    rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT; // cull the front facing polygons
    depthStencilState.depthWriteEnable = VK_FALSE;
    depthStencilState.depthTestEnable = VK_FALSE;
@@ -557,7 +557,7 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    genesis::ImageTransitions transitions;
    // Prepare current swap chain image as transfer destination
    VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex],swapChain.images[commandBufferIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
+   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], swapChain.images[commandBufferIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
    // Prepare ray tracing output image as transfer source
    transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange);
@@ -683,7 +683,8 @@ std::string TutorialRayTracing::generateTimeStampedFileName(void)
    }
    ss << local_tm.tm_sec;
 
-   std::string fileName = "..\\screenshots\\" + ss.str() + ".png";
+   //std::string fileName = "c:\\temp\\" + ss.str() + ".png";
+   std::string fileName = "..\\screenshots\\" + ss.str() + ".png";   
    return fileName;
 }
 
@@ -727,7 +728,7 @@ void TutorialRayTracing::keyPressed(uint32_t key)
    }
    else if (key == KEY_P)
    {
-      _pushConstants.pathTracer = (_pushConstants.pathTracer + 1)%2;
+      _pushConstants.pathTracer = (_pushConstants.pathTracer + 1) % 2;
       _pushConstants.frameIndex = -1;
    }
    else if (key == KEY_C)
@@ -749,11 +750,18 @@ void TutorialRayTracing::draw()
    {
       ++_pushConstants.frameIndex;
    }
-   
+
    submitInfo.commandBufferCount = 1;
    submitInfo.pCommandBuffers = &_drawCommandBuffers[currentBuffer];
    VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
    VulkanExampleBase::submitFrame();
+
+#if 0
+   if (_pushConstants.frameIndex == 15000)
+   {
+      saveScreenShot(generateTimeStampedFileName());
+   }
+#endif
 
    if (_autoTest)
    {
@@ -761,7 +769,7 @@ void TutorialRayTracing::draw()
       if (_pushConstants.frameIndex == 5000)
       {
          std::string fileName;
-         if (currentScreenshot==0)
+         if (currentScreenshot == 0)
          {
             fileName = "..\\autotest\\" + _mainModel + "_raytrace" + ".png";
          }
@@ -896,7 +904,7 @@ void TutorialRayTracing::createPipelines()
 
 void TutorialRayTracing::buildCommandBuffers()
 {
-    buildRasterizationCommandBuffers();
+   buildRasterizationCommandBuffers();
 }
 
 void TutorialRayTracing::prepare()
@@ -914,17 +922,17 @@ void TutorialRayTracing::prepare()
 
 void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
 {
-   if (overlay->header("Settings")) 
+   if (overlay->header("Settings"))
    {
       if (overlay->checkBox("wireframe", &_wireframe))
       {
          // no op
       }
-      if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f)) 
+      if (overlay->sliderFloat("LOD bias", &_pushConstants.textureLodBias, 0.0f, 1.0f))
       {
          _pushConstants.frameIndex = -1; // need to start tracing again if ray tracing
       }
-      if (overlay->sliderFloat("reflectivity", &_pushConstants.reflectivity, 0, 1)) 
+      if (overlay->sliderFloat("reflectivity", &_pushConstants.reflectivity, 0, 1))
       {
          // no op
       }
@@ -932,11 +940,11 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
       {
          reloadShaders(true);
       }
-      static std::vector<std::string> items = 
+      static std::vector<std::string> items =
       { "none", "albedo", "emissive", "roughness", "metalness", "ao", "normal map", "geometry normals", "normal map normals" };
       if (overlay->comboBox("component", &_pushConstants.materialComponentViz, items))
       {
-         // no op
+         _pushConstants.frameIndex = -1;
       }
    }
 }
