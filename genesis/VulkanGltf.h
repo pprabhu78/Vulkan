@@ -56,9 +56,9 @@ namespace genesis
    public:
       virtual Matrix4_32 fullTransform() const;
    public:
-      Node* _parent;
+      Node* _parent = nullptr;
       std::vector<Node*> _children;
-      Mesh* _mesh;
+      Mesh* _mesh = nullptr;
 
       Matrix4_32 _matrix;
       glm::vec3 _translation{};
@@ -117,14 +117,12 @@ namespace genesis
       virtual void loadImages(tinygltf::Model& gltfModel);
       virtual void loadTextures(tinygltf::Model& gltfModel);
       virtual void loadMaterials(tinygltf::Model& gltfModel);
-      virtual void loadScenes(tinygltf::Model& gltfModel);
-      virtual void loadNode(const tinygltf::Node& inputNode, tinygltf::Model& gltfModel, Node* parent);
-      virtual void loadMesh(Node* node, const tinygltf::Mesh& srcMesh, tinygltf::Model& gltfModel);
+      virtual void loadScenes(tinygltf::Model& gltfModel, uint32_t fileLoadingFlags);
+      virtual void loadNode(const tinygltf::Node& inputNode, tinygltf::Model& gltfModel, Node* parent, uint32_t fileLoadingFlags);
+      virtual void loadMesh(Node* node, const tinygltf::Mesh& srcMesh, tinygltf::Model& gltfModel, uint32_t fileLoadingFlags);
       virtual void loadLights(tinygltf::Model& gltfModel);
 
       virtual const std::vector<Image*>& images(void) const;
-
-      virtual void bakeAttributes(tinygltf::Model& gltfModel, uint32_t fileLoadingFlags);
 
       virtual void buildLightInstancesBuffer(void);
    protected:

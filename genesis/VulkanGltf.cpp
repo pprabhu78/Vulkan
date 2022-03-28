@@ -212,7 +212,7 @@ namespace genesis
       _lightInstancesGpu->syncToGpu(true);
    }
 
-   void VulkanGltfModel::loadMesh(Node* node, const tinygltf::Mesh& srcMesh, tinygltf::Model& gltfModel)
+   void VulkanGltfModel::loadMesh(Node* node, const tinygltf::Mesh& srcMesh, tinygltf::Model& gltfModel, uint32_t fileLoadingFlags)
    {
       if (srcMesh.primitives.size() > 0)
       {
@@ -222,6 +222,7 @@ namespace genesis
       // Iterate through all primitives of this node's mesh
       for (size_t i = 0; i < srcMesh.primitives.size(); i++) {
          const tinygltf::Primitive& glTFPrimitive = srcMesh.primitives[i];
+         const uint32_t materialIndex = (glTFPrimitive.material == -1) ? (uint32_t)_materials.size() - 1 : glTFPrimitive.material;
          uint32_t firstIndex = static_cast<uint32_t>(_indexBuffer.size());
          uint32_t vertexStart = static_cast<uint32_t>(_vertexBuffer.size());
          uint32_t indexCount = 0;
@@ -255,12 +256,33 @@ namespace genesis
 
             // Append data to model's vertex buffer
             for (size_t v = 0; v < vertexCount; v++) {
-               Vertex vert{};
-               vert.position = glm::vec4(glm::make_vec3(&positionBuffer[v * 3]), 1.0f);
-               vert.normal = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f)));
-               vert.uv = texCoordsBuffer ? glm::make_vec2(&texCoordsBuffer[v * 2]) : glm::vec3(0.0f);
-               vert.color = glm::vec4(1.0f);
-               _vertexBuffer.push_back(vert);
+               Vertex vertex{};
+               vertex.position = glm::vec4(glm::make_vec3(&positionBuffer[v * 3]), 1.0f);
+               vertex.normal = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f)));
+               vertex.uv = texCoordsBuffer ? glm::make_vec2(&texCoordsBuffer[v * 2]) : glm::vec3(0.0f);
+               vertex.color = glm::vec4(1.0f);
+
+               const glm::mat4x4 fullTransform = node->fullTransform();
+               if (fileLoadingFlags & FileLoadingFlags::PreTransformVertices)
+               {
+                  vertex.position = Vector3_32(fullTransform * Vector4_32(vertex.position, 1.0f));
+                  vertex.normal = glm::normalize(Matrix3_32(fullTransform) * vertex.normal);
+               }
+               if (fileLoadingFlags & FlipY)
+               {
+                  vertex.position.y *= -1.0f;
+                  vertex.normal.y *= -1.0f;
+               }
+               if (fileLoadingFlags & FileLoadingFlags::PreMultiplyVertexColors)
+               {
+                  vertex.color = Vector4_32(_materials[materialIndex].baseColorFactor.x * vertex.color.x
+                     , _materials[materialIndex].baseColorFactor.y * vertex.color.y
+                     , _materials[materialIndex].baseColorFactor.z * vertex.color.z
+                     , 1.0f
+                  );
+               }
+
+               _vertexBuffer.push_back(vertex);
             }
          }
          // Indices
@@ -307,15 +329,16 @@ namespace genesis
          primitive.indexCount = indexCount;
          primitive.firstVertex = vertexStart;
          primitive.vertexCount = (uint32_t)vertexCount;
-         primitive.materialIndex = (glTFPrimitive.material == -1)? (uint32_t)_materials.size()-1 : glTFPrimitive.material;
+         primitive.materialIndex = materialIndex;
          node->_mesh->primitives.push_back(primitive);
       }
    }
 
-   void VulkanGltfModel::loadNode(const tinygltf::Node& inputNode, tinygltf::Model& gltfModel, Node* parent)
+   void VulkanGltfModel::loadNode(const tinygltf::Node& inputNode, tinygltf::Model& gltfModel, Node* parent, uint32_t fileLoadingFlags)
    {
       Node* node = new Node{};
       node->_matrix = Matrix4_32(1.0f);
+      node->_parent = parent;
 
       // Get the local node matrix
       // It's either made up from translation, rotation, scale or a 4x4 matrix
@@ -338,7 +361,7 @@ namespace genesis
       {
          for (size_t i = 0; i < inputNode.children.size(); i++)
          {
-            loadNode(gltfModel.nodes[inputNode.children[i]], gltfModel, node);
+            loadNode(gltfModel.nodes[inputNode.children[i]], gltfModel, node, fileLoadingFlags);
          }
       }
 
@@ -365,7 +388,7 @@ namespace genesis
       if (inputNode.mesh > -1)
       {
          const tinygltf::Mesh& mesh = gltfModel.meshes[inputNode.mesh];
-         loadMesh(node, mesh, gltfModel);
+         loadMesh(node, mesh, gltfModel, fileLoadingFlags);
       }
 
       if (parent)
@@ -377,13 +400,13 @@ namespace genesis
       }
    }
 
-   void VulkanGltfModel::loadScenes(tinygltf::Model& gltfModel)
+   void VulkanGltfModel::loadScenes(tinygltf::Model& gltfModel, uint32_t fileLoadingFlags)
    {
       const tinygltf::Scene& scene = gltfModel.scenes[0];
       for (int i = 0; i < scene.nodes.size(); ++i)
       {
          const tinygltf::Node& node = gltfModel.nodes[scene.nodes[i]];
-         loadNode(node, gltfModel, nullptr);
+         loadNode(node, gltfModel, nullptr, fileLoadingFlags);
       }
    }
 
@@ -416,53 +439,6 @@ namespace genesis
       return m;
    }
 
-   void VulkanGltfModel::bakeAttributes(tinygltf::Model& gltfModel, uint32_t fileLoadingFlags)
-   {
-      const bool preTransformVertices = fileLoadingFlags & FileLoadingFlags::PreTransformVertices;
-      const bool flipY = fileLoadingFlags & FlipY;
-      const bool premultiplyColors = fileLoadingFlags & FileLoadingFlags::PreMultiplyVertexColors;
-      if (!(flipY || premultiplyColors || preTransformVertices))
-      {
-         return;
-      }
-
-      for (const Node* node : _linearNodes)
-      {
-         if (node->_mesh == nullptr)
-         {
-            continue;
-         }
-
-         const Matrix4_32 fullTransform = node->fullTransform();
-         for (const Primitive& primitive : node->_mesh->primitives)
-         {
-            for (uint32_t i = 0; i < primitive.vertexCount; ++i)
-            {
-               Vertex& vertex = _vertexBuffer[primitive.firstVertex + i];
-
-               if (preTransformVertices)
-               {
-                  vertex.position = Vector3_32(fullTransform * Vector4_32(vertex.position, 1.0f));
-                  vertex.normal = glm::normalize(Matrix3_32(fullTransform) * vertex.normal);
-               }
-               if (flipY)
-               {
-                  vertex.position.y *= -1.0f;
-                  vertex.normal.y *= -1.0f;
-               }
-               if (premultiplyColors)
-               {
-                  vertex.color = Vector4_32(_materials[primitive.materialIndex].baseColorFactor.x * vertex.color.x
-                     , _materials[primitive.materialIndex].baseColorFactor.y * vertex.color.y
-                     , _materials[primitive.materialIndex].baseColorFactor.z * vertex.color.z
-                     , 1.0f
-                  );
-               }
-            }
-         }
-      }
-   }
-
    void VulkanGltfModel::loadFromFile(const std::string& fileName, uint32_t fileLoadingFlags)
    {
       tinygltf::Model glTfModel;
@@ -492,12 +468,10 @@ namespace genesis
       loadTextures(glTfModel);
       loadMaterials(glTfModel);
       loadLights(glTfModel);
-      loadScenes(glTfModel);
+      loadScenes(glTfModel, fileLoadingFlags);
 
       buildLightInstancesBuffer();
       
-      bakeAttributes(glTfModel, fileLoadingFlags);
-
       VkBufferUsageFlags additionalFlags = 0;
       //if (_rayTracing)
       {
