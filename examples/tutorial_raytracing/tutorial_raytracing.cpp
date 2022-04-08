@@ -963,6 +963,10 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
       {
          // no op
       }
+      if (overlay->sliderFloat("sky value", &_pushConstants.contributionFromEnvironment, 0, 10))
+      {
+         _pushConstants.frameIndex = -1;
+      }
       if (overlay->button("Reload Shaders"))
       {
          reloadShaders(true);
