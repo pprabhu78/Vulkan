@@ -3,7 +3,7 @@
 
 ![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-3-13_55730.png)
 ![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-3-13_55826.png)
-![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2021-12-15_62151.png)
+![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/autotest/cornell_raytrace.png)
 
 Sandbox engine for trying out things in Vulkan.
 
