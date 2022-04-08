@@ -1,6 +1,10 @@
 
 # Vulkan sandbox engine for ray tracing, etc.
 
+![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-3-13_55730.png)
+![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-3-13_55826.png)
+![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2021-12-15_62151.png)
+
 Sandbox engine for trying out things in Vulkan.
 
 Initially, I started this project to learn Vulkan. 
@@ -10,33 +14,33 @@ I started by forking Sascha Willems' excellent resource: https://github.com/Sasc
 As I got more familiar with Vulkan, I also decided to get back into Ray Tracing and Global Illumination, and the project diverged. 
 
 I used these as reference:
- -Reference path tracer from Jakub Boksansky and supplemental literature:
-   -https://github.com/boksajak/referencePT
+ -Reference path tracer from Jakub Boksansky and supplemental literature:  
+   -https://github.com/boksajak/referencePT  
    -https://boksajak.github.io/blog/BRDF
    
- -And ofcourse, the classic, 'Physically Based Rendering'
+ -And ofcourse, the classic, 'Physically Based Rendering'  
    -https://www.pbr-book.org/
    
- -I also used nvidia's samples for some of the nitty gritty implementation details as reference (specific to ray tracing and vulkan in general):
-  -https://github.com/nvpro-samples/vk_raytrace
+ -I also used nvidia's samples for some of the nitty gritty implementation details as reference (specific to ray tracing and vulkan in general):  
+  -https://github.com/nvpro-samples/vk_raytrace  
   -https://github.com/nvpro-samples/
 
-This project currently has fundamentally just 2 parts:
- -The 'genesis' engine, which is the classes encapsulating core Vulkan functionality like buffers, textures, images, shaders, gltf and so on.
+This project currently has fundamentally just 2 parts:  
+ -The 'genesis' engine, which is the classes encapsulating core Vulkan functionality like buffers, textures, images, shaders, gltf and so on.  
  -The ray tracing sample that uses this engine.
 
-The sample continues to increase in functionality. Currently it supports:
+The sample continues to increase in functionality. Currently it supports:  
  -Diffuse and Specular brdfs specified the PBR/gltf way (metalness, roughness, etc)
  
- -World buildings/specification:
-  -There can be multiple models (a 'model' is typically a single gltf file, but in theory it can come from anything or even runttime created)
-  -There can be multiple instances of such models
-  -Multiple instances of multiple models go into cells
+ -World buildings/specification:  
+  -There can be multiple models (a 'model' is typically a single gltf file, but in theory it can come from anything or even runttime created)  
+  -There can be multiple instances of such models  
+  -Multiple instances of multiple models go into cells  
   -There can be multiple cells
 
- -Everything is bindless. I used Nvidia's buffer reference extension: https://github.com/KhronosGroup/GLSL/blob/master/extensions/ext/GLSL_EXT_buffer_reference.txt
-  -Vertex and index buffers for multiple models go into multiple buffers
-  -Material (properties, textures) for multiple models go into a buffer of materials
+ -Everything is bindless. I used Nvidia's buffer reference extension: https://github.com/KhronosGroup/GLSL/blob/master/extensions/ext/GLSL_EXT_buffer_reference.txt  
+  -Vertex and index buffers for multiple models go into multiple buffers  
+  -Material (properties, textures) for multiple models go into a buffer of materials  
   -There is a buffer of instances (corresponding to instances of models in a cell)
 
 ## Cloning
@@ -73,3 +77,4 @@ Once built, examples can be run from the bin directory. The list of available co
 ## Credits and Attributions
 Huge thanks to all the entities mentioned in above for everything.
 See [CREDITS.md](CREDITS.md) for additional credits and attributions.
+n
