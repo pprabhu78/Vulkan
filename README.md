@@ -32,11 +32,13 @@ This project currently has fundamentally just 2 parts:
 The sample continues to increase in functionality. Currently it supports:  
  - Diffuse and Specular brdfs specified the PBR/gltf way (metalness, roughness, etc)
  
- - World buildings/specification:  
+ - World building specification (which leads itself to indirect rendering as well):  
   - There can be multiple models (a 'model' is typically a single gltf file, but in theory it can come from anything or even runttime created)  
   - There can be multiple instances of such models  
   - Multiple instances of multiple models go into cells  
   - There can be multiple cells
+
+ - You can switch between ray tracing and rasterization. Rasterization uses indirect rendering. 
 
  - Everything is bindless. I used Nvidia's buffer reference extension: https://github.com/KhronosGroup/GLSL/blob/master/extensions/ext/GLSL_EXT_buffer_reference.txt  
   - Vertex and index buffers for multiple models go into multiple buffers  
