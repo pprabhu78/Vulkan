@@ -1,6 +1,10 @@
 
 # Vulkan sandbox engine for ray tracing, etc.
 
+![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-3-13_55730.png)
+![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-3-13_55826.png)
+![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2021-12-15_62151.png)
+
 Sandbox engine for trying out things in Vulkan.
 
 Initially, I started this project to learn Vulkan. 
@@ -21,13 +25,8 @@ I used these as reference:
   -https://github.com/nvpro-samples/vk_raytrace
   -https://github.com/nvpro-samples/
 
-Sample images:
-![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-3-13_55730.png)
-![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-3-13_55826.png)
-![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2021-12-15_62151.png)
-
 This project currently has fundamentally just 2 parts:
- -The 'genesis' engine, which is the vulkan classes encapsulating core functionality like buffers, textures, images, shaders, gltf and so on.
+ -The 'genesis' engine, which is the classes encapsulating core Vulkan functionality like buffers, textures, images, shaders, gltf and so on.
  -The ray tracing sample that uses this engine.
 
 The sample continues to increase in functionality. Currently it supports:
