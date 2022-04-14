@@ -21,17 +21,11 @@ namespace genesis
       this->znear = znear;
       this->zfar = zfar;
       matrices.perspective = glm::perspective(glm::radians(fov), aspect, znear, zfar);
-      if (flipY) {
-         matrices.perspective[1][1] *= -1.0f;
-      }
    };
 
    void Camera::Camera::updateAspectRatio(float aspect)
    {
       matrices.perspective = glm::perspective(glm::radians(fov), aspect, znear, zfar);
-      if (flipY) {
-         matrices.perspective[1][1] *= -1.0f;
-      }
    }
 
    void Camera::setPosition(glm::vec3 position)
