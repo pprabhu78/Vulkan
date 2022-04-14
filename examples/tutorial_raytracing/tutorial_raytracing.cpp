@@ -863,7 +863,7 @@ void TutorialRayTracing::createCells(void)
    }
    else if (_mainModel == "cornell")
    {
-      gltfModel = getAssetsPath() + "models/cornellBox.gltf";
+      gltfModel = getAssetsPath() + "models/cornellBox_used_for_comparison_gen_vs_ref.gltf";
    }
    else if (_mainModel == "sphere")
    {
