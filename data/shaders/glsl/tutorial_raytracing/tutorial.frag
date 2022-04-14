@@ -36,7 +36,8 @@ void main()
 	const Material material = materialBuffer._materials[materialIndicesBuffer._materialIndices[inDrawIndex]];
 	const uint samplerIndex = uint(textureOffset) + material.baseColorTextureIndex;
 	
-	vec4 color = texture(samplers[samplerIndex], inUV) * vec4(material.baseColorFactor.xyz,1) * vec4(inColor.xyz, 1) * dot(normalize(inNormalViewSpace), normalize(-inVertexViewSpace));
+	vec4 colorFromTexture = (samplerIndex==-1)? vec4(1,1,1,1) : texture(samplers[samplerIndex], inUV);
+	vec4 color = colorFromTexture * vec4(material.baseColorFactor.xyz,1) * vec4(inColor.xyz, 1) * dot(normalize(inNormalViewSpace), normalize(-inVertexViewSpace));
 #else
 	vec4 color = texture(samplerColor, inUV) * vec4(material.baseColorFactor.xyz,1) * vec4(inColor.xyz, 1) * dot(normalize(inNormalViewSpace), normalize(-inVertexViewSpace));
 #endif

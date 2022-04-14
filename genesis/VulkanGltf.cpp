@@ -89,6 +89,11 @@ namespace genesis
             else {
                buffer = &glTFImage.image[0];
                bufferSize = glTFImage.image.size();
+               if (buffer == nullptr)
+               {
+                  std::cout << "Warning: " << __FUNCTION__ << ": " << "buffer==nullptr" << std::endl;
+                  continue;
+               }
             }
 
             Image* image = new Image(_device);
@@ -146,6 +151,13 @@ namespace genesis
          if (baseColorTextureIter != glTfMaterial.values.end())
          {
             currentMaterial.baseColorTextureIndex = glTfModel.textures[baseColorTextureIter->second.TextureIndex()].source;
+            if (currentMaterial.baseColorTextureIndex >= _textures.size())
+            {
+               std::cout << "Warning: " << __FUNCTION__ << ": " << "currentMaterial.baseColorTextureIndex >= _textures.size()" << std::endl;
+               std::cout << "\t Material: " << std::string(glTfMaterial.name) << std::endl;
+               std::cout << "\t setting base color texture index to -1" << std::endl;
+               currentMaterial.baseColorTextureIndex = -1;
+            }
          }
          else
          {
@@ -153,7 +165,7 @@ namespace genesis
             currentMaterial.baseColorTextureIndex = (int)(_textures.size() - 1);
          }
 
-         // emissive
+         // emmissive
          currentMaterial.emissiveFactor = glm::vec3(glTfMaterial.emissiveFactor[0], glTfMaterial.emissiveFactor[1], glTfMaterial.emissiveFactor[2]);
          currentMaterial.emissiveTextureIndex = glTfMaterial.emissiveTexture.index;
 
@@ -161,7 +173,13 @@ namespace genesis
          currentMaterial.roughness = (float)glTfMaterial.pbrMetallicRoughness.roughnessFactor;
          currentMaterial.metalness = (float)glTfMaterial.pbrMetallicRoughness.metallicFactor;
          currentMaterial.occlusionRoughnessMetalnessTextureIndex = glTfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
-
+         if (currentMaterial.occlusionRoughnessMetalnessTextureIndex >= (int)_textures.size())
+         {
+            std::cout << "Warning: " << __FUNCTION__ << ": " << "currentMaterial.occlusionRoughnessMetalnessTextureIndex >= _textures.size()" << std::endl;
+            std::cout << "\t Material: " << std::string(glTfMaterial.name) << std::endl;
+            std::cout << "\t setting base color texture index to -1" << std::endl;
+            currentMaterial.occlusionRoughnessMetalnessTextureIndex = -1;
+         }
          // Normals
          currentMaterial.normalTextureIndex = glTfMaterial.normalTexture.index;
 
@@ -452,9 +470,19 @@ namespace genesis
          gltfContext.SetImageLoader(loadImageDataFunc, nullptr);
       }
 
-      bool fileLoaded = gltfContext.LoadASCIIFromFile(&glTfModel, &error, &warning, fileName);
+      bool fileLoaded = false;
+      if (fileName.find(".gltf") != std::string::npos)
+      {
+         fileLoaded = gltfContext.LoadASCIIFromFile(&glTfModel, &error, &warning, fileName);
+      }
+      else if (fileName.find(".glb") !=std::string::npos)
+      {
+         fileLoaded = gltfContext.LoadBinaryFromFile(&glTfModel, &error, &warning, fileName);
+      }
+
       if (fileLoaded == false)
       {
+         std::cout << "Warning: " << __FUNCTION__ << ": " << "could not load file: " << fileName << std::endl;
          return;
       }
 
