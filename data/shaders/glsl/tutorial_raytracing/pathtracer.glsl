@@ -103,9 +103,12 @@ MaterialProperties loadMaterialProperties(in Model model, in Vertex vertex)
 #if 0
 	materialProperties.baseColor = texture(samplers[samplerIndex], uv).rgb * material.baseColorFactor.xyz * vertexColor.xyz;
 #else
-	float maxLod = floor(log2(textureSize(samplers[samplerIndex], 0))).x;
-	float lod = pushConstants.textureLodBias * maxLod;
-	materialProperties.baseColor = textureLod(samplers[samplerIndex], vertex.uv, lod).rgb * material.baseColorFactor.xyz * vertex.color.xyz;
+	// This can crash if texture size is not a power of 2
+	//float maxLod = floor(log2(textureSize(samplers[samplerIndex], 0))).x;
+	//float lod = pushConstants.textureLodBias * maxLod;
+	const float lod = 0;
+	vec3 colorFromTexture = (samplerIndex == -1) ? vec3(1, 1, 1) : textureLod(samplers[samplerIndex], vertex.uv, lod).rgb;
+	materialProperties.baseColor = colorFromTexture * material.baseColorFactor.xyz * vertex.color.xyz;
 #endif
 
 	materialProperties.metalness = metalness;
@@ -207,6 +210,14 @@ vec3 pathTrace(const ivec2 imageCoords, const ivec2 imageSize)
 		{
 			return materialComponentViz(materialProperties);
 		}
+
+#if 0
+		if (rnd(payLoad.seed) > materialProperties.alpha)
+		{
+			ray.origin = worldPosition;
+			continue;
+		}
+#endif
 
 		// add emissive at this hit
 		radiance += materialProperties.emissive * throughput;
