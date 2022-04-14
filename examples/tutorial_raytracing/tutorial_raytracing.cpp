@@ -963,7 +963,7 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
       {
          // no op
       }
-      if (overlay->sliderFloat("sky value", &_pushConstants.contributionFromEnvironment, 0, 10))
+      if (overlay->sliderFloat("sky value", &_pushConstants.contributionFromEnvironment, 0, 100))
       {
          _pushConstants.frameIndex = -1;
       }
@@ -1083,7 +1083,7 @@ void TutorialRayTracing::onDrop(const std::vector<std::string>& filesDropped)
       return;
    }
    const std::string& fileName = filesDropped[0];
-   if (fileName.find(".gltf") == std::string::npos)
+   if (fileName.find(".gltf") == std::string::npos && fileName.find(".glb") == std::string::npos)
    {
       return;
    }
