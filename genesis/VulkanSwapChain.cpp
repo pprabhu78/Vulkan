@@ -3,7 +3,7 @@
 * 
 * A swap chain is a collection of framebuffers used for rendering and presentation to the windowing system
 *
-* Copyright (C) 2016-2021 by Sascha Willems - www.saschawillems.de
+* Copyright (C) 2019-2022 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */

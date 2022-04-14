@@ -56,7 +56,7 @@ namespace genesis
 	class PhysicalDevice;
 	class Device;
 
-	class VulkanExampleBase
+	class VulkanApplication
 	{
 	private:
 		std::string getWindowTitle();
@@ -199,8 +199,8 @@ namespace genesis
 
 		GLFWwindow* window;
 
-		VulkanExampleBase(bool enableValidation = false);
-		virtual ~VulkanExampleBase();
+		VulkanApplication(bool enableValidation = false);
+		virtual ~VulkanApplication();
 		/** @brief Setup the vulkan instance, enable required extensions and connect to the physical device (GPU) */
 		bool initVulkan();
 
