@@ -753,7 +753,7 @@ void TutorialRayTracing::keyPressed(uint32_t key)
 
 void TutorialRayTracing::draw()
 {
-   VulkanExampleBase::prepareFrame();
+   VulkanApplication::prepareFrame();
 
    if (_mode == RAYTRACE)
    {
@@ -767,7 +767,7 @@ void TutorialRayTracing::draw()
    submitInfo.commandBufferCount = 1;
    submitInfo.pCommandBuffers = &_drawCommandBuffers[currentBuffer];
    VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
-   VulkanExampleBase::submitFrame();
+   VulkanApplication::submitFrame();
 
 #if 0
    if (_pushConstants.frameIndex == 15000)
@@ -936,7 +936,7 @@ void TutorialRayTracing::buildCommandBuffers()
 
 void TutorialRayTracing::prepare()
 {
-   VulkanExampleBase::prepare();
+   VulkanApplication::prepare();
    reloadShaders(false);
    createScene();
    createStorageImages();
@@ -999,7 +999,7 @@ void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer 
    renderPassBeginInfo.framebuffer = framebuffer;
 
    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-   VulkanExampleBase::drawUI(commandBuffer);
+   VulkanApplication::drawUI(commandBuffer);
    vkCmdEndRenderPass(commandBuffer);
 }
 
@@ -1012,7 +1012,7 @@ void TutorialRayTracing::setupRenderPass()
    }
    else
    {
-      VulkanExampleBase::setupRenderPass();
+      VulkanApplication::setupRenderPass();
    }
 }
 
