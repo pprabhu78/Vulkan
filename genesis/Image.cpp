@@ -145,12 +145,19 @@ namespace genesis
       return true;
    }
 
-   VkFormat toVulkanFormat(uint32_t glInternalFormat)
+   VkFormat toVulkanFormat(uint32_t glInternalFormat, bool srgb)
    {
       // This is GL_RGBA8
       if (glInternalFormat == 32856)
       {
-         return VK_FORMAT_R8G8B8A8_UNORM;
+         if (srgb)
+         {
+            return VK_FORMAT_R8G8B8A8_SRGB;
+         }
+         else
+         {
+            return VK_FORMAT_R8G8B8A8_UNORM;
+         }  
       }
 
       // This is GL_RGBA16F_ARB
@@ -163,7 +170,7 @@ namespace genesis
       return VK_FORMAT_UNDEFINED;
    }
 
-   bool Image::copyFromFileIntoImage(const std::string& fileName, uint32_t numFaces)
+   bool Image::copyFromFileIntoImage(const std::string& fileName, bool srgb, uint32_t numFaces)
    {
       std::ifstream ifs(fileName.c_str());
       if (ifs.fail())
@@ -186,7 +193,7 @@ namespace genesis
       _numMipMapLevels = ktxTexture->numLevels;
       _width = ktxTexture->baseWidth;
       _height = ktxTexture->baseHeight;
-      _format = toVulkanFormat(ktxTexture->glInternalformat);
+      _format = toVulkanFormat(ktxTexture->glInternalformat, srgb);
 
       std::vector<int> dataOffsets;
       for (uint32_t face = 0; face < numFaces; ++face)
@@ -311,9 +318,9 @@ namespace genesis
       return ok;
    }
 
-   bool Image::loadFromFile(const std::string& fileName)
+   bool Image::loadFromFile(const std::string& fileName, bool srgb)
    {
-      bool ok = copyFromFileIntoImage(fileName, 1);
+      bool ok = copyFromFileIntoImage(fileName, srgb, 1);
       if (!ok)
       {
          return false;
@@ -323,7 +330,7 @@ namespace genesis
 
    bool Image::loadFromFileCubeMap(const std::string& fileName)
    {
-      bool ok = copyFromFileIntoImage(fileName, 6);
+      bool ok = copyFromFileIntoImage(fileName, false, 6);
       if (!ok)
       {
          return false;

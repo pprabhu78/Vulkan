@@ -55,10 +55,23 @@ namespace genesis
       delete _indexBufferGpu;
    }
 
-   void VulkanGltfModel::loadImages(tinygltf::Model& glTfModel)
+   bool VulkanGltfModel::isSrgb(uint32_t index) const
    {
+      const auto it = _imageIndexToWhetherSrgb.find(index);
+      if (it != _imageIndexToWhetherSrgb.end())
+      {
+         return it->second;
+      }
+      return false;
+   }
+
+   void VulkanGltfModel::loadImages(tinygltf::Model& glTfModel, bool srgbProcessing)
+   {
+      int index = -1;
       for (auto& glTFImage : glTfModel.images)
       {
+         ++index;
+
          bool isKtx = false;
          // Image points to an external ktx file
          if (glTFImage.uri.find_last_of(".") != std::string::npos) {
@@ -66,6 +79,9 @@ namespace genesis
                isKtx = true;
             }
          }
+
+         const bool srgb = (srgbProcessing && isSrgb(index));
+         const VkFormat format = srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
 
          if (isKtx == false)
          {
@@ -99,7 +115,7 @@ namespace genesis
             Image* image = new Image(_device);
             std::vector<int> dataOffets = { 0 };
 
-            image->loadFromBuffer(buffer, bufferSize, VK_FORMAT_R8G8B8A8_UNORM, glTFImage.width, glTFImage.height, dataOffets);
+            image->loadFromBuffer(buffer, bufferSize, format, glTFImage.width, glTFImage.height, dataOffets);
             _images.push_back(image);
 
             if (deleteBuffer) {
@@ -109,7 +125,7 @@ namespace genesis
          else
          {
             Image* image = new Image(_device);
-            image->loadFromFile(_basePath + "/" + glTFImage.uri);
+            image->loadFromFile(_basePath + "/" + glTFImage.uri, srgb);
             _images.push_back(image);
          }
       }
@@ -131,8 +147,19 @@ namespace genesis
       }
    }
 
-   void VulkanGltfModel::loadMaterials(tinygltf::Model& glTfModel)
+   void VulkanGltfModel::addSrgbIndexIfNecessary(bool srgbProcessing, uint32_t index, bool isSrgb)
    {
+      if (srgbProcessing == false || index == -1 || _imageIndexToWhetherSrgb.find(index)!=_imageIndexToWhetherSrgb.end())
+      {
+         return;
+      }
+      _imageIndexToWhetherSrgb.insert({ index, isSrgb });
+
+   }
+
+   void VulkanGltfModel::loadMaterials(tinygltf::Model& glTfModel, bool srgbProcessing)
+   {
+      const size_t totalImagesInModel = glTfModel.images.size() + 1; // +1 for default
       _materials.reserve(_materials.size() + 1); // 1 for the default
       for (const auto& glTfMaterial : glTfModel.materials)
       {
@@ -148,10 +175,11 @@ namespace genesis
 
          // Get base color texture index
          auto baseColorTextureIter = glTfMaterial.values.find("baseColorTexture");
+
          if (baseColorTextureIter != glTfMaterial.values.end())
          {
             currentMaterial.baseColorTextureIndex = glTfModel.textures[baseColorTextureIter->second.TextureIndex()].source;
-            if (currentMaterial.baseColorTextureIndex >= _textures.size())
+            if (currentMaterial.baseColorTextureIndex >= totalImagesInModel)
             {
                std::cout << "Warning: " << __FUNCTION__ << ": " << "currentMaterial.baseColorTextureIndex >= _textures.size()" << std::endl;
                std::cout << "\t Material: " << std::string(glTfMaterial.name) << std::endl;
@@ -162,24 +190,38 @@ namespace genesis
          else
          {
             // assign the last (white) texture
-            currentMaterial.baseColorTextureIndex = (int)(_textures.size() - 1);
+            currentMaterial.baseColorTextureIndex = -1;
          }
+         // is srgb if srgb processing is true
+         addSrgbIndexIfNecessary(srgbProcessing, currentMaterial.baseColorTextureIndex, srgbProcessing);
 
          // emmissive
          currentMaterial.emissiveFactor = glm::vec3(glTfMaterial.emissiveFactor[0], glTfMaterial.emissiveFactor[1], glTfMaterial.emissiveFactor[2]);
          currentMaterial.emissiveTextureIndex = glTfMaterial.emissiveTexture.index;
+         if (currentMaterial.emissiveTextureIndex >= (int)totalImagesInModel)
+         {
+            std::cout << "Warning: " << __FUNCTION__ << ": " << "currentMaterial.emissiveTextureIndex >= _textures.size()" << std::endl;
+            std::cout << "\t Material: " << std::string(glTfMaterial.name) << std::endl;
+            std::cout << "\t setting emmissive color texture index to -1" << std::endl;
+            currentMaterial.emissiveTextureIndex = -1;
+         }
+         // is srgb if srgb processing is true
+         addSrgbIndexIfNecessary(srgbProcessing, currentMaterial.emissiveTextureIndex, srgbProcessing);
 
          // Roughness and Metallic
          currentMaterial.roughness = (float)glTfMaterial.pbrMetallicRoughness.roughnessFactor;
          currentMaterial.metalness = (float)glTfMaterial.pbrMetallicRoughness.metallicFactor;
          currentMaterial.occlusionRoughnessMetalnessTextureIndex = glTfMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
-         if (currentMaterial.occlusionRoughnessMetalnessTextureIndex >= (int)_textures.size())
+         if (currentMaterial.occlusionRoughnessMetalnessTextureIndex >= (int)totalImagesInModel)
          {
             std::cout << "Warning: " << __FUNCTION__ << ": " << "currentMaterial.occlusionRoughnessMetalnessTextureIndex >= _textures.size()" << std::endl;
             std::cout << "\t Material: " << std::string(glTfMaterial.name) << std::endl;
             std::cout << "\t setting base color texture index to -1" << std::endl;
             currentMaterial.occlusionRoughnessMetalnessTextureIndex = -1;
          }
+         // this is never an srgb texture
+         addSrgbIndexIfNecessary(srgbProcessing, currentMaterial.emissiveTextureIndex, false);
+
          // Normals
          currentMaterial.normalTextureIndex = glTfMaterial.normalTexture.index;
 
@@ -488,13 +530,16 @@ namespace genesis
 
       _basePath = fileName.substr(0, fileName.find_last_of("/\\"));
 
+      const bool srgbProcessing = fileLoadingFlags & ColorTexturesAreSrgb;
+
+      loadMaterials(glTfModel, srgbProcessing);
+
       if (!(fileLoadingFlags & FileLoadingFlags::DontLoadImages))
       {
-         loadImages(glTfModel);
+         loadImages(glTfModel, srgbProcessing);
       }
 
       loadTextures(glTfModel);
-      loadMaterials(glTfModel);
       loadLights(glTfModel);
       loadScenes(glTfModel, fileLoadingFlags);
 
@@ -604,4 +649,5 @@ namespace genesis
          }
       }
    }
+
 }

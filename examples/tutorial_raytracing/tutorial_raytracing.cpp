@@ -879,8 +879,7 @@ void TutorialRayTracing::createCells(void)
       gltfModel = _mainModel;
    }
 
-   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices;
-   _cellManager = new genesis::CellManager(_device, glTFLoadingFlags);
+   _cellManager = new genesis::CellManager(_device, _glTFLoadingFlags);
 
    _cellManager->addInstance(gltfModel, mat4());
 
@@ -898,7 +897,7 @@ void TutorialRayTracing::createCells(void)
 
 void TutorialRayTracing::createSkyBox(void)
 {
-   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices;
+   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices ;
    _skyBoxManager = new genesis::CellManager(_device, glTFLoadingFlags);
    _skyBoxManager->addInstance(getAssetsPath() + "models/cube.gltf", glm::mat4());
 
@@ -920,6 +919,7 @@ void TutorialRayTracing::createSkyBox(void)
 
 void TutorialRayTracing::createScene()
 {
+   _glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices ;
    createCells();
    createSkyBox();
 }

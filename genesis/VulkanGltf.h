@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <functional>
+#include <unordered_map>
 
 #include "GenMath.h"
 
@@ -95,7 +96,8 @@ namespace genesis
          PreTransformVertices = 0x00000001,
          PreMultiplyVertexColors = 0x00000002,
          FlipY = 0x00000004,
-         DontLoadImages = 0x00000008
+         DontLoadImages = 0x00000008,
+         ColorTexturesAreSrgb = 0x00000010
       };
    public:
       VulkanGltfModel(Device* device, bool rayTracing);
@@ -114,9 +116,9 @@ namespace genesis
       virtual void forEachPrimitive(const std::function<void(const Primitive&)>& func) const;
       virtual int numPrimitives(void) const;
    protected:
-      virtual void loadImages(tinygltf::Model& gltfModel);
+      virtual void loadImages(tinygltf::Model& gltfModel, bool srgbProcessing);
       virtual void loadTextures(tinygltf::Model& gltfModel);
-      virtual void loadMaterials(tinygltf::Model& gltfModel);
+      virtual void loadMaterials(tinygltf::Model& gltfModel, bool srgbProcessing);
       virtual void loadScenes(tinygltf::Model& gltfModel, uint32_t fileLoadingFlags);
       virtual void loadNode(const tinygltf::Node& inputNode, tinygltf::Model& gltfModel, Node* parent, uint32_t fileLoadingFlags);
       virtual void loadMesh(Node* node, const tinygltf::Mesh& srcMesh, tinygltf::Model& gltfModel, uint32_t fileLoadingFlags);
@@ -125,10 +127,14 @@ namespace genesis
       virtual const std::vector<Image*>& images(void) const;
 
       virtual void buildLightInstancesBuffer(void);
+      virtual void addSrgbIndexIfNecessary(bool srgbProcessing, uint32_t index, bool isSrgb);
+      virtual bool isSrgb(uint32_t index) const;
    protected:
       Device* _device;
 
       std::vector<Image*> _images;
+
+      std::unordered_map<uint32_t, bool> _imageIndexToWhetherSrgb;
 
       std::vector<Texture*> _textures;
       

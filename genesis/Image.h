@@ -18,7 +18,7 @@ namespace genesis
 
    public:
       //! load from file
-      virtual bool loadFromFile(const std::string& fileName);
+      virtual bool loadFromFile(const std::string& fileName, bool srgb);
 
       //! load from file. cube map
       virtual bool loadFromFileCubeMap(const std::string& fileName);
@@ -40,7 +40,7 @@ namespace genesis
       virtual VkDeviceMemory vulkanDeviceMemory(void) const;
    protected:
       //! internal
-      virtual bool copyFromFileIntoImage(const std::string& fileName, uint32_t numFaces);
+      virtual bool copyFromFileIntoImage(const std::string& fileName, bool srgb, uint32_t numFaces);
 
       //! internal
       virtual bool copyFromRawDataIntoImage(void* buffer, VkDeviceSize bufferSize, const std::vector<int>& mipMapDataOffsets, uint32_t numFaces);

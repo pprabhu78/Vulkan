@@ -147,4 +147,6 @@ protected:
    bool _autoTest = false;
 
    int _materialComponentViz;
+
+   uint32_t _glTFLoadingFlags;
 };
