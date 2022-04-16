@@ -20,7 +20,6 @@ namespace genesis
 
       glm::vec3 rotation = glm::vec3();
       glm::vec3 position = glm::vec3();
-      glm::vec4 viewPos = glm::vec4();
 
       float rotationSpeed = 1.0f;
       float movementSpeed = 1.0f;

@@ -286,7 +286,7 @@ namespace genesis
    void VulkanApplication::drawUI(const VkCommandBuffer commandBuffer)
    {
       if (settings.overlay) {
-         const VkViewport viewport = VulkanInitializers::viewport((float)width, (float)height, 0.0f, 1.0f);
+         const VkViewport viewport = VulkanInitializers::viewport((float)width, (float)height, 0.0f, 1.0f, false);
          const VkRect2D scissor = VulkanInitializers::rect2D(width, height, 0, 0);
          vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
          vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
@@ -917,6 +917,7 @@ namespace genesis
    {
       int32_t dx = (int32_t)mousePos.x - x;
       int32_t dy = (int32_t)mousePos.y - y;
+      dy = -dy;
 
       bool handled = false;
 

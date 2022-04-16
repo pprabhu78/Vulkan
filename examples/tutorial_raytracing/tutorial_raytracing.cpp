@@ -1,7 +1,7 @@
 /*
-* Vulkan Example - Basic hardware accelerated ray tracing example
+* Ray tracing sample
 *
-* Copyright (C) 2019-2020 by Sascha Willems - www.saschawillems.de
+* Copyright (C) 2019-2022 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
@@ -40,11 +40,6 @@ using namespace genesis::tools;
 
 void TutorialRayTracing::resetCamera()
 {
-   camera.type = genesis::Camera::CameraType::lookat;
-   camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
-   camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
-   camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.5f));
-
    if (_mainModel == "venus")
    {
       camera.type = Camera::CameraType::lookat;
@@ -72,24 +67,30 @@ void TutorialRayTracing::resetCamera()
    else if (_mainModel == "sponza")
    {
       camera.type = genesis::Camera::CameraType::firstperson;
-      camera.rotationSpeed = 0.2f;
-      camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
+      camera.setPosition(glm::vec3(0.0f, -1.0f, 0.0f));
       camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
       camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+
+      camera.rotationSpeed = 0.2f;
       _pushConstants.contributionFromEnvironment = 10;
    }
    else if (_mainModel == "bathroom")
    {
       camera.type = genesis::Camera::CameraType::firstperson;
-      camera.rotationSpeed = 0.2f;
-      camera.setPosition(glm::vec3(0.0f, 1.0f, 0.0f));
-      camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
-      camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
-      _pushConstants.contributionFromEnvironment = 1;
 
-      camera.setRotation(glm::vec3(-19.6f, -303.601227, 0.0f));
-      camera.setPosition(glm::vec3(2.42036271f, 1.83941388, -5.26105785));
-      camera.viewPos = glm::vec4(-2.42036271, 1.83941388, 5.26105785, 1);
+      camera.setPosition(glm::vec3(2.42036271f, -1.83941388, -5.26105785));
+      camera.setRotation(glm::vec3(19.6f, -303.601227, 0.0f));
+      camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+
+      camera.rotationSpeed = 0.2f;
+      _pushConstants.contributionFromEnvironment = 1;
+   }
+   else
+   {
+      camera.type = genesis::Camera::CameraType::lookat;
+      camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.5f));
+      camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
+      camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
    }
 }
 
@@ -696,8 +697,8 @@ std::string TutorialRayTracing::generateTimeStampedFileName(void)
    }
    ss << local_tm.tm_sec;
 
-   //std::string fileName = "c:\\temp\\" + ss.str() + ".png";
-   std::string fileName = "..\\screenshots\\" + ss.str() + ".png";   
+   std::string fileName = "c:\\temp\\" + ss.str() + ".png";
+   //std::string fileName = "..\\screenshots\\" + ss.str() + ".png";
    return fileName;
 }
 
@@ -769,7 +770,7 @@ void TutorialRayTracing::draw()
    VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
    VulkanApplication::submitFrame();
 
-#if 0
+#if 1
    if (_pushConstants.frameIndex == 15000)
    {
       saveScreenShot(generateTimeStampedFileName());
@@ -878,7 +879,7 @@ void TutorialRayTracing::createCells(void)
       gltfModel = _mainModel;
    }
 
-   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices;
+   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices;
    _cellManager = new genesis::CellManager(_device, glTFLoadingFlags);
 
    _cellManager->addInstance(gltfModel, mat4());
@@ -897,7 +898,7 @@ void TutorialRayTracing::createCells(void)
 
 void TutorialRayTracing::createSkyBox(void)
 {
-   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::FlipY | genesis::VulkanGltfModel::PreTransformVertices;
+   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices;
    _skyBoxManager = new genesis::CellManager(_device, glTFLoadingFlags);
    _skyBoxManager->addInstance(getAssetsPath() + "models/cube.gltf", glm::mat4());
 
@@ -907,7 +908,7 @@ void TutorialRayTracing::createSkyBox(void)
    _skyCubeMapImage = new genesis::Image(_device);
 #if (defined SKYBOX_YOKOHOMA)
    _pushConstants.environmentMapCoordTransform.x = -1;
-   _pushConstants.environmentMapCoordTransform.y = -1;
+   _pushConstants.environmentMapCoordTransform.y = +1;
    _skyCubeMapImage->loadFromFileCubeMap(getAssetsPath() + "textures/cubemap_yokohama_rgba.ktx");
 #endif
 

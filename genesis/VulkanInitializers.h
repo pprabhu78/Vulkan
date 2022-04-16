@@ -168,11 +168,21 @@ namespace genesis
          float width,
          float height,
          float minDepth,
-         float maxDepth)
+         float maxDepth,
+         bool openGLStyle = true)
       {
          VkViewport viewport{};
          viewport.width = width;
-         viewport.height = height;
+         if (openGLStyle)
+         {
+            // https://www.saschawillems.de/blog/2019/03/29/flipping-the-vulkan-viewport/
+            viewport.height = -height;
+            viewport.y = (float)height;
+         }
+         else
+         {
+            viewport.height = height;
+         }
          viewport.minDepth = minDepth;
          viewport.maxDepth = maxDepth;
          return viewport;

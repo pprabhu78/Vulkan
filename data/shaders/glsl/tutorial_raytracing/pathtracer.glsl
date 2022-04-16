@@ -148,7 +148,6 @@ vec3 materialComponentViz(MaterialProperties materialProperties)
 		return vec3(0, 0, 1);
 	}
 	return vec3(1, 1, 1);
-
 }
 
 Ray calculateRay(const ivec2 imageCoords, const ivec2 imageSize)
@@ -158,7 +157,10 @@ Ray calculateRay(const ivec2 imageCoords, const ivec2 imageSize)
 	const vec2 inUV = pixelCenter / imageSize;
 	vec2 d = inUV * 2.0 - 1.0;
 
-	// compute the ray origina and direction
+	// view port xform since frame buffer top left is (0,0)
+	d.y = -d.y;
+	
+	// compute the ray origin and direction
 	vec4 rayOrigin4 = sceneUbo.viewMatrixInverse * vec4(0, 0, 0, 1);
 	vec4 target = sceneUbo.projectionMatrixInverse * vec4(d.x, d.y, 1, 1);
 	vec4 rayDirection4 = sceneUbo.viewMatrixInverse * vec4(normalize(target.xyz), 0);
