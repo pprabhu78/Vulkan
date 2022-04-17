@@ -30,10 +30,6 @@ This project currently has fundamentally just 2 parts:
 -The 'genesis' engine, which is the classes encapsulating core Vulkan functionality like buffers, textures, images, shaders, gltf and so on.  
 -The ray tracing sample that uses this engine.
 
-PS: The name of the engine is a nod to the 'genesis effect' from [Star Trek II: The Wrath of Khan](https://en.wikipedia.org/wiki/Star_Trek_II:_The_Wrath_of_Khan)
-![enter image description here](https://static.wikia.nocookie.net/memoryalpha/images/e/e1/Genesis_effect.jpg/revision/latest/scale-to-width-down/1000?cb=20100624221212&path-prefix=en)
-which was the [first fully textured CGI effect in film.](https://memory-alpha.fandom.com/wiki/Pixar) 
-
 The sample continues to increase in functionality. Currently it supports:  
 
  - Diffuse and Specular brdfs specified the PBR/gltf way (metalness, roughness, etc)
@@ -85,3 +81,7 @@ Once built, examples can be run from the bin directory. The list of available co
 ## Credits and Attributions
 Huge thanks to all the entities mentioned in above for everything.
 See [CREDITS.md](CREDITS.md) for additional credits and attributions.
+
+PS: The name of the engine is a nod to the 'genesis effect' from [Star Trek II: The Wrath of Khan](https://en.wikipedia.org/wiki/Star_Trek_II:_The_Wrath_of_Khan)
+![enter image description here](https://static.wikia.nocookie.net/memoryalpha/images/e/e1/Genesis_effect.jpg/revision/latest/scale-to-width-down/1000?cb=20100624221212&path-prefix=en)
+which was the [first fully textured CGI effect in film.](https://memory-alpha.fandom.com/wiki/Pixar) 
