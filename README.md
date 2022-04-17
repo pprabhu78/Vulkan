@@ -1,4 +1,5 @@
 
+
 # Vulkan sandbox engine for ray tracing, etc.
 
 ![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-3-13_55730.png)
@@ -28,6 +29,10 @@ I used these as reference:
 This project currently has fundamentally just 2 parts:  
 -The 'genesis' engine, which is the classes encapsulating core Vulkan functionality like buffers, textures, images, shaders, gltf and so on.  
 -The ray tracing sample that uses this engine.
+
+PS: The name of the engine is a node to the 'genesis effect' from [Star Trek II: The Wrath of Khan](https://en.wikipedia.org/wiki/Star_Trek_II:_The_Wrath_of_Khan)
+![enter image description here](https://memory-alpha.fandom.com/wiki/Pixar?file=Genesis_effect.jpg)
+which was the [first fully textured CGI effect in film.](https://memory-alpha.fandom.com/wiki/Pixar) 
 
 The sample continues to increase in functionality. Currently it supports:  
 
@@ -80,4 +85,3 @@ Once built, examples can be run from the bin directory. The list of available co
 ## Credits and Attributions
 Huge thanks to all the entities mentioned in above for everything.
 See [CREDITS.md](CREDITS.md) for additional credits and attributions.
-n
