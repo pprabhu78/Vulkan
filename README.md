@@ -30,7 +30,7 @@ This project currently has fundamentally just 2 parts:
 -The 'genesis' engine, which is the classes encapsulating core Vulkan functionality like buffers, textures, images, shaders, gltf and so on.  
 -The ray tracing sample that uses this engine.
 
-PS: The name of the engine is a node to the 'genesis effect' from [Star Trek II: The Wrath of Khan](https://en.wikipedia.org/wiki/Star_Trek_II:_The_Wrath_of_Khan)
+PS: The name of the engine is a nod to the 'genesis effect' from [Star Trek II: The Wrath of Khan](https://en.wikipedia.org/wiki/Star_Trek_II:_The_Wrath_of_Khan)
 ![enter image description here](https://static.wikia.nocookie.net/memoryalpha/images/e/e1/Genesis_effect.jpg/revision/latest/scale-to-width-down/1000?cb=20100624221212&path-prefix=en)
 which was the [first fully textured CGI effect in film.](https://memory-alpha.fandom.com/wiki/Pixar) 
 
