@@ -1,15 +1,14 @@
 
 
-# Vulkan sandbox engine for ray tracing, etc.
+
+# Path tracing and global illumination using Vulkan.
 
 ![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-4-17_155829.png)
 ![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-4-17_161326.png)
 ![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-4-17_161518.png)
 ![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-4-17_161639.png)
 
-Sandbox engine for trying out things in Vulkan.
-
-Initially, I started this project to learn Vulkan. 
+Initially, I started this project to learn Vulkan and wrote a sandbox engine for trying out things in Vulkan.
 
 I started by forking Sascha Willems' excellent resource: https://github.com/SaschaWillems/Vulkan. I would recommend this as the first stop, bar none, for anyone trying to learn Vulkan. 
 
@@ -26,17 +25,15 @@ I used these as reference:
  - I also used nvidia's samples for some of the nitty gritty implementation details as reference (specific to ray tracing and vulkan in general):  
   -https://github.com/nvpro-samples/vk_raytrace  
   -https://github.com/nvpro-samples/
-
+    
 This project currently has fundamentally just 2 parts:  
--The 'genesis' engine, which is the classes encapsulating core Vulkan functionality like buffers, textures, images, shaders, gltf and so on.  
--The ray tracing sample that uses this engine.
+-The 'genesis' engine, which is the set of classes encapsulating core Vulkan functionality like buffers, textures, images, shaders, gltf and so on.  
+-The ray tracing application that uses this engine.
 
-The sample continues to increase in functionality. Currently it supports:  
-
- - Diffuse and Specular brdfs specified the PBR/gltf way (metalness, roughness, etc)
- 
+The sample continues to increase in functionality. Currently it supports:
+ - Diffuse and Specular brdfs specified the PBR/gltf way (metalness, roughness, etc) and some support for [transmission](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_transmission).
  - World building specification (which leads itself to indirect rendering as well):  
-  -There can be multiple models (a 'model' is typically a single gltf file, but in theory it can come from anything or even runttime created)  
+  -There can be multiple models (a 'model' is typically a single gltf file, but in theory it can come from anything or even runtime created)  
   -There can be multiple instances of such models  
   -Multiple instances of multiple models go into cells  
   -There can be multiple cells
@@ -48,11 +45,14 @@ The sample continues to increase in functionality. Currently it supports:
   -Material (properties, textures) for multiple models go into a buffer of materials  
   -There is a buffer of instances (corresponding to instances of models in a cell)
 
+## Prerequisites
+You need an [RTX](https://www.nvidia.com/en-us/geforce/graphics-cards/30-series/) card with the latest drivers and also need the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/)
+
 ## Cloning
 This repository contains submodules for external dependencies, so when doing a fresh clone you need to clone recursively:
 
 ```
-git clone --recursive https://github.com/SaschaWillems/Vulkan.git
+git clone --recursive https://github.com/pprabhu78/Vulkan
 ```
 
 Existing repositories can be updated manually:
@@ -62,22 +62,25 @@ git submodule init
 git submodule update
 ```
 
-## Assets
-Many examples require assets from the asset pack that is not part of this repository due to file size. A python script is included to download the asset pack that. Run
-
-    python download_assets.py
-
-from the root of the repository after cloning or see [this](data/README.md) for manual download.
-
 ## Building
 
-The repository contains everything required to compile and build the examples on <img src="./images/windowslogo.png" alt="" height="22px" valign="bottom"> Windows, <img src="./images/linuxlogo.png" alt="" height="24px" valign="bottom"> Linux, <img src="./images/androidlogo.png" alt="" height="24px" valign="bottom"> Android, <img src="./images/applelogo.png" alt="" valign="bottom" height="24px"> iOS and macOS (using MoltenVK) using a C++ compiler that supports C++11.
+The repository contains everything required to compile and build the examples on <img src="./images/windowslogo.png" alt="" height="22px" valign="bottom"> Windows, <img src="./images/linuxlogo.png" alt="" height="24px" valign="bottom"> Linux.
 
-See [BUILD.md](BUILD.md) for details on how to build for the different platforms.
+On windows, you generate the solution using: cmake -G "Visual Studio 16 2019"
+
+I have not compiled, tested on linux.
+
+## Assets
+There are a handful of models in the data/models folder. You can use other gltf models. For example:
+https://github.com/KhronosGroup/glTF-Sample-Models
+
+You can create and/or export glTF in [Blender](www.blender.org) (or any other modeling software)
+
+You can drag and drop .glb or .gltf files onto the application. 
 
 ## Running
 
-Once built, examples can be run from the bin directory. The list of available command line options can be brought up with `--help`:
+Once built, the application can be run from the bin directory. 
 `
 ## Credits and Attributions
 Huge thanks to all the entities mentioned in above for everything.
