@@ -256,12 +256,14 @@ namespace genesis
          return;
       }
 
-      // The report flags determine what type of messages for the layers will be displayed
-      // For validating (debugging) an application the error and warning bits should suffice
-      VkDebugReportFlagsEXT debugReportFlags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
-      // Additional flags include performance info, loader and layer debug messages, etc.
-      setupDebugging(_instance, debugReportFlags, VK_NULL_HANDLE);
-
+      if (_validation)
+      {
+         // The report flags determine what type of messages for the layers will be displayed
+         // For validating (debugging) an application the error and warning bits should suffice
+         VkDebugReportFlagsEXT debugReportFlags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+         // Additional flags include performance info, loader and layer debug messages, etc.
+         setupDebugging(_instance, debugReportFlags, VK_NULL_HANDLE);
+      }
    }
 
    ApiInstance::~ApiInstance()
