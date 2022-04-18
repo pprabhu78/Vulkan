@@ -1,7 +1,7 @@
 
 
 
-# Path tracing and global illumination using Vulkan.
+# Path tracing and global illumination using Vulkan
 
 ![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-4-17_155829.png)
 ![enter image description here](https://github.com/pprabhu78/Vulkan/blob/master/screenshots/2022-4-17_161326.png)
