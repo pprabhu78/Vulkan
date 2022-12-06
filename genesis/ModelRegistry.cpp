@@ -9,6 +9,7 @@ namespace genesis
    ModelRegistry::ModelRegistry(Device* device, int modelLoadingFlags)
       : _device(device)
       , _modelLoadingFlags(modelLoadingFlags)
+      , _nextModelId(0)
    {
       // nothing to do
    }
