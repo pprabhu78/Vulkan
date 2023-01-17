@@ -107,7 +107,7 @@ namespace genesis
       }
 
       VkBufferCreateInfo bufferCreateInfo = VulkanInitializers::bufferCreateInfo(usageFlags, sizeInBytes);
-      
+
       VK_CHECK_RESULT(vkCreateBuffer(_device->vulkanDevice(), &bufferCreateInfo, nullptr, &_buffer));
 
       debugmarker::setName(_device->vulkanDevice(), _buffer, actualName.c_str());
@@ -172,7 +172,6 @@ namespace genesis
    {
       if (staging)
       {
-         
          _stagingBuffer = new VulkanBuffer(_device, getBufferUsageFlags(BT_STAGING, additionalFlags), getMemoryPropertyFlags(BT_STAGING), _sizeInBytes);
       }
 
@@ -180,7 +179,7 @@ namespace genesis
 
       if (!name.empty())
       {
-//         vks::debugmarker::setBufferName(_device->vulkanDevice(), _buffer->vulkanBuffer(), name.c_str());
+         //         vks::debugmarker::setBufferName(_device->vulkanDevice(), _buffer->vulkanBuffer(), name.c_str());
       }
 
       _descriptor = VkDescriptorBufferInfo{ _buffer->vulkanBuffer(), 0, (VkDeviceSize)_sizeInBytes };

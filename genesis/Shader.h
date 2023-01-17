@@ -18,6 +18,10 @@ namespace genesis
       , ST_RT_ANY_HIT
       , ST_RT_CLOSEST_HIT
       , ST_RT_MISS
+
+      // mesh shaders
+      , ST_TASK_SHADER
+      , ST_MESH_SHADER
    };
 
    class Shader

@@ -1,0 +1,97 @@
+#version 450
+#extension GL_EXT_mesh_shader : require
+#extension GL_GOOGLE_include_directive : enable
+
+#include "../common/sceneUbo.h"
+
+struct Meshlet
+{
+    uint VertCount;
+    uint VertOffset;
+    uint PrimCount;
+    uint PrimOffset;
+};
+
+layout(set = 1, binding = 0, std430) buffer VertexBuffer
+{
+	float vertexBuffer[];
+};
+layout(set = 1, binding = 1, std430) buffer MeshletsBuffer
+{
+	Meshlet meshletsBuffer[];
+};
+layout(set = 1, binding = 2, std430) buffer UniqueVertexIndices
+{
+	uint uniqueVertexIndices[];
+};
+layout(set = 1, binding = 3, std430) buffer PrimitiveIndices
+{
+	uint primitiveIndices[];
+};
+layout(set = 1, binding = 4, std140) uniform SceneUboBuffer
+{
+   SceneUbo sceneUbo;
+};
+
+layout(local_size_x = 128) in;
+
+layout(triangles) out;
+layout(max_vertices=64, max_primitives=126) out;
+
+layout(location=0) out Interpolants {
+	vec3 V;
+	vec3 N;
+	flat uint meshletIndex;
+} OUT[];
+
+uvec3 UnpackPrimitive(uint primitive)
+{
+#if 0
+	return uvec3(
+	  bitfieldExtract(primitive, 0, 10)
+	, bitfieldExtract(primitive, 10, 10)
+	, bitfieldExtract(primitive, 20, 10)
+	);
+#endif
+	return uvec3(primitive & 0x3FF, (primitive >> 10) & 0x3FF, (primitive >> 20) & 0x3FF);
+}
+
+uvec3 GetPrimitive(Meshlet m, uint index)
+{
+    return UnpackPrimitive(primitiveIndices[m.PrimOffset + index]);
+}
+
+uint GetVertexIndex(Meshlet m, uint localIndex)
+{
+	localIndex = m.VertOffset + localIndex;
+    return uniqueVertexIndices[localIndex];
+}
+
+void main()
+{
+	uint gid = gl_WorkGroupID.x;
+	uint gtid = gl_LocalInvocationID.x;
+
+	const Meshlet meshlet = meshletsBuffer[gid];
+	
+	SetMeshOutputsEXT(meshlet.VertCount, meshlet.PrimCount);
+
+	if (gtid < meshlet.VertCount)
+    {
+		uint vertexIndex = GetVertexIndex(meshlet, gtid);
+		mat4 mvp = sceneUbo.projectionMatrix * sceneUbo.viewMatrix;
+
+		vec3 position = vec3(vertexBuffer[vertexIndex*6],vertexBuffer[vertexIndex*6+1],vertexBuffer[vertexIndex*6+2]);
+		vec3 normal = vec3(vertexBuffer[vertexIndex*6+3],vertexBuffer[vertexIndex*6+4],vertexBuffer[vertexIndex*6+5]);
+		gl_MeshVerticesEXT[gtid].gl_Position = mvp*vec4(position.xyz,1);
+
+		OUT[gtid].N = normalize((transpose(inverse(sceneUbo.viewMatrix))*vec4(normal.x,normal.y, normal.z, 1)).xyz);
+		OUT[gtid].V = normalize((transpose(inverse(sceneUbo.viewMatrix))*vec4(position.x,position.y, position.z, 1)).xyz);
+		OUT[gtid].meshletIndex = gid;
+	}
+
+	if (gtid < meshlet.PrimCount)
+    {
+		gl_PrimitiveTriangleIndicesEXT[gtid] =  GetPrimitive(meshlet, gtid);
+	}
+}

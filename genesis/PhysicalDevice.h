@@ -39,6 +39,8 @@ namespace genesis
       //! queue family index
       virtual uint32_t getQueueFamilyIndex(VkQueueFlagBits queueFlags) const;
 
+      virtual void printQueueDetails(void) const;
+
       virtual bool extensionSupported(const std::string& extension) const;
 
       virtual bool getSupportedDepthFormat(VkFormat& depthFormat) const;
@@ -73,6 +75,8 @@ namespace genesis
       VkPhysicalDeviceRayTracingPipelinePropertiesKHR  _rayTracingPipelineProperties{};
 
       VkPhysicalDeviceAccelerationStructureFeaturesKHR _accelerationStructureFeatures{};
+
+      VkPhysicalDeviceMeshShaderPropertiesEXT _meshShaderProperties{};
    };
 }
 

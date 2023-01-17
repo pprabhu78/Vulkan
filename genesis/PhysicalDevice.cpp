@@ -52,6 +52,12 @@ namespace genesis
       deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
       deviceFeatures2.pNext = &_accelerationStructureFeatures;
       vkGetPhysicalDeviceFeatures2(_physicalDevice, &deviceFeatures2);
+
+      // Get mesh shader capabilities
+      _meshShaderProperties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_EXT;
+      deviceProperties2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+      deviceProperties2.pNext = &_meshShaderProperties;
+      vkGetPhysicalDeviceProperties2(_physicalDevice, &deviceProperties2);
    }
    
    PhysicalDevice::~PhysicalDevice()
@@ -132,6 +138,33 @@ namespace genesis
       }
 
       throw "Could not find a suitable memory type!";
+   }
+
+   void PhysicalDevice::printQueueDetails(void) const
+   {
+      std::cout << "Number of queues families " << _queueFamilyProperties.size() << std::endl;
+      for (uint32_t i = 0; i < static_cast<uint32_t>(_queueFamilyProperties.size()); i++)
+      {
+         std::cout << "family [" << i << "]: num queues: " << _queueFamilyProperties[i].queueCount;
+         if (_queueFamilyProperties[i].queueCount / 10 == 0)
+         {
+            std::cout << " ";
+         }
+         std::cout << ", support: ";
+         if (_queueFamilyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+         {
+            std::cout << "graphics ";
+         }
+         if (_queueFamilyProperties[i].queueFlags & VK_QUEUE_TRANSFER_BIT)
+         {
+            std::cout << "transfer ";
+         }
+         if (_queueFamilyProperties[i].queueFlags & VK_QUEUE_COMPUTE_BIT)
+         {
+            std::cout << "compute ";
+         }
+         std::cout<<std::endl;
+      }
    }
 
    uint32_t PhysicalDevice::getQueueFamilyIndex(VkQueueFlagBits queueFlags) const

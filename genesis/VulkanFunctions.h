@@ -15,6 +15,8 @@ namespace genesis
    extern PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
    extern PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
 
+   extern PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT;
+
    class Device;
 
    class VulkanFunctionsInitializer

@@ -61,6 +61,7 @@ namespace genesis
          _shaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
          break;
 
+      // ray casting
       case ST_RT_RAYGEN:
          _shaderStageInfo.stage = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
          break;
@@ -75,6 +76,14 @@ namespace genesis
 
       case ST_RT_MISS:
          _shaderStageInfo.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
+         break;
+
+      // mesh shaders
+      case ST_TASK_SHADER:
+         _shaderStageInfo.stage = VK_SHADER_STAGE_TASK_BIT_EXT;
+         break;
+      case ST_MESH_SHADER:
+         _shaderStageInfo.stage = VK_SHADER_STAGE_MESH_BIT_EXT;
          break;
       default:
          break;
