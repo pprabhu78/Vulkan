@@ -14,21 +14,21 @@ function(add_shader TARGET SHADER)
 	get_filename_component(current-output-dir ${current-output-path} DIRECTORY)
 	file(MAKE_DIRECTORY ${current-output-dir})
 
-	if ( (${SHADER} MATCHES "(.*)(\\.rchit)") OR (${SHADER} MATCHES "(.*)(\\.rmiss)") OR (${SHADER} MATCHES "(.*)(\\.rgen)"))
+	if ( (${SHADER} MATCHES "(.*)(\\.rchit)") OR (${SHADER} MATCHES "(.*)(\\.rmiss)") OR (${SHADER} MATCHES "(.*)(\\.rgen)") OR (${SHADER} MATCHES "(.*)(\\.task)") OR (${SHADER} MATCHES "(.*)(\\.mesh)") )
 
 	add_custom_command(
 		OUTPUT ${current-output-path}
-		COMMAND ${GLSLANGVALIDATOR_EXECUTABLE} --target-env vulkan1.2 -V -o ${current-output-path} ${current-shader-path}
+		COMMAND ${GLSLANGVALIDATOR_EXECUTABLE} --target-env vulkan1.3 -V -o ${current-output-path} ${current-shader-path}
 		DEPENDS ${current-shader-path}
 		IMPLICIT_DEPENDS CXX ${current-shader-path}
 		VERBATIM)
-  else()
-  	add_custom_command(
-		OUTPUT ${current-output-path}
-		COMMAND ${GLSLC_EXECUTABLE} -o ${current-output-path} ${current-shader-path}
-		DEPENDS ${current-shader-path}
-		IMPLICIT_DEPENDS CXX ${current-shader-path}
-		VERBATIM)
+	else()
+  		add_custom_command(
+			OUTPUT ${current-output-path}
+			COMMAND ${GLSLC_EXECUTABLE} -o ${current-output-path} ${current-shader-path}
+			DEPENDS ${current-shader-path}
+			IMPLICIT_DEPENDS CXX ${current-shader-path}
+			VERBATIM)
 
   endif()
 
@@ -72,59 +72,46 @@ function(buildExample EXAMPLE_NAME)
 		file(GLOB fragment-shaders ${SHADER_DIR_GLSL}/*.frag)
 		file(GLOB compute-shaders ${SHADER_DIR_GLSL}/*.comp)
 		file(GLOB raytracing-shaders ${SHADER_DIR_GLSL}/*.rchit ${SHADER_DIR_GLSL}/*.rgen ${SHADER_DIR_GLSL}/*.rmiss)
+		file(GLOB mesh-shaders ${SHADER_DIR_GLSL}/*.task ${SHADER_DIR_GLSL}/*.mesh)
 		file(GLOB other-shaders ${SHADER_DIR_GLSL}/*.glsl ${SHADER_DIR_GLSL}/*.h ${SHADER_DIR_GLSL_COMMON}/*.*)
 		file(GLOB SHADERS ${SHADER_DIR_GLSL}/*.* ${SHADER_DIR_GLSL_COMMON}/*.*)
 
-		source_group("Shaders" FILES ${vertex-shaders} ${fragment-shaders} ${compute-shaders} ${raytracing-shaders} ${other-shaders})
-		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
-			add_executable(${EXAMPLE_NAME} ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})
-		else()
-			add_executable(${EXAMPLE_NAME} WIN32 ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})
-		endif()
+		source_group("Shaders" FILES ${vertex-shaders} ${fragment-shaders} ${compute-shaders} ${raytracing-shaders} ${mesh-shaders} ${other-shaders})
 		
-		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
-		else()
-			target_link_libraries(${EXAMPLE_NAME} base ${Vulkan_LIBRARY} ${WINLIBS})
-		endif()
+		add_executable(${EXAMPLE_NAME} ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})
 		
-		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
-			target_include_directories(${EXAMPLE_NAME} PRIVATE "../genesis")
-		else()
-			target_include_directories(${EXAMPLE_NAME} PRIVATE "../base")
-		endif()
+		target_include_directories(${EXAMPLE_NAME} PRIVATE "../genesis")
 
-		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
-			target_link_libraries(${EXAMPLE_NAME} genesis)
-		endif()
+		target_link_libraries(${EXAMPLE_NAME} genesis)
 		
-		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
-			# Add them to the build.
-			foreach(vertex-shader ${vertex-shaders})
-				get_filename_component(p ${vertex-shader} NAME)
-				add_shader(${EXAMPLE_NAME} ${p})
-			endforeach(vertex-shader)
+		# Add them to the build.
+		foreach(vertex-shader ${vertex-shaders})
+			get_filename_component(p ${vertex-shader} NAME)
+			add_shader(${EXAMPLE_NAME} ${p})
+		endforeach(vertex-shader)
 
-			foreach(fragment-shader ${fragment-shaders})
-				get_filename_component(p ${fragment-shader} NAME)
-				add_shader(${EXAMPLE_NAME} ${p})
-			endforeach(fragment-shader)
+		foreach(fragment-shader ${fragment-shaders})
+			get_filename_component(p ${fragment-shader} NAME)
+			add_shader(${EXAMPLE_NAME} ${p})
+		endforeach(fragment-shader)
 
-			foreach(compute-shader ${compute-shaders})
-				get_filename_component(p ${compute-shader} NAME)
-				add_shader(${EXAMPLE_NAME} ${p})
-			endforeach(compute-shader)
-			
-			foreach(raytracing-shader ${raytracing-shaders})
-				get_filename_component(p ${raytracing-shader} NAME)
-				add_shader(${EXAMPLE_NAME} ${p})
-			endforeach(compute-shader)
-		endif()
+		foreach(compute-shader ${compute-shaders})
+			get_filename_component(p ${compute-shader} NAME)
+			add_shader(${EXAMPLE_NAME} ${p})
+		endforeach(compute-shader)
+		
+		foreach(raytracing-shader ${raytracing-shaders})
+			get_filename_component(p ${raytracing-shader} NAME)
+			add_shader(${EXAMPLE_NAME} ${p})
+		endforeach(raytracing-shader)
+
+		foreach(mesh-shader ${mesh-shaders})
+			get_filename_component(p ${mesh-shader} NAME)
+			add_shader(${EXAMPLE_NAME} ${p})
+		endforeach(mesh-shader)
+		
 	else(WIN32)
 		add_executable(${EXAMPLE_NAME} ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS_GLSL} ${SHADERS_HLSL} ${README_FILES})
-		if( (${EXAMPLE_NAME} STREQUAL "tutorial") OR (${EXAMPLE_NAME} STREQUAL "tutorial_raytracing"))
-		else()
-			target_link_libraries(${EXAMPLE_NAME} base )
-		endif()
 	endif(WIN32)
 
 	set_target_properties(${EXAMPLE_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
@@ -151,7 +138,7 @@ endfunction(buildExamples)
 
 set(EXAMPLES
 	tutorial_raytracing
-#	tutorial
+	meshshaders
 )
 
 buildExamples()
