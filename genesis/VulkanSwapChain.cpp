@@ -259,8 +259,8 @@ namespace genesis
       VkSwapchainKHR oldSwapchain = _swapChain;
 
       // Get physical device surface properties and formats
-      VkSurfaceCapabilitiesKHR surfCaps;
-      VK_CHECK_RESULT(genesis::vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, _surface, &surfCaps));
+      VkSurfaceCapabilitiesKHR surfaceCapabilities;
+      VK_CHECK_RESULT(genesis::vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, _surface, &surfaceCapabilities));
 
       // Get available present modes
       uint32_t presentModeCount;
@@ -272,7 +272,7 @@ namespace genesis
 
       VkExtent2D swapchainExtent = {};
       // If width (and height) equals the special value 0xFFFFFFFF, the size of the surface will be set by the swapchain
-      if (surfCaps.currentExtent.width == (uint32_t)-1)
+      if (surfaceCapabilities.currentExtent.width == (uint32_t)-1)
       {
          // If the surface size is undefined, the size is set to
          // the size of the images requested.
@@ -282,9 +282,9 @@ namespace genesis
       else
       {
          // If the surface size is defined, the swap chain size must match
-         swapchainExtent = surfCaps.currentExtent;
-         *width = surfCaps.currentExtent.width;
-         *height = surfCaps.currentExtent.height;
+         swapchainExtent = surfaceCapabilities.currentExtent;
+         *width = surfaceCapabilities.currentExtent.width;
+         *height = surfaceCapabilities.currentExtent.height;
       }
 
 
@@ -313,22 +313,22 @@ namespace genesis
       }
 
       // Determine the number of images
-      uint32_t desiredNumberOfSwapchainImages = surfCaps.minImageCount + 1;
-      if ((surfCaps.maxImageCount > 0) && (desiredNumberOfSwapchainImages > surfCaps.maxImageCount))
+      uint32_t desiredNumberOfSwapchainImages = surfaceCapabilities.minImageCount + 1;
+      if ((surfaceCapabilities.maxImageCount > 0) && (desiredNumberOfSwapchainImages > surfaceCapabilities.maxImageCount))
       {
-         desiredNumberOfSwapchainImages = surfCaps.maxImageCount;
+         desiredNumberOfSwapchainImages = surfaceCapabilities.maxImageCount;
       }
 
       // Find the transformation of the surface
       VkSurfaceTransformFlagsKHR preTransform;
-      if (surfCaps.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+      if (surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
       {
          // We prefer a non-rotated transform
          preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
       }
       else
       {
-         preTransform = surfCaps.currentTransform;
+         preTransform = surfaceCapabilities.currentTransform;
       }
 
       // Find a supported composite alpha format (not all devices support alpha opaque)
@@ -341,7 +341,7 @@ namespace genesis
          VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
       };
       for (auto& compositeAlphaFlag : compositeAlphaFlags) {
-         if (surfCaps.supportedCompositeAlpha & compositeAlphaFlag) {
+         if (surfaceCapabilities.supportedCompositeAlpha & compositeAlphaFlag) {
             compositeAlpha = compositeAlphaFlag;
             break;
          };
@@ -358,7 +358,7 @@ namespace genesis
       swapChainCreateInfo.preTransform = (VkSurfaceTransformFlagBitsKHR)preTransform;
       swapChainCreateInfo.imageArrayLayers = 1;
       swapChainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-      swapChainCreateInfo.queueFamilyIndexCount = 0;
+      swapChainCreateInfo.queueFamilyIndexCount = _presentationQueueFamilyIndex;
       swapChainCreateInfo.presentMode = swapchainPresentMode;
       // Setting oldSwapChain to the saved handle of the previous swapchain aids in resource reuse and makes sure that we can still present already acquired images
       swapChainCreateInfo.oldSwapchain = oldSwapchain;
@@ -367,12 +367,12 @@ namespace genesis
       swapChainCreateInfo.compositeAlpha = compositeAlpha;
 
       // Enable transfer source on swap chain images if supported
-      if (surfCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) {
+      if (surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_SRC_BIT) {
          swapChainCreateInfo.imageUsage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
       }
 
       // Enable transfer destination on swap chain images if supported
-      if (surfCaps.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) {
+      if (surfaceCapabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT) {
          swapChainCreateInfo.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
       }
 
