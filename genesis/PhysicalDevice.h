@@ -36,8 +36,10 @@ namespace genesis
       //! memory type index
       virtual uint32_t getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
 
-      //! queue family index
-      virtual uint32_t getQueueFamilyIndex(VkQueueFlagBits queueFlags) const;
+      //! queue family index that supports the flag bits passed in
+      virtual uint32_t queueFamilyIndexWithFlags(VkQueueFlagBits queueFlags) const;
+
+      const std::vector<VkQueueFamilyProperties>& queueFamilyProperties(void) const;
 
       virtual void printQueueDetails(void) const;
 
@@ -46,10 +48,13 @@ namespace genesis
       virtual bool getSupportedDepthFormat(VkFormat& depthFormat) const;
 
       //! ray tracing pipeline properties.
-      const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& rayTracingPipelineProperties(void) const;
+      virtual const VkPhysicalDeviceRayTracingPipelinePropertiesKHR& rayTracingPipelineProperties(void) const;
 
       //! ray tracing acceleration properties.
-      const VkPhysicalDeviceAccelerationStructureFeaturesKHR& rayTracingAccelerationStructureFeatures(void) const;
+      virtual const VkPhysicalDeviceAccelerationStructureFeaturesKHR& rayTracingAccelerationStructureFeatures(void) const;
+
+      //! Get the parent instance
+      virtual const ApiInstance* instance(void) const;
       
    protected:
       // Stores physical device properties (for e.g. checking device limits)
@@ -77,6 +82,9 @@ namespace genesis
       VkPhysicalDeviceAccelerationStructureFeaturesKHR _accelerationStructureFeatures{};
 
       VkPhysicalDeviceMeshShaderPropertiesEXT _meshShaderProperties{};
+
+      // back pointer to parent instance
+      const ApiInstance* _instance;
    };
 }
 

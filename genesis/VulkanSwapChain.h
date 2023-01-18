@@ -32,6 +32,8 @@
 
 namespace genesis
 {
+   class Device;
+
    typedef struct _SwapChainBuffers {
       VkImage image;
       VkImageView view;
@@ -39,30 +41,13 @@ namespace genesis
 
    class VulkanSwapChain
    {
-   private:
-      VkInstance instance;
-      VkDevice device;
-      VkPhysicalDevice physicalDevice;
-      VkSurfaceKHR surface;
-      // Function pointers
-      PFN_vkGetPhysicalDeviceSurfaceSupportKHR fpGetPhysicalDeviceSurfaceSupportKHR;
-      PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR fpGetPhysicalDeviceSurfaceCapabilitiesKHR;
-      PFN_vkGetPhysicalDeviceSurfaceFormatsKHR fpGetPhysicalDeviceSurfaceFormatsKHR;
-      PFN_vkGetPhysicalDeviceSurfacePresentModesKHR fpGetPhysicalDeviceSurfacePresentModesKHR;
-      PFN_vkCreateSwapchainKHR fpCreateSwapchainKHR;
-      PFN_vkDestroySwapchainKHR fpDestroySwapchainKHR;
-      PFN_vkGetSwapchainImagesKHR fpGetSwapchainImagesKHR;
-      PFN_vkAcquireNextImageKHR fpAcquireNextImageKHR;
-      PFN_vkQueuePresentKHR fpQueuePresentKHR;
    public:
-      VkFormat colorFormat;
-      VkColorSpaceKHR colorSpace;
-      VkSwapchainKHR swapChain = VK_NULL_HANDLE;
-      uint32_t imageCount;
-      std::vector<VkImage> images;
-      std::vector<SwapChainBuffer> buffers;
-      uint32_t queueNodeIndex = UINT32_MAX;
+      VulkanSwapChain(const Device* device);
+      virtual ~VulkanSwapChain();
 
+   public:
+
+      //! platform specific initialization
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
    #if defined(VK_USE_PLATFORM_GLFW)
          void VulkanSwapChain::initSurface(GLFWwindow* window);
@@ -85,10 +70,33 @@ namespace genesis
       void createDirect2DisplaySurface(uint32_t width, uint32_t height);
 #endif
 #endif
-      void connect(VkInstance instance, VkPhysicalDevice physicalDevice, VkDevice device);
-      void create(uint32_t* width, uint32_t* height, bool vsync = false);
-      VkResult acquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex);
-      VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore = VK_NULL_HANDLE);
-      void cleanup();
+
+      virtual void create(uint32_t* width, uint32_t* height, bool vsync = false);
+      virtual VkResult acquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex);
+      virtual VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore = VK_NULL_HANDLE);
+      virtual void cleanup();
+
+      virtual uint32_t presentationQueueFamilyIndex(void) const;
+      virtual VkFormat colorFormat(void) const;
+   public:
+
+      VkSwapchainKHR _swapChain = VK_NULL_HANDLE;
+      uint32_t _imageCount;
+      std::vector<VkImage> _images;
+      std::vector<SwapChainBuffer> _buffers;
+
+   protected:
+      //! init the queue family index that supports presentation for this swap chain/surface
+      virtual void computePresentationQueueFamilyIndex();
+      //! compute the color format and space for this swap chain/surface
+      virtual void computeColorFormatAndSpace();
+   protected:
+      const Device* _device;
+
+      VkSurfaceKHR _surface;
+      uint32_t _presentationQueueFamilyIndex = UINT32_MAX;
+
+      VkFormat _colorFormat;
+      VkColorSpaceKHR _colorSpace;
    };
 }

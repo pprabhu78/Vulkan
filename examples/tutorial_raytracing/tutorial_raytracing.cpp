@@ -571,7 +571,7 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    genesis::ImageTransitions transitions;
    // Prepare current swap chain image as transfer destination
    VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], swapChain.images[commandBufferIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
+   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->_images[commandBufferIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
    // Prepare ray tracing output image as transfer source
    transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange);
@@ -582,10 +582,10 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    copyRegion.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
    copyRegion.dstOffset = { 0, 0, 0 };
    copyRegion.extent = { width, height, 1 };
-   vkCmdCopyImage(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapChain.images[commandBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+   vkCmdCopyImage(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapChain->_images[commandBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
    // Transition swap chain image back for presentation
-   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], swapChain.images[commandBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subresourceRange);
+   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->_images[commandBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subresourceRange);
 
    // Transition ray tracing output image back to general layout
    transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
@@ -705,7 +705,7 @@ std::string TutorialRayTracing::generateTimeStampedFileName(void)
 void TutorialRayTracing::saveScreenShot(const std::string& fileName)
 {
    genesis::ScreenShotUtility screenShotUtility(_device);
-   screenShotUtility.takeScreenShot(fileName, swapChain.images[currentBuffer], swapChain.colorFormat
+   screenShotUtility.takeScreenShot(fileName, _swapChain->_images[currentBuffer], _swapChain->colorFormat()
       , width, height);
 }
 
@@ -1009,7 +1009,7 @@ void TutorialRayTracing::setupRenderPass()
    delete _renderPass;
    if (_mode == RAYTRACE)
    {
-      _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
+      _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
    }
    else
    {
@@ -1050,7 +1050,7 @@ void TutorialRayTracing::createStorageImages()
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
 
    // final image is used for presentation. So, its the same format as the swap chain
-   _finalImageToPresent = new genesis::StorageImage(_device, swapChain.colorFormat, width, height
+   _finalImageToPresent = new genesis::StorageImage(_device, _swapChain->colorFormat(), width, height
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
 
    genesis::ImageTransitions transitions;

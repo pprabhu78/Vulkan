@@ -15,6 +15,20 @@ namespace genesis
    extern PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR;
    extern PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR;
 
+
+   // swap chain functions
+   extern PFN_vkGetPhysicalDeviceSurfaceSupportKHR vkGetPhysicalDeviceSurfaceSupportKHR;
+   extern PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR vkGetPhysicalDeviceSurfaceCapabilitiesKHR;
+   extern PFN_vkGetPhysicalDeviceSurfaceFormatsKHR vkGetPhysicalDeviceSurfaceFormatsKHR;
+   extern PFN_vkGetPhysicalDeviceSurfacePresentModesKHR vkGetPhysicalDeviceSurfacePresentModesKHR;
+
+   extern PFN_vkCreateSwapchainKHR vkCreateSwapchainKHR;
+   extern PFN_vkDestroySwapchainKHR vkDestroySwapchainKHR;
+   extern PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR;
+   extern PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR;
+   extern PFN_vkQueuePresentKHR vkQueuePresentKHR;
+
+   // mesh shaders
    extern PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT;
 
    class Device;

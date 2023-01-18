@@ -9,8 +9,9 @@ namespace genesis
    PhysicalDevice::PhysicalDevice(const ApiInstance* instance, int deviceIndex
       , const std::vector<const char*>& enabledPhysicalDeviceExtensions)
       : _enabledPhysicalDeviceExtensions(enabledPhysicalDeviceExtensions)
+      , _instance(instance)
    {
-      _physicalDevice =  instance->physicalDevices()[deviceIndex];
+      _physicalDevice = _instance->physicalDevices()[deviceIndex];
       // Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
       vkGetPhysicalDeviceProperties(_physicalDevice, &_physicalDeviceProperties);
       vkGetPhysicalDeviceFeatures(_physicalDevice, &_physicalDeviceFeatures);
@@ -167,7 +168,12 @@ namespace genesis
       }
    }
 
-   uint32_t PhysicalDevice::getQueueFamilyIndex(VkQueueFlagBits queueFlags) const
+   const std::vector<VkQueueFamilyProperties>& PhysicalDevice::queueFamilyProperties(void) const
+   {
+      return _queueFamilyProperties;
+   }
+
+   uint32_t PhysicalDevice::queueFamilyIndexWithFlags(VkQueueFlagBits queueFlags) const
    {	
       // Dedicated queue for compute
       // Try to find a queue family index that supports compute but not graphics
@@ -248,5 +254,10 @@ namespace genesis
    const VkPhysicalDeviceAccelerationStructureFeaturesKHR& PhysicalDevice::rayTracingAccelerationStructureFeatures(void) const
    {
       return _accelerationStructureFeatures;
+   }
+
+   const ApiInstance* PhysicalDevice::instance(void) const
+   {
+      return _instance;
    }
 }

@@ -460,7 +460,7 @@ std::string MeshShaders::generateTimeStampedFileName(void)
 void MeshShaders::saveScreenShot(const std::string& fileName)
 {
    genesis::ScreenShotUtility screenShotUtility(_device);
-   screenShotUtility.takeScreenShot(fileName, swapChain.images[currentBuffer], swapChain.colorFormat
+   screenShotUtility.takeScreenShot(fileName, _swapChain->_images[currentBuffer], _swapChain->colorFormat()
       , width, height);
 }
 

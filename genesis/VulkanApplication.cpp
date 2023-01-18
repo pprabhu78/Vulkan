@@ -64,7 +64,7 @@ namespace genesis
    void VulkanApplication::createCommandBuffers()
    {
       // Create one command buffer for each swap chain image and reuse for rendering
-      _drawCommandBuffers.resize(swapChain.imageCount);
+      _drawCommandBuffers.resize(_swapChain->_imageCount);
 
       VkCommandBufferAllocateInfo cmdBufAllocateInfo =
          VulkanInitializers::commandBufferAllocateInfo(
@@ -298,7 +298,7 @@ namespace genesis
    void VulkanApplication::prepareFrame()
    {
       // Acquire the next image from the swap chain
-      VkResult result = swapChain.acquireNextImage(semaphores.presentComplete, &currentBuffer);
+      VkResult result = _swapChain->acquireNextImage(semaphores.presentComplete, &currentBuffer);
       // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
       if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) {
          windowResize();
@@ -310,7 +310,7 @@ namespace genesis
 
    void VulkanApplication::submitFrame()
    {
-      VkResult result = swapChain.queuePresent(_device->graphicsQueue(), currentBuffer, semaphores.renderComplete);
+      VkResult result = _swapChain->queuePresent(_device->graphicsQueue(), currentBuffer, semaphores.renderComplete);
       if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
          if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             // Swap chain is no longer compatible with the surface and needs to be recreated
@@ -399,7 +399,9 @@ namespace genesis
    VulkanApplication::~VulkanApplication()
    {
       // Clean up Vulkan resources
-      swapChain.cleanup();
+      _swapChain->cleanup();
+      delete _swapChain;
+
       if (descriptorPool != VK_NULL_HANDLE)
       {
          vkDestroyDescriptorPool(_device->vulkanDevice(), descriptorPool, nullptr);
@@ -500,7 +502,7 @@ namespace genesis
       VkBool32 validDepthFormat = _physicalDevice->getSupportedDepthFormat(_depthFormat);
       assert(validDepthFormat);
 
-      swapChain.connect(_instance->vulkanInstance(), _physicalDevice->vulkanPhysicalDevice(), _device->vulkanDevice());
+      _swapChain = new VulkanSwapChain(_device);
 
       // Create synchronization objects
       VkSemaphoreCreateInfo semaphoreCreateInfo = VulkanInitializers::semaphoreCreateInfo();
@@ -773,7 +775,7 @@ namespace genesis
    {
       VkCommandPoolCreateInfo cmdPoolInfo = {};
       cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-      cmdPoolInfo.queueFamilyIndex = swapChain.queueNodeIndex;
+      cmdPoolInfo.queueFamilyIndex = _swapChain->presentationQueueFamilyIndex();
       cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
       VK_CHECK_RESULT(vkCreateCommandPool(_device->vulkanDevice(), &cmdPoolInfo, nullptr, &cmdPool));
    }
@@ -837,17 +839,17 @@ namespace genesis
       frameBufferCreateInfo.layers = 1;
 
       // Create frame buffers for every swap chain image
-      frameBuffers.resize(swapChain.imageCount);
+      frameBuffers.resize(_swapChain->_imageCount);
       for (uint32_t i = 0; i < frameBuffers.size(); i++)
       {
-         attachments[0] = swapChain.buffers[i].view;
+         attachments[0] = _swapChain->_buffers[i].view;
          VK_CHECK_RESULT(vkCreateFramebuffer(_device->vulkanDevice(), &frameBufferCreateInfo, nullptr, &frameBuffers[i]));
       }
    }
 
    void VulkanApplication::setupRenderPass()
    {
-      _renderPass = new genesis::RenderPass(_device, swapChain.colorFormat, _depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
+      _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
    }
 
    void VulkanApplication::enableFeatures() 
@@ -952,7 +954,7 @@ namespace genesis
    void VulkanApplication::initSwapchain()
    {
 #if defined(VK_USE_PLATFORM_GLFW)
-      swapChain.initSurface(window);
+      _swapChain->initSurface(window);
 #elif defined(_WIN32)
       swapChain.initSurface(windowInstance, window);
 #elif defined(VK_USE_PLATFORM_ANDROID_KHR)
@@ -972,7 +974,7 @@ namespace genesis
 
    void VulkanApplication::setupSwapChain()
    {
-      swapChain.create(&width, &height, settings.vsync);
+      _swapChain->create(&width, &height, settings.vsync);
    }
 
    void VulkanApplication::OnUpdateUIOverlay(genesis::UIOverlay* overlay)

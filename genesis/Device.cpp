@@ -13,7 +13,7 @@ namespace genesis
       // Graphics queue
       if (requestedQueueTypes & VK_QUEUE_GRAPHICS_BIT)
       {
-         _queueFamilyIndices.graphics = _physicalDevice->getQueueFamilyIndex(VK_QUEUE_GRAPHICS_BIT);
+         _queueFamilyIndices.graphics = _physicalDevice->queueFamilyIndexWithFlags(VK_QUEUE_GRAPHICS_BIT);
          VkDeviceQueueCreateInfo queueInfo{};
          queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
          queueInfo.queueFamilyIndex = _queueFamilyIndices.graphics;
@@ -29,7 +29,7 @@ namespace genesis
       // Dedicated compute queue
       if (requestedQueueTypes & VK_QUEUE_COMPUTE_BIT)
       {
-         _queueFamilyIndices.compute = _physicalDevice->getQueueFamilyIndex(VK_QUEUE_COMPUTE_BIT);
+         _queueFamilyIndices.compute = _physicalDevice->queueFamilyIndexWithFlags(VK_QUEUE_COMPUTE_BIT);
          if (_queueFamilyIndices.compute != _queueFamilyIndices.graphics)
          {
             // If compute family index differs, we need an additional queue create info for the compute queue
@@ -50,7 +50,7 @@ namespace genesis
       // Dedicated transfer queue
       if (requestedQueueTypes & VK_QUEUE_TRANSFER_BIT)
       {
-         _queueFamilyIndices.transfer = _physicalDevice->getQueueFamilyIndex(VK_QUEUE_TRANSFER_BIT);
+         _queueFamilyIndices.transfer = _physicalDevice->queueFamilyIndexWithFlags(VK_QUEUE_TRANSFER_BIT);
          if ((_queueFamilyIndices.transfer != _queueFamilyIndices.graphics) && (_queueFamilyIndices.transfer != _queueFamilyIndices.compute))
          {
             // If compute family index differs, we need an additional queue create info for the compute queue
