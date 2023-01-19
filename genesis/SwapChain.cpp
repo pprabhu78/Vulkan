@@ -8,7 +8,7 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#include "VulkanSwapChain.h"
+#include "SwapChain.h"
 #include "VulkanDebug.h"
 #include "VulkanFunctions.h"
 #include "Device.h"
@@ -17,27 +17,28 @@
 
 namespace genesis
 {
-   VulkanSwapChain::VulkanSwapChain(const Device* device)
+   SwapChain::SwapChain(const Device* device)
       : _device(device)
    {
       // no op
    }
-   VulkanSwapChain::~VulkanSwapChain()
+
+   SwapChain::~SwapChain()
    {
       cleanup();
    }
 
-   uint32_t VulkanSwapChain::presentationQueueFamilyIndex(void) const
+   uint32_t SwapChain::presentationQueueFamilyIndex(void) const
    {
       return _presentationQueueFamilyIndex;
    }
 
-   VkFormat VulkanSwapChain::colorFormat(void) const
+   VkFormat SwapChain::colorFormat(void) const
    {
       return _colorFormat;
    }
 
-   void VulkanSwapChain::computePresentationQueueFamilyIndex()
+   void SwapChain::computePresentationQueueFamilyIndex()
    {
       VkPhysicalDevice physicalDevice = _device->physicalDevice()->vulkanPhysicalDevice();
       const auto& queueProps = _device->physicalDevice()->queueFamilyProperties();
@@ -72,6 +73,7 @@ namespace genesis
             }
          }
       }
+
       if (presentQueueNodeIndex == UINT32_MAX)
       {
          // If there's no queue that supports both present and graphics
@@ -101,7 +103,7 @@ namespace genesis
       _presentationQueueFamilyIndex = graphicsQueueNodeIndex;
    }
 
-   void VulkanSwapChain::computeColorFormatAndSpace()
+   void SwapChain::computeColorFormatAndSpace()
    {
       VkPhysicalDevice physicalDevice = _device->physicalDevice()->vulkanPhysicalDevice();
 
@@ -149,22 +151,22 @@ namespace genesis
    /** @brief Creates the platform specific surface abstraction of the native platform window used for presentation */
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
    #if defined(VK_USE_PLATFORM_GLFW)
-      void VulkanSwapChain::initSurface(GLFWwindow* window)
+      void SwapChain::initSurface(GLFWwindow* window)
    #else
-      void VulkanSwapChain::initSurface(void* platformHandle, void* platformWindow)
+      void SwapChain::initSurface(void* platformHandle, void* platformWindow)
    #endif
 #elif defined(VK_USE_PLATFORM_ANDROID_KHR)
-   void VulkanSwapChain::initSurface(ANativeWindow* window)
+   void SwapChain::initSurface(ANativeWindow* window)
 #elif defined(VK_USE_PLATFORM_DIRECTFB_EXT)
-   void VulkanSwapChain::initSurface(IDirectFB* dfb, IDirectFBSurface* window)
+   void SwapChain::initSurface(IDirectFB* dfb, IDirectFBSurface* window)
 #elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
-   void VulkanSwapChain::initSurface(wl_display* display, wl_surface* window)
+   void SwapChain::initSurface(wl_display* display, wl_surface* window)
 #elif defined(VK_USE_PLATFORM_XCB_KHR)
-   void VulkanSwapChain::initSurface(xcb_connection_t* connection, xcb_window_t window)
+   void SwapChain::initSurface(xcb_connection_t* connection, xcb_window_t window)
 #elif (defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK))
-   void VulkanSwapChain::initSurface(void* view)
+   void SwapChain::initSurface(void* view)
 #elif (defined(_DIRECT2DISPLAY) || defined(VK_USE_PLATFORM_HEADLESS_EXT))
-   void VulkanSwapChain::initSurface(uint32_t width, uint32_t height)
+   void SwapChain::initSurface(uint32_t width, uint32_t height)
 #endif
    {
       VkResult err = VK_SUCCESS;
@@ -250,7 +252,7 @@ namespace genesis
    * @param height Pointer to the height of the swapchain (may be adjusted to fit the requirements of the swapchain)
    * @param vsync (Optional) Can be used to force vsync-ed rendering (by using VK_PRESENT_MODE_FIFO_KHR as presentation mode)
    */
-   void VulkanSwapChain::create(uint32_t* width, uint32_t* height, bool vsync)
+   void SwapChain::create(uint32_t* width, uint32_t* height, bool vsync)
    {
       VkDevice device = _device->vulkanDevice();
       VkPhysicalDevice physicalDevice = _device->physicalDevice()->vulkanPhysicalDevice();
@@ -417,14 +419,14 @@ namespace genesis
       }
    }
 
-   VkResult VulkanSwapChain::acquireNextImage(uint32_t& imageIndex, VkSemaphore presentCompleteSemaphore)
+   VkResult SwapChain::acquireNextImage(uint32_t& imageIndex, VkSemaphore presentCompleteSemaphore)
    {
       // By setting timeout to UINT64_MAX we will always wait until the next image has been acquired or an actual error is thrown
       // With that we don't have to handle VK_NOT_READY
       return genesis::vkAcquireNextImageKHR(_device->vulkanDevice(), _swapChain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, &imageIndex);
    }
 
-   VkResult VulkanSwapChain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore)
+   VkResult SwapChain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore)
    {
       VkPresentInfoKHR presentInfo = {};
       presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -441,7 +443,7 @@ namespace genesis
       return genesis::vkQueuePresentKHR(queue, &presentInfo);
    }
 
-   void VulkanSwapChain::cleanup()
+   void SwapChain::cleanup()
    {
       if (_swapChain != VK_NULL_HANDLE)
       {
@@ -459,18 +461,18 @@ namespace genesis
       _swapChain = VK_NULL_HANDLE;
    }
 
-   uint32_t VulkanSwapChain::imageCount(void) const
+   uint32_t SwapChain::imageCount(void) const
    {
       return (uint32_t)_images.size();
    }
 
-   const VkImage& VulkanSwapChain::image(int index) const
+   const VkImage& SwapChain::image(int index) const
    {
       assert(index < _images.size());
       return _images[index];
    }
 
-   const VkImageView& VulkanSwapChain::imageView(int index) const
+   const VkImageView& SwapChain::imageView(int index) const
    {
       assert(index < _imageViews.size());
       return _imageViews[index];

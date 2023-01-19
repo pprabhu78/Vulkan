@@ -34,20 +34,20 @@ namespace genesis
 {
    class Device;
 
-   class VulkanSwapChain
+   class SwapChain
    {
    public:
-      VulkanSwapChain(const Device* device);
-      virtual ~VulkanSwapChain();
+      SwapChain(const Device* device);
+      virtual ~SwapChain();
 
    public:
 
       //! platform specific initialization
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
    #if defined(VK_USE_PLATFORM_GLFW)
-         void VulkanSwapChain::initSurface(GLFWwindow* window);
+         void SwapChain::initSurface(GLFWwindow* window);
    #else
-         void VulkanSwapChain::initSurface(void* platformHandle, void* platformWindow);
+         void SwapChain::initSurface(void* platformHandle, void* platformWindow);
    #endif
 #elif defined(VK_USE_PLATFORM_ANDROID_KHR)
       void initSurface(ANativeWindow* window);
@@ -108,7 +108,7 @@ namespace genesis
       uint32_t _presentationQueueFamilyIndex = UINT32_MAX;
 
       VkFormat _colorFormat = VK_FORMAT_UNDEFINED;
-      VkColorSpaceKHR _colorSpace;
+      VkColorSpaceKHR _colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
       VkSwapchainKHR _swapChain = VK_NULL_HANDLE;
       std::vector<VkImage> _images;

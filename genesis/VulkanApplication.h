@@ -12,7 +12,7 @@
 
 #include "keycodes.hpp"
 #include "VulkanUIOverlay.h"
-#include "VulkanSwapChain.h"
+#include "SwapChain.h"
 #include "Benchmark.h"
 
 #define GLM_FORCE_RADIANS
@@ -257,7 +257,7 @@ namespace genesis
       VkPipelineCache pipelineCache;
 
       // Wraps the swap chain to present images (framebuffers) to the windowing system
-      VulkanSwapChain* _swapChain = nullptr;
+      SwapChain* _swapChain = nullptr;
 
       // Synchronization semaphores
       struct

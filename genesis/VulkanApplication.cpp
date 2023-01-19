@@ -500,7 +500,7 @@ namespace genesis
       VkBool32 validDepthFormat = _physicalDevice->getSupportedDepthFormat(_depthFormat);
       assert(validDepthFormat);
 
-      _swapChain = new VulkanSwapChain(_device);
+      _swapChain = new SwapChain(_device);
 
       // Create synchronization objects
       VkSemaphoreCreateInfo semaphoreCreateInfo = VulkanInitializers::semaphoreCreateInfo();
