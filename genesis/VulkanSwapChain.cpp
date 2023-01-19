@@ -24,7 +24,7 @@ namespace genesis
    }
    VulkanSwapChain::~VulkanSwapChain()
    {
-      // no op
+      cleanup();
    }
 
    uint32_t VulkanSwapChain::presentationQueueFamilyIndex(void) const
@@ -287,7 +287,6 @@ namespace genesis
          *height = surfaceCapabilities.currentExtent.height;
       }
 
-
       // Select a present mode for the swapchain
 
       // The VK_PRESENT_MODE_FIFO_KHR mode must always be present as per spec
@@ -382,74 +381,49 @@ namespace genesis
       // This also cleans up all the presentable images
       if (oldSwapchain != VK_NULL_HANDLE)
       {
-         for (uint32_t i = 0; i < _imageCount; i++)
+         for (uint32_t i = 0; i < _imageViews.size(); i++)
          {
-            vkDestroyImageView(device, _buffers[i].view, nullptr);
+            vkDestroyImageView(device, _imageViews[i], nullptr);
          }
          genesis::vkDestroySwapchainKHR(device, oldSwapchain, nullptr);
       }
-      VK_CHECK_RESULT(genesis::vkGetSwapchainImagesKHR(device, _swapChain, &_imageCount, NULL));
+      uint32_t imageCount = 0;
+      VK_CHECK_RESULT(genesis::vkGetSwapchainImagesKHR(device, _swapChain, &imageCount, NULL));
 
       // Get the swap chain images
-      _images.resize(_imageCount);
-      VK_CHECK_RESULT(genesis::vkGetSwapchainImagesKHR(device, _swapChain, &_imageCount, _images.data()));
+      _images.resize(imageCount);
+      _imageViews.resize(imageCount, 0);
+      VK_CHECK_RESULT(genesis::vkGetSwapchainImagesKHR(device, _swapChain, &imageCount, _images.data()));
 
       // Get the swap chain buffers containing the image and imageview
-      _buffers.resize(_imageCount);
-      for (uint32_t i = 0; i < _imageCount; i++)
+      for (uint32_t i = 0; i < imageCount; i++)
       {
          VkImageViewCreateInfo colorAttachmentView = {};
          colorAttachmentView.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
          colorAttachmentView.pNext = NULL;
          colorAttachmentView.format = _colorFormat;
-         colorAttachmentView.components = {
-            VK_COMPONENT_SWIZZLE_R,
-            VK_COMPONENT_SWIZZLE_G,
-            VK_COMPONENT_SWIZZLE_B,
-            VK_COMPONENT_SWIZZLE_A
-         };
+         colorAttachmentView.components = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B,VK_COMPONENT_SWIZZLE_A};
          colorAttachmentView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
          colorAttachmentView.subresourceRange.baseMipLevel = 0;
-         colorAttachmentView.subresourceRange.levelCount = 1;
          colorAttachmentView.subresourceRange.baseArrayLayer = 0;
          colorAttachmentView.subresourceRange.layerCount = 1;
+         colorAttachmentView.subresourceRange.levelCount = 1;
          colorAttachmentView.viewType = VK_IMAGE_VIEW_TYPE_2D;
          colorAttachmentView.flags = 0;
 
-         _buffers[i].image = _images[i];
+         colorAttachmentView.image = _images[i];
 
-         colorAttachmentView.image = _buffers[i].image;
-
-         VK_CHECK_RESULT(vkCreateImageView(device, &colorAttachmentView, nullptr, &_buffers[i].view));
+         VK_CHECK_RESULT(vkCreateImageView(device, &colorAttachmentView, nullptr, &_imageViews[i]));
       }
    }
 
-   /**
-   * Acquires the next image in the swap chain
-   *
-   * @param presentCompleteSemaphore (Optional) Semaphore that is signaled when the image is ready for use
-   * @param imageIndex Pointer to the image index that will be increased if the next image could be acquired
-   *
-   * @note The function will always wait until the next image has been acquired by setting timeout to UINT64_MAX
-   *
-   * @return VkResult of the image acquisition
-   */
-   VkResult VulkanSwapChain::acquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex)
+   VkResult VulkanSwapChain::acquireNextImage(uint32_t& imageIndex, VkSemaphore presentCompleteSemaphore)
    {
       // By setting timeout to UINT64_MAX we will always wait until the next image has been acquired or an actual error is thrown
       // With that we don't have to handle VK_NOT_READY
-      return genesis::vkAcquireNextImageKHR(_device->vulkanDevice(), _swapChain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, imageIndex);
+      return genesis::vkAcquireNextImageKHR(_device->vulkanDevice(), _swapChain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, &imageIndex);
    }
 
-   /**
-   * Queue an image for presentation
-   *
-   * @param queue Presentation queue for presenting the image
-   * @param imageIndex Index of the swapchain image to queue for presentation
-   * @param waitSemaphore (Optional) Semaphore that is waited on before the image is presented (only used if != VK_NULL_HANDLE)
-   *
-   * @return VkResult of the queue presentation
-   */
    VkResult VulkanSwapChain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore)
    {
       VkPresentInfoKHR presentInfo = {};
@@ -467,17 +441,13 @@ namespace genesis
       return genesis::vkQueuePresentKHR(queue, &presentInfo);
    }
 
-
-   /**
-   * Destroy and free Vulkan resources used for the swapchain
-   */
    void VulkanSwapChain::cleanup()
    {
       if (_swapChain != VK_NULL_HANDLE)
       {
-         for (uint32_t i = 0; i < _imageCount; i++)
+         for (uint32_t i = 0; i < _imageViews.size(); i++)
          {
-            vkDestroyImageView(_device->vulkanDevice(), _buffers[i].view, nullptr);
+            vkDestroyImageView(_device->vulkanDevice(), _imageViews[i], nullptr);
          }
       }
       if (_surface != VK_NULL_HANDLE)
@@ -487,6 +457,23 @@ namespace genesis
       }
       _surface = VK_NULL_HANDLE;
       _swapChain = VK_NULL_HANDLE;
+   }
+
+   uint32_t VulkanSwapChain::imageCount(void) const
+   {
+      return (uint32_t)_images.size();
+   }
+
+   const VkImage& VulkanSwapChain::image(int index) const
+   {
+      assert(index < _images.size());
+      return _images[index];
+   }
+
+   const VkImageView& VulkanSwapChain::imageView(int index) const
+   {
+      assert(index < _imageViews.size());
+      return _imageViews[index];
    }
 }
 

@@ -34,11 +34,6 @@ namespace genesis
 {
    class Device;
 
-   typedef struct _SwapChainBuffers {
-      VkImage image;
-      VkImageView view;
-   } SwapChainBuffer;
-
    class VulkanSwapChain
    {
    public:
@@ -70,33 +65,53 @@ namespace genesis
       void createDirect2DisplaySurface(uint32_t width, uint32_t height);
 #endif
 #endif
-
+      //! create a swap chain
       virtual void create(uint32_t* width, uint32_t* height, bool vsync = false);
-      virtual VkResult acquireNextImage(VkSemaphore presentCompleteSemaphore, uint32_t* imageIndex);
-      virtual VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore = VK_NULL_HANDLE);
+
+      //! clean up
       virtual void cleanup();
 
+      //! get the next image to render to in the swap chain
+      //! @param presentCompleteSemaphore (Optional) Semaphore that is signaled when the image is ready for use
+      //! @param imageIndex Pointer to the image index that will be increased (set to) if the next image could be acquired
+      //! * @note The function _will always wait_ until the next image has been acquired by internally setting timeout to UINT64_MAX
+      virtual VkResult acquireNextImage(uint32_t& imageIndex, VkSemaphore presentCompleteSemaphore = VK_NULL_HANDLE);
+
+      //! present the image
+      //! @param queue Presentation queue for presenting the image
+      //! @param imageIndex Index of the swapchain image to queue for presentation
+      //! @param waitSemaphore(Optional) Semaphore that is waited on before the image is presented(only used if != VK_NULL_HANDLE)
+      virtual VkResult queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore = VK_NULL_HANDLE);
+
+      //! what is the queue family index of this swap chain/surface
       virtual uint32_t presentationQueueFamilyIndex(void) const;
+
+      //! what is the color format of this swap chain/surface
       virtual VkFormat colorFormat(void) const;
-   public:
 
-      VkSwapchainKHR _swapChain = VK_NULL_HANDLE;
-      uint32_t _imageCount;
-      std::vector<VkImage> _images;
-      std::vector<SwapChainBuffer> _buffers;
+      //! what is the number of images of this swap chain/surface
+      virtual uint32_t imageCount(void) const;
 
+      virtual const VkImage& image(int index) const;
+
+      virtual const VkImageView& imageView(int index) const;
    protected:
       //! init the queue family index that supports presentation for this swap chain/surface
       virtual void computePresentationQueueFamilyIndex();
       //! compute the color format and space for this swap chain/surface
       virtual void computeColorFormatAndSpace();
+
    protected:
       const Device* _device;
 
       VkSurfaceKHR _surface;
       uint32_t _presentationQueueFamilyIndex = UINT32_MAX;
 
-      VkFormat _colorFormat;
+      VkFormat _colorFormat = VK_FORMAT_UNDEFINED;
       VkColorSpaceKHR _colorSpace;
+
+      VkSwapchainKHR _swapChain = VK_NULL_HANDLE;
+      std::vector<VkImage> _images;
+      std::vector<VkImageView> _imageViews;
    };
 }

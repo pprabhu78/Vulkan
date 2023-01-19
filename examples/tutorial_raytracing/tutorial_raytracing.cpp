@@ -42,62 +42,62 @@ void TutorialRayTracing::resetCamera()
 {
    if (_mainModel == "venus")
    {
-      camera.type = Camera::CameraType::lookat;
-      camera.setPosition(glm::vec3(0.0f, 0.0f, -2.5f));
-      camera.setRotation(glm::vec3(0.0f));
-      camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+      _camera.type = Camera::CameraType::lookat;
+      _camera.setPosition(glm::vec3(0.0f, 0.0f, -2.5f));
+      _camera.setRotation(glm::vec3(0.0f));
+      _camera.setPerspective(60.0f, (float)_width / (float)_height, 1.0f, 256.0f);
       _pushConstants.contributionFromEnvironment = 1;
    }
    else if (_mainModel == "cornell")
    {
-      camera.type = Camera::CameraType::lookat;
-      camera.setPosition(glm::vec3(0.0f, 0.0f, -14.5f));
-      camera.setRotation(glm::vec3(0.0f));
-      camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+      _camera.type = Camera::CameraType::lookat;
+      _camera.setPosition(glm::vec3(0.0f, 0.0f, -14.5f));
+      _camera.setRotation(glm::vec3(0.0f));
+      _camera.setPerspective(60.0f, (float)_width / (float)_height, 1.0f, 256.0f);
       _pushConstants.contributionFromEnvironment = 0;
    }
    else if (_mainModel == "sphere")
    {
-      camera.type = Camera::CameraType::lookat;
-      camera.setPosition(glm::vec3(0.0f, 0.0f, -10.5f));
-      camera.setRotation(glm::vec3(0.0f));
-      camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 256.0f);
+      _camera.type = Camera::CameraType::lookat;
+      _camera.setPosition(glm::vec3(0.0f, 0.0f, -10.5f));
+      _camera.setRotation(glm::vec3(0.0f));
+      _camera.setPerspective(60.0f, (float)_width / (float)_height, 1.0f, 256.0f);
       _pushConstants.contributionFromEnvironment = 1;
    }
    else if (_mainModel == "sponza")
    {
-      camera.type = genesis::Camera::CameraType::firstperson;
-      camera.setPosition(glm::vec3(0.0f, -1.0f, 0.0f));
-      camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
-      camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+      _camera.type = genesis::Camera::CameraType::firstperson;
+      _camera.setPosition(glm::vec3(0.0f, -1.0f, 0.0f));
+      _camera.setRotation(glm::vec3(0.0f, -90.0f, 0.0f));
+      _camera.setPerspective(60.0f, (float)_width / (float)_height, 0.1f, 256.0f);
 
-      camera.rotationSpeed = 0.2f;
+      _camera.rotationSpeed = 0.2f;
       _pushConstants.contributionFromEnvironment = 10;
    }
    else if (_mainModel == "bathroom")
    {
-      camera.type = genesis::Camera::CameraType::firstperson;
+      _camera.type = genesis::Camera::CameraType::firstperson;
 
-      camera.setPosition(glm::vec3(2.42036271f, -1.83941388, -5.26105785));
-      camera.setRotation(glm::vec3(19.6f, -303.601227, 0.0f));
-      camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 256.0f);
+      _camera.setPosition(glm::vec3(2.42036271f, -1.83941388, -5.26105785));
+      _camera.setRotation(glm::vec3(19.6f, -303.601227, 0.0f));
+      _camera.setPerspective(60.0f, (float)_width / (float)_height, 0.1f, 256.0f);
 
-      camera.rotationSpeed = 0.2f;
+      _camera.rotationSpeed = 0.2f;
       _pushConstants.contributionFromEnvironment = 1;
    }
    else
    {
-      camera.type = genesis::Camera::CameraType::lookat;
-      camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.5f));
-      camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
-      camera.setPerspective(60.0f, (float)width / (float)height, 0.1f, 512.0f);
+      _camera.type = genesis::Camera::CameraType::lookat;
+      _camera.setTranslation(glm::vec3(0.0f, 0.0f, -2.5f));
+      _camera.setRotation(glm::vec3(0.0f, 0.0f, 0.0f));
+      _camera.setPerspective(60.0f, (float)_width / (float)_height, 0.1f, 512.0f);
    }
 }
 
 TutorialRayTracing::TutorialRayTracing()
    : _pushConstants{}
 {
-   settings.overlay = false;
+   _settings.overlay = false;
 
    for (int i = 0; i < args.size(); ++i)
    {
@@ -117,7 +117,7 @@ TutorialRayTracing::TutorialRayTracing()
       _mainModel = "sponza";
    }
 
-   title = "genesis: path tracer";
+   _title = "genesis: path tracer";
 
    resetCamera();
 
@@ -564,14 +564,14 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
       , &_shaderBindingTable->missEntry()
       , &_shaderBindingTable->hitEntry()
       , &_shaderBindingTable->callableEntry()
-      , width
-      , height
+      , _width
+      , _height
       , 1);
 
    genesis::ImageTransitions transitions;
    // Prepare current swap chain image as transfer destination
    VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->_images[commandBufferIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
+   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
    // Prepare ray tracing output image as transfer source
    transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange);
@@ -581,16 +581,16 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    copyRegion.srcOffset = { 0, 0, 0 };
    copyRegion.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
    copyRegion.dstOffset = { 0, 0, 0 };
-   copyRegion.extent = { width, height, 1 };
-   vkCmdCopyImage(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapChain->_images[commandBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+   copyRegion.extent = { _width, _height, 1 };
+   vkCmdCopyImage(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
    // Transition swap chain image back for presentation
-   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->_images[commandBufferIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subresourceRange);
+   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subresourceRange);
 
    // Transition ray tracing output image back to general layout
    transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
 
-   drawImgui(_drawCommandBuffers[commandBufferIndex], frameBuffers[commandBufferIndex]);
+   drawImgui(_drawCommandBuffers[commandBufferIndex], _frameBuffers[commandBufferIndex]);
 
    VK_CHECK_RESULT(vkEndCommandBuffer(_drawCommandBuffers[commandBufferIndex]));
 }
@@ -610,18 +610,18 @@ void TutorialRayTracing::buildRasterizationCommandBuffers()
    VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
    renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
    renderPassBeginInfo.renderArea.offset = { 0, 0 };
-   renderPassBeginInfo.renderArea.extent = { width, height };
+   renderPassBeginInfo.renderArea.extent = { _width, _height };
 
    renderPassBeginInfo.clearValueCount = 2;
    renderPassBeginInfo.pClearValues = clearValues;
 
-   const VkViewport viewport = genesis::VulkanInitializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-   const VkRect2D scissor = genesis::VulkanInitializers::rect2D(width, height, 0, 0);
+   const VkViewport viewport = genesis::VulkanInitializers::viewport((float)_width, (float)_height, 0.0f, 1.0f);
+   const VkRect2D scissor = genesis::VulkanInitializers::rect2D(_width, _height, 0, 0);
 
    for (int32_t i = 0; i < _drawCommandBuffers.size(); ++i)
    {
       // Set target frame buffer
-      renderPassBeginInfo.framebuffer = frameBuffers[i];
+      renderPassBeginInfo.framebuffer = _frameBuffers[i];
 
       VK_CHECK_RESULT(vkBeginCommandBuffer(_drawCommandBuffers[i], &cmdBufInfo));
 
@@ -705,8 +705,8 @@ std::string TutorialRayTracing::generateTimeStampedFileName(void)
 void TutorialRayTracing::saveScreenShot(const std::string& fileName)
 {
    genesis::ScreenShotUtility screenShotUtility(_device);
-   screenShotUtility.takeScreenShot(fileName, _swapChain->_images[currentBuffer], _swapChain->colorFormat()
-      , width, height);
+   screenShotUtility.takeScreenShot(fileName, _swapChain->image(_currentFrameBufferIndex), _swapChain->colorFormat()
+      , _width, _height);
 }
 
 void TutorialRayTracing::nextRenderingMode(void)
@@ -733,7 +733,7 @@ void TutorialRayTracing::keyPressed(uint32_t key)
    }
    else if (key == KEY_F4)
    {
-      settings.overlay = !settings.overlay;
+      _settings.overlay = !_settings.overlay;
       buildCommandBuffers();
    }
    else if (key == KEY_R)
@@ -758,16 +758,16 @@ void TutorialRayTracing::draw()
 
    if (_mode == RAYTRACE)
    {
-      rayTrace(currentBuffer);
+      rayTrace(_currentFrameBufferIndex);
    }
    else if (_mode == RASTERIZATION)
    {
       ++_pushConstants.frameIndex;
    }
 
-   submitInfo.commandBufferCount = 1;
-   submitInfo.pCommandBuffers = &_drawCommandBuffers[currentBuffer];
-   VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
+   _submitInfo.commandBufferCount = 1;
+   _submitInfo.pCommandBuffers = &_drawCommandBuffers[_currentFrameBufferIndex];
+   VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &_submitInfo, VK_NULL_HANDLE));
    VulkanApplication::submitFrame();
 
 #if 1
@@ -814,7 +814,7 @@ void TutorialRayTracing::draw()
 
 void TutorialRayTracing::render()
 {
-   if (!prepared)
+   if (!_prepared)
    {
       return;
    }
@@ -830,11 +830,11 @@ void TutorialRayTracing::viewChanged()
 void TutorialRayTracing::updateSceneUbo()
 {
    SceneUbo ubo;
-   ubo.viewMatrix = camera.matrices.view;
-   ubo.viewMatrixInverse = glm::inverse(camera.matrices.view);
+   ubo.viewMatrix = _camera.matrices.view;
+   ubo.viewMatrixInverse = glm::inverse(_camera.matrices.view);
 
-   ubo.projectionMatrix = camera.matrices.perspective;
-   ubo.projectionMatrixInverse = glm::inverse(camera.matrices.perspective);
+   ubo.projectionMatrix = _camera.matrices.perspective;
+   ubo.projectionMatrixInverse = glm::inverse(_camera.matrices.perspective);
 
    ubo.vertexSizeInBytes = sizeof(genesis::Vertex);
 
@@ -945,7 +945,7 @@ void TutorialRayTracing::prepare()
    createPipelines();
    createAndUpdateDescriptorSets();
    buildCommandBuffers();
-   prepared = true;
+   _prepared = true;
 }
 
 void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
@@ -988,13 +988,13 @@ void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer 
       return;
    }
    VkClearValue clearValues[2];
-   clearValues[0].color = defaultClearColor;
+   clearValues[0].color = _defaultClearColor;
    clearValues[1].depthStencil = { 1.0f, 0 };
 
    VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
    renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
    renderPassBeginInfo.renderArea.offset = { 0, 0 };
-   renderPassBeginInfo.renderArea.extent = { width, height };
+   renderPassBeginInfo.renderArea.extent = { _width, _height };
    renderPassBeginInfo.clearValueCount = 2;
    renderPassBeginInfo.pClearValues = clearValues;
    renderPassBeginInfo.framebuffer = framebuffer;
@@ -1046,11 +1046,11 @@ Set up a storage image that the ray generation shader will be writing to
 void TutorialRayTracing::createStorageImages()
 {
    // intermediate image does computations in full floating point
-   _intermediateImage = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, width, height
+   _intermediateImage = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, _width, _height
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
 
    // final image is used for presentation. So, its the same format as the swap chain
-   _finalImageToPresent = new genesis::StorageImage(_device, _swapChain->colorFormat(), width, height
+   _finalImageToPresent = new genesis::StorageImage(_device, _swapChain->colorFormat(), _width, _height
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
 
    genesis::ImageTransitions transitions;

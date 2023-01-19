@@ -41,18 +41,18 @@ using namespace genesis::tools;
 
 void MeshShaders::resetCamera()
 {
-   camera.type = Camera::CameraType::lookat;
-   camera.setPosition(glm::vec3(0.0f, 0.0f, -350.5f));
-   camera.setRotation(glm::vec3(0.0f));
-   camera.setPerspective(60.0f, (float)width / (float)height, 1.0f, 1000);
+   _camera.type = Camera::CameraType::lookat;
+   _camera.setPosition(glm::vec3(0.0f, 0.0f, -350.5f));
+   _camera.setRotation(glm::vec3(0.0f));
+   _camera.setPerspective(60.0f, (float)_width / (float)_height, 1.0f, 1000);
 }
 
 MeshShaders::MeshShaders()
    : _pushConstants{}
 {
-   settings.overlay = false;
+   _settings.overlay = false;
 
-   title = "genesis: mesh shaders";
+   _title = "genesis: mesh shaders";
 
    resetCamera();
 
@@ -378,18 +378,18 @@ void MeshShaders::buildRasterizationCommandBuffers()
    VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
    renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
    renderPassBeginInfo.renderArea.offset = { 0, 0 };
-   renderPassBeginInfo.renderArea.extent = { width, height };
+   renderPassBeginInfo.renderArea.extent = { _width, _height };
 
    renderPassBeginInfo.clearValueCount = 2;
    renderPassBeginInfo.pClearValues = clearValues;
 
-   const VkViewport viewport = genesis::VulkanInitializers::viewport((float)width, (float)height, 0.0f, 1.0f);
-   const VkRect2D scissor = genesis::VulkanInitializers::rect2D(width, height, 0, 0);
+   const VkViewport viewport = genesis::VulkanInitializers::viewport((float)_width, (float)_height, 0.0f, 1.0f);
+   const VkRect2D scissor = genesis::VulkanInitializers::rect2D(_width, _height, 0, 0);
 
    for (int32_t i = 0; i < _drawCommandBuffers.size(); ++i)
    {
       // Set target frame buffer
-      renderPassBeginInfo.framebuffer = frameBuffers[i];
+      renderPassBeginInfo.framebuffer = _frameBuffers[i];
 
       VK_CHECK_RESULT(vkBeginCommandBuffer(_drawCommandBuffers[i], &cmdBufInfo));
 
@@ -460,8 +460,8 @@ std::string MeshShaders::generateTimeStampedFileName(void)
 void MeshShaders::saveScreenShot(const std::string& fileName)
 {
    genesis::ScreenShotUtility screenShotUtility(_device);
-   screenShotUtility.takeScreenShot(fileName, _swapChain->_images[currentBuffer], _swapChain->colorFormat()
-      , width, height);
+   screenShotUtility.takeScreenShot(fileName, _swapChain->image(_currentFrameBufferIndex), _swapChain->colorFormat()
+      , _width, _height);
 }
 
 void MeshShaders::keyPressed(uint32_t key)
@@ -477,7 +477,7 @@ void MeshShaders::keyPressed(uint32_t key)
    }
    else if (key == KEY_F4)
    {
-      settings.overlay = !settings.overlay;
+      _settings.overlay = !_settings.overlay;
       buildCommandBuffers();
    }
 
@@ -499,9 +499,9 @@ void MeshShaders::draw()
 
    ++_pushConstants.frameIndex;
 
-   submitInfo.commandBufferCount = 1;
-   submitInfo.pCommandBuffers = &_drawCommandBuffers[currentBuffer];
-   VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &submitInfo, VK_NULL_HANDLE));
+   _submitInfo.commandBufferCount = 1;
+   _submitInfo.pCommandBuffers = &_drawCommandBuffers[_currentFrameBufferIndex];
+   VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &_submitInfo, VK_NULL_HANDLE));
    VulkanApplication::submitFrame();
 
 #if 1
@@ -514,7 +514,7 @@ void MeshShaders::draw()
 
 void MeshShaders::render()
 {
-   if (!prepared)
+   if (!_prepared)
    {
       return;
    }
@@ -530,11 +530,11 @@ void MeshShaders::viewChanged()
 void MeshShaders::updateSceneUbo()
 {
    SceneUbo ubo;
-   ubo.viewMatrix = camera.matrices.view;
-   ubo.viewMatrixInverse = glm::inverse(camera.matrices.view);
+   ubo.viewMatrix = _camera.matrices.view;
+   ubo.viewMatrixInverse = glm::inverse(_camera.matrices.view);
 
-   ubo.projectionMatrix = camera.matrices.perspective;
-   ubo.projectionMatrixInverse = glm::inverse(camera.matrices.perspective);
+   ubo.projectionMatrix = _camera.matrices.perspective;
+   ubo.projectionMatrixInverse = glm::inverse(_camera.matrices.perspective);
 
    ubo.vertexSizeInBytes = sizeof(genesis::Vertex);
 
@@ -593,7 +593,7 @@ void MeshShaders::prepare()
    createPipelines();
    createAndUpdateDescriptorSets();
    buildCommandBuffers();
-   prepared = true;
+   _prepared = true;
 }
 
 void MeshShaders::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
@@ -631,13 +631,13 @@ void MeshShaders::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebu
    // does not work with rasterization?
    return;
    VkClearValue clearValues[2];
-   clearValues[0].color = defaultClearColor;
+   clearValues[0].color = _defaultClearColor;
    clearValues[1].depthStencil = { 1.0f, 0 };
 
    VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
    renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
    renderPassBeginInfo.renderArea.offset = { 0, 0 };
-   renderPassBeginInfo.renderArea.extent = { width, height };
+   renderPassBeginInfo.renderArea.extent = { _width, _height };
    renderPassBeginInfo.clearValueCount = 2;
    renderPassBeginInfo.pClearValues = clearValues;
    renderPassBeginInfo.framebuffer = framebuffer;
