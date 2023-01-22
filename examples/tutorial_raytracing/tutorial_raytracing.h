@@ -79,6 +79,7 @@ protected:
    virtual void writeStorageImageDescriptors(void);
 
    virtual void buildRasterizationCommandBuffers(void);
+   virtual void buildRasterizationCommandBuffersDynamicRendering(void);
 
    virtual void reloadShaders(bool destroyExistingStuff);
 
@@ -90,7 +91,8 @@ protected:
    VkPhysicalDeviceAccelerationStructureFeaturesKHR _enabledAccelerationStructureFeatures{};
    VkPhysicalDeviceDescriptorIndexingFeaturesEXT _physicalDeviceDescriptorIndexingFeatures{};
    VkPhysicalDeviceShaderClockFeaturesKHR _physicalDeviceShaderClockFeaturesKHR{};
-
+   VkPhysicalDeviceDynamicRenderingFeatures _dynamicRenderingFeatures;
+   
 
    // Ray tracing
    VkPipeline _rayTracingPipeline;
@@ -149,4 +151,6 @@ protected:
    int _materialComponentViz;
 
    uint32_t _glTFLoadingFlags;
+
+   bool _dynamicRendering = false;
 };

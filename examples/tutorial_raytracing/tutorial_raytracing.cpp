@@ -110,6 +110,10 @@ TutorialRayTracing::TutorialRayTracing()
       {
          _mainModel = args[i + 1];
       }
+      else if (arg == "--dynamicRendering")
+      {
+         _dynamicRendering = true;
+      }
    }
 
    if (_mainModel == "")
@@ -145,9 +149,12 @@ TutorialRayTracing::TutorialRayTracing()
 
    // required for multi-draw
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME);
+
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
 }
 
-#define  ADD_NEXT(previous, current) current.pNext = &previous
+#define  ADD_FIRST(first) deviceCreatepNextChain = &first;
+#define  ADD_NEXT(current, next) current.pNext = &next
 
 void TutorialRayTracing::enableFeatures()
 {
@@ -169,30 +176,33 @@ void TutorialRayTracing::enableFeatures()
       _physicalDevice->enabledPhysicalDeviceFeatures().fillModeNonSolid = VK_TRUE;
    }
 
+   ADD_FIRST(_enabledBufferDeviceAddressFeatures);
    _enabledBufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;
    _enabledBufferDeviceAddressFeatures.bufferDeviceAddress = VK_TRUE;
 
+   ADD_NEXT(_enabledBufferDeviceAddressFeatures, _enabledRayTracingPipelineFeatures);
    _enabledRayTracingPipelineFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR;
    _enabledRayTracingPipelineFeatures.rayTracingPipeline = VK_TRUE;
-   ADD_NEXT(_enabledBufferDeviceAddressFeatures, _enabledRayTracingPipelineFeatures);
 
+   ADD_NEXT(_enabledRayTracingPipelineFeatures, _enabledAccelerationStructureFeatures);
    _enabledAccelerationStructureFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR;
    _enabledAccelerationStructureFeatures.accelerationStructure = VK_TRUE;
-   ADD_NEXT(_enabledRayTracingPipelineFeatures, _enabledAccelerationStructureFeatures);
 
+   ADD_NEXT(_enabledAccelerationStructureFeatures, _physicalDeviceDescriptorIndexingFeatures);
    _physicalDeviceDescriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT;
    _physicalDeviceDescriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-   ADD_NEXT(_enabledAccelerationStructureFeatures, _physicalDeviceDescriptorIndexingFeatures);
-
+   
+   ADD_NEXT(_physicalDeviceDescriptorIndexingFeatures, _physicalDeviceShaderClockFeaturesKHR);
    _physicalDeviceShaderClockFeaturesKHR.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR;
    _physicalDeviceShaderClockFeaturesKHR.shaderDeviceClock = true;
    _physicalDeviceShaderClockFeaturesKHR.shaderSubgroupClock = true;
-   ADD_NEXT(_physicalDeviceDescriptorIndexingFeatures, _physicalDeviceShaderClockFeaturesKHR);
 
-   deviceCreatepNextChain = &_physicalDeviceShaderClockFeaturesKHR;
+   ADD_NEXT(_physicalDeviceShaderClockFeaturesKHR, _dynamicRenderingFeatures);
+   _dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
+   _dynamicRenderingFeatures.dynamicRendering = true;
 }
 
 void TutorialRayTracing::destroyRasterizationStuff()
@@ -492,7 +502,8 @@ void TutorialRayTracing::createRasterizationPipeline()
    std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
    VkPipelineDynamicStateCreateInfo dynamicState = genesis::VulkanInitializers::pipelineDynamicStateCreateInfo(dynamicStateEnables.data(), static_cast<uint32_t>(dynamicStateEnables.size()), 0);
 
-   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::VulkanInitializers::graphicsPipelineCreateInfo(_rasterizationPipelineLayout, _renderPass->vulkanRenderPass());
+   VkRenderPass renderPass = (_dynamicRendering) ? nullptr : _renderPass->vulkanRenderPass();
+   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::VulkanInitializers::graphicsPipelineCreateInfo(_rasterizationPipelineLayout, renderPass);
 
    graphicsPipelineCreateInfo.pVertexInputState = &vertexInputState;
    graphicsPipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
@@ -509,6 +520,18 @@ void TutorialRayTracing::createRasterizationPipeline()
    graphicsPipelineCreateInfo.stageCount = (uint32_t)shaderStageInfos.size();
    graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();
 
+   VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{};
+   VkFormat colorFormat = _swapChain->colorFormat();
+   if (_dynamicRendering)
+   {
+      pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+      pipelineRenderingCreateInfo.colorAttachmentCount = 1;
+      pipelineRenderingCreateInfo.pColorAttachmentFormats = &colorFormat;
+      pipelineRenderingCreateInfo.depthAttachmentFormat = _depthFormat;
+      pipelineRenderingCreateInfo.stencilAttachmentFormat = _depthFormat;
+      graphicsPipelineCreateInfo.pNext = &pipelineRenderingCreateInfo;
+   }
+   
    VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipeline));
 
    rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
@@ -595,11 +618,111 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    VK_CHECK_RESULT(vkEndCommandBuffer(_drawCommandBuffers[commandBufferIndex]));
 }
 
+void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
+{
+   VkCommandBufferBeginInfo commandBufferBeginInfo = VulkanInitializers::commandBufferBeginInfo();
+
+   const VkViewport viewport = VulkanInitializers::viewport((float)_width, (float)_height, 0.0f, 1.0f);
+   const VkRect2D scissor = VulkanInitializers::rect2D(_width, _height, 0, 0);
+
+   ImageTransitions transitions;
+
+   for (int32_t i = 0; i < _drawCommandBuffers.size(); ++i)
+   {
+      VK_CHECK_RESULT(vkBeginCommandBuffer(_drawCommandBuffers[i], &commandBufferBeginInfo));
+
+      transitions.setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
+         , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+         , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+         , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I Think this should be bottom of pipe
+
+      // per the book: the outputs to the depth and stencil buffers occur as part of the late fragment test, so this along wit the early
+      // fragment tests includes the depth and stencil outputs
+      const VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+      transitions.setImageLayout(_drawCommandBuffers[i], _depthStencil.image
+         , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+         , VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 }
+         , pipelineStageFlags, pipelineStageFlags);
+
+      VkRenderingAttachmentInfo colorAttachment{};
+      colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+      colorAttachment.imageView = _swapChain->imageView(i);
+      colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+      colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+      colorAttachment.clearValue = { 0.0f, 0.0f, 0.2f, 1.0f };
+
+      VkRenderingAttachmentInfo depthStencilAttachment{};
+      depthStencilAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+      depthStencilAttachment.imageView = _depthStencil.view;
+      depthStencilAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+      depthStencilAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+      depthStencilAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+      depthStencilAttachment.clearValue = { 1.0f, 0.0f };
+
+      VkRenderingInfo renderingInfo{};
+      renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+      renderingInfo.renderArea = {0, 0, _width, _height};
+      renderingInfo.layerCount = 1;
+      renderingInfo.colorAttachmentCount = 1;
+      renderingInfo.pColorAttachments = &colorAttachment;
+      renderingInfo.pDepthAttachment = &depthStencilAttachment;
+      renderingInfo.pDepthAttachment = &depthStencilAttachment;
+         
+      genesis::vkCmdBeginRenderingKHR(_drawCommandBuffers[i], &renderingInfo);
+
+      // Update dynamic viewport state
+      vkCmdSetViewport(_drawCommandBuffers[i], 0, 1, &viewport);
+
+      // Update dynamic scissor state
+      vkCmdSetScissor(_drawCommandBuffers[i], 0, 1, &scissor);
+
+      // draw the sky box
+      vkCmdBindDescriptorSets(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationSkyBoxPipelineLayout, 0, 1, &_rasterizationDescriptorSet, 0, nullptr);
+      vkCmdPushConstants(_drawCommandBuffers[i], _rasterizationSkyBoxPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
+
+      if (!_wireframe)
+      {
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipeline);
+      }
+      else
+      {
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _skyBoxRasterizationPipelineWireframe);
+      }
+      _skyBoxManager->cell(0)->draw(_drawCommandBuffers[i], _rasterizationSkyBoxPipelineLayout);
+
+      // draw the model
+      vkCmdBindDescriptorSets(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineLayout, 0, 1, &_rasterizationDescriptorSet, 0, nullptr);
+      vkCmdPushConstants(_drawCommandBuffers[i], _rasterizationPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants), &_pushConstants);
+
+      if (!_wireframe)
+      {
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipeline);
+      }
+      else
+      {
+         vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipelineWireframe);
+      }
+
+      _cellManager->cell(0)->draw(_drawCommandBuffers[i], _rasterizationPipelineLayout);
+
+      // draw the UI
+      //drawUI(_drawCommandBuffers[i]);
+
+      genesis::vkCmdEndRenderingKHR(_drawCommandBuffers[i]);
+
+      transitions.setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
+         , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+         , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+         , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT); // PPP: I think this should be top of pipe
+
+      VK_CHECK_RESULT(vkEndCommandBuffer(_drawCommandBuffers[i]));
+   }
+}
+
 void TutorialRayTracing::buildRasterizationCommandBuffers()
 {
-   VkCommandBufferBeginInfo cmdBufInfo = {};
-   cmdBufInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-   cmdBufInfo.pNext = nullptr;
+   VkCommandBufferBeginInfo cmdBufInfo = VulkanInitializers::commandBufferBeginInfo();
 
    // Set clear values for all framebuffer attachments with loadOp set to clear
    // We use two attachments (color and depth) that are cleared at the start of the subpass and as such we need to set clear values for both
@@ -715,7 +838,7 @@ void TutorialRayTracing::nextRenderingMode(void)
    setupRenderPass();
    if (_mode == RASTERIZATION)
    {
-      buildRasterizationCommandBuffers();
+      buildCommandBuffers();
    }
    _pushConstants.frameIndex = -1;
 }
@@ -932,7 +1055,14 @@ void TutorialRayTracing::createPipelines()
 
 void TutorialRayTracing::buildCommandBuffers()
 {
-   buildRasterizationCommandBuffers();
+   if (_dynamicRendering)
+   {
+      buildRasterizationCommandBuffersDynamicRendering();
+   }
+   else
+   {
+      buildRasterizationCommandBuffers();
+   }
 }
 
 void TutorialRayTracing::prepare()

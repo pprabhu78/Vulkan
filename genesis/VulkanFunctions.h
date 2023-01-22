@@ -31,6 +31,9 @@ namespace genesis
    // mesh shaders
    extern PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT;
 
+   extern PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR;
+   extern PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR;
+
    class Device;
 
    class VulkanFunctionsInitializer

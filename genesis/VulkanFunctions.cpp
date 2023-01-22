@@ -34,6 +34,9 @@ namespace genesis
 
    PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT = nullptr;
 
+   PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = nullptr;
+   PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = nullptr;
+
    void VulkanFunctionsInitializer::initialize(Device* genesisDevice)
    {
       if (s_initialized)
@@ -68,6 +71,9 @@ namespace genesis
       vkGetSwapchainImagesKHR = reinterpret_cast<PFN_vkGetSwapchainImagesKHR>(vkGetDeviceProcAddr(device, "vkGetSwapchainImagesKHR"));
       vkAcquireNextImageKHR = reinterpret_cast<PFN_vkAcquireNextImageKHR>(vkGetDeviceProcAddr(device, "vkAcquireNextImageKHR"));
       vkQueuePresentKHR = reinterpret_cast<PFN_vkQueuePresentKHR>(vkGetDeviceProcAddr(device, "vkQueuePresentKHR"));
+
+      vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR"));
+      vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
 
       s_initialized = true;
    }
