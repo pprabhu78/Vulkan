@@ -3,6 +3,11 @@
 using namespace glm;
 namespace genesis{
 #endif
+
+#define ALPHA_OPAQUE 0
+#define ALPHA_MASK 1
+#define ALPHA_BLEND 2
+
 struct Material
 {
    vec4 baseColorFactor;
@@ -23,6 +28,11 @@ struct Material
 
    int normalTextureIndex;
 
+   int  alphaMode;
+
+   float transmissionFactor;
+   int transmissionTexture;
+
 #if CPU_SIDE_COMPILATION
    Material::Material()
       : baseColorFactor(vec4(1.0f))
@@ -31,9 +41,11 @@ struct Material
       , baseColorTextureIndex(-1)
       , roughness(0)
       , metalness(0)
+      , alphaMode(ALPHA_OPAQUE)
+      , transmissionFactor(0)
+      , transmissionTexture(-1)
    {
-      // nothing else
-}
+   }
 #endif
 };
 

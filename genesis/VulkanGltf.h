@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include "GenMath.h"
+#include "Vertex.h"
 
 #include <vulkan/vulkan.h>
 
@@ -27,14 +28,6 @@ namespace genesis
    class Buffer;
    class AccelerationStructure;
 
-   struct Vertex
-   {
-      Vector3_32 position;
-      Vector3_32 normal;
-      Vector2_32 uv;
-      Vector4_32 color;
-   };
-
    struct Primitive
    {
       uint32_t firstIndex;
@@ -46,7 +39,7 @@ namespace genesis
       int32_t materialIndex;
    };
 
-   class Mesh 
+   class Mesh
    {
    public:
       std::vector<Primitive> primitives;

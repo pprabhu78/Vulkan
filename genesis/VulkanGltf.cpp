@@ -8,7 +8,7 @@
 #include "Device.h"
 #include "VulkanInitializers.h"
 #include "VulkanDebug.h"
-#include "VulkanFunctions.h"
+#include "VulkanExtensions.h"
 #include "VulkanInitializers.h"
 #include "AccelerationStructure.h"
 
@@ -154,7 +154,6 @@ namespace genesis
          return;
       }
       _imageIndexToWhetherSrgb.insert({ index, isSrgb });
-
    }
 
    void VulkanGltfModel::loadMaterials(tinygltf::Model& glTfModel, bool srgbProcessing)
@@ -221,6 +220,13 @@ namespace genesis
          }
          // this is never an srgb texture
          addSrgbIndexIfNecessary(srgbProcessing, currentMaterial.emissiveTextureIndex, false);
+
+         auto transmissionIter = glTfMaterial.extensions.find("KHR_materials_transmission");
+         if (transmissionIter != glTfMaterial.extensions.end())
+         {
+            currentMaterial.transmissionFactor = (float)transmissionIter->second.Get("transmissionFactor").GetNumberAsDouble();
+            currentMaterial.transmissionTexture = (int)transmissionIter->second.Get("transmissionTexture").GetNumberAsInt();
+         }
 
          // Normals
          currentMaterial.normalTextureIndex = glTfMaterial.normalTexture.index;
