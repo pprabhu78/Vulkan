@@ -13,7 +13,7 @@
 #include "PhysicalDevice.h"
 #include "VulkanDebug.h"
 #include "VulkanInitializers.h"
-#include "VulkanFunctions.h"
+#include "VulkanExtensions.h"
 
 
 #ifdef VK_USE_PLATFORM_GLFW
@@ -493,8 +493,6 @@ namespace genesis
       // This is handled by a separate class that gets a logical device representation
       // and encapsulates functions related to a device
       _device = new Device(_physicalDevice, deviceCreatepNextChain);
-
-      VulkanFunctionsInitializer::initialize(_device);
 
       // Find a suitable depth format
       VkBool32 validDepthFormat = _physicalDevice->getSupportedDepthFormat(_depthFormat);

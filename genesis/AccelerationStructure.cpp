@@ -2,7 +2,7 @@
 #include "Device.h"
 #include "PhysicalDevice.h"
 #include "VulkanDebug.h"
-#include "VulkanFunctions.h"
+#include "VulkanExtensions.h"
 #include "Buffer.h"
 
 #include <iostream>
@@ -39,14 +39,14 @@ namespace genesis
       accelerationStructureCreateInfo.buffer = _buffer->vulkanBuffer();
       accelerationStructureCreateInfo.size = sizeInBytes;
       accelerationStructureCreateInfo.type = type;
-      vkCreateAccelerationStructureKHR(_device->vulkanDevice(), &accelerationStructureCreateInfo, nullptr, &_handle);
+      _device->extensions().vkCreateAccelerationStructureKHR(_device->vulkanDevice(), &accelerationStructureCreateInfo, nullptr, &_handle);
 
       ++s_totalCount;
    }
 
    AccelerationStructure::~AccelerationStructure()
    {
-      vkDestroyAccelerationStructureKHR(_device->vulkanDevice(), _handle, nullptr);
+      _device->extensions().vkDestroyAccelerationStructureKHR(_device->vulkanDevice(), _handle, nullptr);
       delete _buffer;
 
       --s_totalCount;
@@ -62,6 +62,6 @@ namespace genesis
       VkAccelerationStructureDeviceAddressInfoKHR accelerationStructureDeviceAddressInfo{};
       accelerationStructureDeviceAddressInfo.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_DEVICE_ADDRESS_INFO_KHR;
       accelerationStructureDeviceAddressInfo.accelerationStructure = _handle;
-      return vkGetAccelerationStructureDeviceAddressKHR(_device->vulkanDevice(), &accelerationStructureDeviceAddressInfo);
+      return _device->extensions().vkGetAccelerationStructureDeviceAddressKHR(_device->vulkanDevice(), &accelerationStructureDeviceAddressInfo);
    }
 }

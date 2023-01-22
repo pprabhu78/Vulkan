@@ -3,6 +3,8 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
+#include "VulkanExtensions.h"
+
 namespace genesis
 {
    class Buffer;
@@ -35,6 +37,8 @@ namespace genesis
       virtual VkCommandPool createCommandPool(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags createFlags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
       virtual bool enableDebugMarkers(void) const;
+
+      virtual const VulkanExtensions& extensions() const;
    protected:
       virtual void initQueueFamilyIndices(VkQueueFlags requestedQueueTypes);
    public:
@@ -57,5 +61,7 @@ namespace genesis
       bool _enableDebugMarkers;
 
       const float _defaultQueuePriority = 0.0f;
+
+      VulkanExtensions _vulkanFunctions;
    };
 }

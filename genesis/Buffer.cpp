@@ -1,7 +1,7 @@
 #include "Buffer.h"
 #include "Device.h"
 #include "PhysicalDevice.h"
-#include "VulkanFunctions.h"
+#include "VulkanExtensions.h"
 #include "VulkanDebug.h"
 #include "VulkanInitializers.h"
 #include "GenAssert.h"
@@ -86,7 +86,7 @@ namespace genesis
       VkBufferDeviceAddressInfoKHR info{};
       info.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
       info.buffer = _buffer;
-      return vkGetBufferDeviceAddressKHR(_device->vulkanDevice(), &info);
+      return _device->extensions().vkGetBufferDeviceAddressKHR(_device->vulkanDevice(), &info);
    }
 
    VulkanBuffer::VulkanBuffer(Device* _device, VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize sizeInBytes, void* data, const std::string& incomingName)

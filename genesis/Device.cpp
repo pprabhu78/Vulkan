@@ -132,6 +132,8 @@ namespace genesis
 
       // Get a graphics queue from the device
       vkGetDeviceQueue(_logicalDevice, _queueFamilyIndices.graphics, 0, &_graphicsQueue);
+
+      _vulkanFunctions.initialize(this);
    }
 
    Device::~Device()
@@ -232,9 +234,13 @@ namespace genesis
       return _graphicsQueue;
    }
 
-
    bool Device::enableDebugMarkers(void) const
    {
       return _enableDebugMarkers;
+   }
+
+   const VulkanExtensions& Device::extensions() const
+   {
+      return _vulkanFunctions;
    }
 }

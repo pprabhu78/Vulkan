@@ -1,4 +1,12 @@
-#include "VulkanFunctions.h"
+/*
+* Class wrapping access to the Vulkan extension functions (KHR, EXT, etc)
+*
+* Copyright (C) 2019-2023 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
+*
+* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+*/
+
+#include "VulkanExtensions.h"
 
 #include "Device.h"
 #include "PhysicalDevice.h"
@@ -8,43 +16,24 @@
 
 namespace genesis
 { 
-   bool VulkanFunctionsInitializer::s_initialized = false;
-
-   PFN_vkGetBufferDeviceAddressKHR vkGetBufferDeviceAddressKHR = nullptr;
-   PFN_vkCreateAccelerationStructureKHR vkCreateAccelerationStructureKHR = nullptr;
-   PFN_vkDestroyAccelerationStructureKHR vkDestroyAccelerationStructureKHR = nullptr;
-   PFN_vkGetAccelerationStructureBuildSizesKHR vkGetAccelerationStructureBuildSizesKHR = nullptr;
-   PFN_vkGetAccelerationStructureDeviceAddressKHR vkGetAccelerationStructureDeviceAddressKHR = nullptr;
-   PFN_vkBuildAccelerationStructuresKHR vkBuildAccelerationStructuresKHR = nullptr;
-   PFN_vkCmdBuildAccelerationStructuresKHR vkCmdBuildAccelerationStructuresKHR = nullptr;
-   PFN_vkCmdTraceRaysKHR vkCmdTraceRaysKHR = nullptr;
-   PFN_vkGetRayTracingShaderGroupHandlesKHR vkGetRayTracingShaderGroupHandlesKHR = nullptr;
-   PFN_vkCreateRayTracingPipelinesKHR vkCreateRayTracingPipelinesKHR = nullptr;
-
-   PFN_vkGetPhysicalDeviceSurfaceSupportKHR vkGetPhysicalDeviceSurfaceSupportKHR = nullptr;
-   PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR vkGetPhysicalDeviceSurfaceCapabilitiesKHR = nullptr;
-   PFN_vkGetPhysicalDeviceSurfaceFormatsKHR vkGetPhysicalDeviceSurfaceFormatsKHR = nullptr;
-   PFN_vkGetPhysicalDeviceSurfacePresentModesKHR vkGetPhysicalDeviceSurfacePresentModesKHR = nullptr;
-
-   PFN_vkCreateSwapchainKHR vkCreateSwapchainKHR = nullptr;
-   PFN_vkDestroySwapchainKHR vkDestroySwapchainKHR = nullptr;
-   PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR = nullptr;
-   PFN_vkAcquireNextImageKHR vkAcquireNextImageKHR = nullptr;
-   PFN_vkQueuePresentKHR vkQueuePresentKHR = nullptr;
-
-   PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT = nullptr;
-
-   PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = nullptr;
-   PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = nullptr;
-
-   void VulkanFunctionsInitializer::initialize(Device* genesisDevice)
+   VulkanExtensions::VulkanExtensions()
    {
-      if (s_initialized)
+      // no op
+   }
+
+   VulkanExtensions::~VulkanExtensions()
+   {
+      // no op
+   }
+
+   void VulkanExtensions::initialize(Device* gndevice)
+   {
+      if (_initialized)
       {
          return;
       }
 
-      VkDevice device = genesisDevice->vulkanDevice();
+      VkDevice device = gndevice->vulkanDevice();
 
       vkGetBufferDeviceAddressKHR = reinterpret_cast<PFN_vkGetBufferDeviceAddressKHR>(vkGetDeviceProcAddr(device, "vkGetBufferDeviceAddressKHR"));
       vkCmdBuildAccelerationStructuresKHR = reinterpret_cast<PFN_vkCmdBuildAccelerationStructuresKHR>(vkGetDeviceProcAddr(device, "vkCmdBuildAccelerationStructuresKHR"));
@@ -60,7 +49,7 @@ namespace genesis
       vkCmdDrawMeshTasksEXT = reinterpret_cast<PFN_vkCmdDrawMeshTasksEXT>(vkGetDeviceProcAddr(device, "vkCmdDrawMeshTasksEXT"));
 
       // swap chain functions
-      VkInstance instance = genesisDevice->physicalDevice()->instance()->vulkanInstance();
+      VkInstance instance = gndevice->physicalDevice()->instance()->vulkanInstance();
       vkGetPhysicalDeviceSurfaceSupportKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceSupportKHR>(vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfaceSupportKHR"));
       vkGetPhysicalDeviceSurfaceCapabilitiesKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR>(vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR"));
       vkGetPhysicalDeviceSurfaceFormatsKHR = reinterpret_cast<PFN_vkGetPhysicalDeviceSurfaceFormatsKHR>(vkGetInstanceProcAddr(instance, "vkGetPhysicalDeviceSurfaceFormatsKHR"));
@@ -75,7 +64,7 @@ namespace genesis
       vkCmdBeginRenderingKHR = reinterpret_cast<PFN_vkCmdBeginRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR"));
       vkCmdEndRenderingKHR = reinterpret_cast<PFN_vkCmdEndRenderingKHR>(vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR"));
 
-      s_initialized = true;
+      _initialized = true;
    }
   
 }

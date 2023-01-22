@@ -19,7 +19,7 @@
 #include "RenderPass.h"
 #include "VulkanInitializers.h"
 #include "VulkanDebug.h"
-#include "VulkanFunctions.h"
+#include "VulkanExtensions.h"
 #include "AccelerationStructure.h"
 #include "StorageImage.h"
 #include "ImageTransitions.h"
@@ -417,7 +417,7 @@ void MeshShaders::buildRasterizationCommandBuffers()
       vkCmdBindPipeline(_drawCommandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, _rasterizationPipeline);
 
       int numMeshlets = _model->meshes()[0].MeshletSubsets[0].Count;
-      genesis::vkCmdDrawMeshTasksEXT(_drawCommandBuffers[i], numMeshlets, 1, 1);
+      _device->extensions().vkCmdDrawMeshTasksEXT(_drawCommandBuffers[i], numMeshlets, 1, 1);
 
       // draw the UI
       //drawUI(_drawCommandBuffers[i]);

@@ -4,7 +4,7 @@
 #include "Buffer.h"
 #include "Device.h"
 #include "AccelerationStructure.h"
-#include "VulkanFunctions.h"
+#include "VulkanExtensions.h"
 
 #include <vector>
 #include <deque>
@@ -73,7 +73,7 @@ namespace genesis
       accelerationStructureBuildGeometryInfo.pGeometries = vecAccelerationStructureGeometries.data();
 
       VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo = VulkanInitializers::accelerationStructureBuildSizesInfoKHR();
-      vkGetAccelerationStructureBuildSizesKHR(
+      _device->extensions().vkGetAccelerationStructureBuildSizesKHR(
          _device->vulkanDevice(),
          VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
          &accelerationStructureBuildGeometryInfo,
@@ -100,7 +100,7 @@ namespace genesis
       // Build the acceleration structure on the device via a one-time command buffer submission
       // Some implementations may support acceleration structure building on the host (VkPhysicalDeviceAccelerationStructureFeaturesKHR->accelerationStructureHostCommands), but we prefer device builds
       VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
-      vkCmdBuildAccelerationStructuresKHR(
+      _device->extensions().vkCmdBuildAccelerationStructuresKHR(
          commandBuffer,
          1,
          &accelerationBuildGeometryInfo

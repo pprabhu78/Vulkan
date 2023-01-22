@@ -3,14 +3,14 @@
 * 
 * A swap chain is a collection of framebuffers used for rendering and presentation to the windowing system
 *
-* Copyright (C) 2019-2022 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
+* Copyright (C) 2019-2023 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
 #include "SwapChain.h"
 #include "VulkanDebug.h"
-#include "VulkanFunctions.h"
+#include "VulkanExtensions.h"
 #include "Device.h"
 #include "PhysicalDevice.h"
 #include "Instance.h"
@@ -49,7 +49,7 @@ namespace genesis
       std::vector<VkBool32> supportsPresent(queueProps.size());
       for (uint32_t i = 0; i < queueProps.size(); i++)
       {
-         genesis::vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, _surface, &supportsPresent[i]);
+         _device->extensions().vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, _surface, &supportsPresent[i]);
       }
 
       // Search for a graphics and a present queue in the array of queue
@@ -109,11 +109,11 @@ namespace genesis
 
       // Get list of supported surface formats
       uint32_t formatCount;
-      VK_CHECK_RESULT(genesis::vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, _surface, &formatCount, NULL));
+      VK_CHECK_RESULT(_device->extensions().vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, _surface, &formatCount, NULL));
       assert(formatCount > 0);
 
       std::vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);
-      VK_CHECK_RESULT(genesis::vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, _surface, &formatCount, surfaceFormats.data()));
+      VK_CHECK_RESULT(_device->extensions().vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, _surface, &formatCount, surfaceFormats.data()));
 
       // If the surface format list only includes one entry with VK_FORMAT_UNDEFINED,
       // there is no preferred format, so we assume VK_FORMAT_B8G8R8A8_UNORM
@@ -262,15 +262,15 @@ namespace genesis
 
       // Get physical device surface properties and formats
       VkSurfaceCapabilitiesKHR surfaceCapabilities;
-      VK_CHECK_RESULT(genesis::vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, _surface, &surfaceCapabilities));
+      VK_CHECK_RESULT(_device->extensions().vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, _surface, &surfaceCapabilities));
 
       // Get available present modes
       uint32_t presentModeCount;
-      VK_CHECK_RESULT(genesis::vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, _surface, &presentModeCount, NULL));
+      VK_CHECK_RESULT(_device->extensions().vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, _surface, &presentModeCount, NULL));
       assert(presentModeCount > 0);
 
       std::vector<VkPresentModeKHR> presentModes(presentModeCount);
-      VK_CHECK_RESULT(genesis::vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, _surface, &presentModeCount, presentModes.data()));
+      VK_CHECK_RESULT(_device->extensions().vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, _surface, &presentModeCount, presentModes.data()));
 
       VkExtent2D swapchainExtent = {};
       // If width (and height) equals the special value 0xFFFFFFFF, the size of the surface will be set by the swapchain
@@ -377,7 +377,7 @@ namespace genesis
          swapChainCreateInfo.imageUsage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
       }
 
-      VK_CHECK_RESULT(genesis::vkCreateSwapchainKHR(device, &swapChainCreateInfo, nullptr, &_swapChain));
+      VK_CHECK_RESULT(_device->extensions().vkCreateSwapchainKHR(device, &swapChainCreateInfo, nullptr, &_swapChain));
 
       // If an existing swap chain is re-created, destroy the old swap chain
       // This also cleans up all the presentable images
@@ -387,15 +387,15 @@ namespace genesis
          {
             vkDestroyImageView(device, _imageViews[i], nullptr);
          }
-         genesis::vkDestroySwapchainKHR(device, oldSwapchain, nullptr);
+         _device->extensions().vkDestroySwapchainKHR(device, oldSwapchain, nullptr);
       }
       uint32_t imageCount = 0;
-      VK_CHECK_RESULT(genesis::vkGetSwapchainImagesKHR(device, _swapChain, &imageCount, NULL));
+      VK_CHECK_RESULT(_device->extensions().vkGetSwapchainImagesKHR(device, _swapChain, &imageCount, NULL));
 
       // Get the swap chain images
       _images.resize(imageCount);
       _imageViews.resize(imageCount, 0);
-      VK_CHECK_RESULT(genesis::vkGetSwapchainImagesKHR(device, _swapChain, &imageCount, _images.data()));
+      VK_CHECK_RESULT(_device->extensions().vkGetSwapchainImagesKHR(device, _swapChain, &imageCount, _images.data()));
 
       // Get the swap chain buffers containing the image and imageview
       for (uint32_t i = 0; i < imageCount; i++)
@@ -423,7 +423,7 @@ namespace genesis
    {
       // By setting timeout to UINT64_MAX we will always wait until the next image has been acquired or an actual error is thrown
       // With that we don't have to handle VK_NOT_READY
-      return genesis::vkAcquireNextImageKHR(_device->vulkanDevice(), _swapChain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, &imageIndex);
+      return _device->extensions().vkAcquireNextImageKHR(_device->vulkanDevice(), _swapChain, UINT64_MAX, presentCompleteSemaphore, (VkFence)nullptr, &imageIndex);
    }
 
    VkResult SwapChain::queuePresent(VkQueue queue, uint32_t imageIndex, VkSemaphore waitSemaphore)
@@ -440,7 +440,7 @@ namespace genesis
          presentInfo.pWaitSemaphores = &waitSemaphore;
          presentInfo.waitSemaphoreCount = 1;
       }
-      return genesis::vkQueuePresentKHR(queue, &presentInfo);
+      return _device->extensions().vkQueuePresentKHR(queue, &presentInfo);
    }
 
    void SwapChain::cleanup()
@@ -454,7 +454,7 @@ namespace genesis
       }
       if (_surface != VK_NULL_HANDLE)
       {
-         genesis::vkDestroySwapchainKHR(_device->vulkanDevice(), _swapChain, nullptr);
+         _device->extensions().vkDestroySwapchainKHR(_device->vulkanDevice(), _swapChain, nullptr);
          vkDestroySurfaceKHR(_device->physicalDevice()->instance()->vulkanInstance(), _surface, nullptr);
       }
       _surface = VK_NULL_HANDLE;

@@ -1,7 +1,7 @@
 #include "ShaderBindingTable.h"
 #include "Device.h"
 #include "PhysicalDevice.h"
-#include "VulkanFunctions.h"
+#include "VulkanExtensions.h"
 #include "VulkanDebug.h"
 #include "Buffer.h"
 
@@ -74,7 +74,7 @@ namespace genesis
       const uint32_t sbtSize = groupCount * handleSizeAligned;
 
       std::vector<uint8_t> shaderHandleStorage(sbtSize);
-      VK_CHECK_RESULT(genesis::vkGetRayTracingShaderGroupHandlesKHR(_device->vulkanDevice(), raytracingPipeline, 0, groupCount, sbtSize, shaderHandleStorage.data()));
+      VK_CHECK_RESULT(_device->extensions().vkGetRayTracingShaderGroupHandlesKHR(_device->vulkanDevice(), raytracingPipeline, 0, groupCount, sbtSize, shaderHandleStorage.data()));
 
       const VkBufferUsageFlags bufferUsageFlags = VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
       const VkMemoryPropertyFlags memoryUsageFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;

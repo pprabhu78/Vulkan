@@ -18,7 +18,7 @@
 #include "RenderPass.h"
 #include "VulkanInitializers.h"
 #include "VulkanDebug.h"
-#include "VulkanFunctions.h"
+#include "VulkanExtensions.h"
 #include "AccelerationStructure.h"
 #include "StorageImage.h"
 #include "ImageTransitions.h"
@@ -429,7 +429,7 @@ void TutorialRayTracing::createRayTracingPipeline()
    rayTracingPipelineCreateInfo.pGroups = _shaderBindingTable->shaderGroups().data();
    rayTracingPipelineCreateInfo.maxPipelineRayRecursionDepth = 1;
    rayTracingPipelineCreateInfo.layout = _rayTracingPipelineLayout;
-   VK_CHECK_RESULT(genesis::vkCreateRayTracingPipelinesKHR(_device->vulkanDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rayTracingPipelineCreateInfo, nullptr, &_rayTracingPipeline));
+   VK_CHECK_RESULT(_device->extensions().vkCreateRayTracingPipelinesKHR(_device->vulkanDevice(), VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &rayTracingPipelineCreateInfo, nullptr, &_rayTracingPipeline));
 
    _shaderBindingTable->build(_rayTracingPipeline);
 }
@@ -581,7 +581,7 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
       sizeof(PushConstants),
       &_pushConstants);
 
-   genesis::vkCmdTraceRaysKHR(
+   _device->extensions().vkCmdTraceRaysKHR(
       _drawCommandBuffers[commandBufferIndex]
       , &_shaderBindingTable->raygenEntry()
       , &_shaderBindingTable->missEntry()
@@ -669,7 +669,7 @@ void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
       renderingInfo.pDepthAttachment = &depthStencilAttachment;
       renderingInfo.pDepthAttachment = &depthStencilAttachment;
          
-      genesis::vkCmdBeginRenderingKHR(_drawCommandBuffers[i], &renderingInfo);
+      _device->extensions().vkCmdBeginRenderingKHR(_drawCommandBuffers[i], &renderingInfo);
 
       // Update dynamic viewport state
       vkCmdSetViewport(_drawCommandBuffers[i], 0, 1, &viewport);
@@ -709,7 +709,7 @@ void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
       // draw the UI
       //drawUI(_drawCommandBuffers[i]);
 
-      genesis::vkCmdEndRenderingKHR(_drawCommandBuffers[i]);
+      _device->extensions().vkCmdEndRenderingKHR(_drawCommandBuffers[i]);
 
       transitions.setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
          , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
