@@ -14,6 +14,7 @@
 #include "VulkanUIOverlay.h"
 #include "SwapChain.h"
 #include "Benchmark.h"
+#include "StorageImage.h"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -171,12 +172,7 @@ namespace genesis
 
       uint32_t apiVersion = VK_API_VERSION_1_0;
 
-      struct
-      {
-         VkImage image;
-         VkDeviceMemory mem;
-         VkImageView view;
-      } _depthStencil;
+      StorageImage* _depthStencilImage = nullptr;
 
       struct
       {
@@ -281,6 +277,7 @@ namespace genesis
       virtual void setupSwapChain();
       virtual void createCommandBuffers();
       virtual void destroyCommandBuffers();
+      virtual void deleteDepthStencil(void);
    private:
       std::string getWindowTitle();
       bool viewUpdated = false;

@@ -415,9 +415,8 @@ namespace genesis
       {
          delete shader;
       }
-      vkDestroyImageView(_device->vulkanDevice(), _depthStencil.view, nullptr);
-      vkDestroyImage(_device->vulkanDevice(), _depthStencil.image, nullptr);
-      vkFreeMemory(_device->vulkanDevice(), _depthStencil.mem, nullptr);
+
+      deleteDepthStencil();
 
       vkDestroyPipelineCache(_device->vulkanDevice(), pipelineCache, nullptr);
 
@@ -778,43 +777,10 @@ namespace genesis
 
    void VulkanApplication::setupDepthStencil()
    {
-      VkImageCreateInfo imageCreateInfo{};
-      imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-      imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-      imageCreateInfo.format = _depthFormat;
-      imageCreateInfo.extent = { _width, _height, 1 };
-      imageCreateInfo.mipLevels = 1;
-      imageCreateInfo.arrayLayers = 1;
-      imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-      imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-      imageCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-
-      VK_CHECK_RESULT(vkCreateImage(_device->vulkanDevice(), &imageCreateInfo, nullptr, &_depthStencil.image));
-      VkMemoryRequirements memReqs{};
-      vkGetImageMemoryRequirements(_device->vulkanDevice(), _depthStencil.image, &memReqs);
-
-      VkMemoryAllocateInfo memAllloc{};
-      memAllloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-      memAllloc.allocationSize = memReqs.size;
-      memAllloc.memoryTypeIndex = _physicalDevice->getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-      VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memAllloc, nullptr, &_depthStencil.mem));
-      VK_CHECK_RESULT(vkBindImageMemory(_device->vulkanDevice(), _depthStencil.image, _depthStencil.mem, 0));
-
-      VkImageViewCreateInfo imageViewCreateInfo{};
-      imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-      imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-      imageViewCreateInfo.image = _depthStencil.image;
-      imageViewCreateInfo.format = _depthFormat;
-      imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-      imageViewCreateInfo.subresourceRange.levelCount = 1;
-      imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-      imageViewCreateInfo.subresourceRange.layerCount = 1;
-      imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-      // Stencil aspect should only be set on depth + stencil formats (VK_FORMAT_D16_UNORM_S8_UINT..VK_FORMAT_D32_SFLOAT_S8_UINT
-      if (_depthFormat >= VK_FORMAT_D16_UNORM_S8_UINT) {
-         imageViewCreateInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-      }
-      VK_CHECK_RESULT(vkCreateImageView(_device->vulkanDevice(), &imageViewCreateInfo, nullptr, &_depthStencil.view));
+      _depthStencilImage = new StorageImage(_device
+         , _depthFormat, _width, _height
+         , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+         , VK_IMAGE_TILING_OPTIMAL);
    }
 
    void VulkanApplication::setupFrameBuffer()
@@ -822,7 +788,7 @@ namespace genesis
       VkImageView attachments[2];
 
       // Depth/Stencil attachment is the same for all frame buffers
-      attachments[1] = _depthStencil.view;
+      attachments[1] = _depthStencilImage->vulkanImageView();
 
       VkFramebufferCreateInfo frameBufferCreateInfo = {};
       frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -877,9 +843,7 @@ namespace genesis
       setupSwapChain();
 
       // Recreate the frame buffers
-      vkDestroyImageView(_device->vulkanDevice(), _depthStencil.view, nullptr);
-      vkDestroyImage(_device->vulkanDevice(), _depthStencil.image, nullptr);
-      vkFreeMemory(_device->vulkanDevice(), _depthStencil.mem, nullptr);
+      deleteDepthStencil();
       setupDepthStencil();
       for (uint32_t i = 0; i < _frameBuffers.size(); i++) {
          vkDestroyFramebuffer(_device->vulkanDevice(), _frameBuffers[i], nullptr);
@@ -976,5 +940,11 @@ namespace genesis
    void VulkanApplication::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
    {
       // no op
+   }
+
+   void VulkanApplication::deleteDepthStencil(void)
+   {
+      delete _depthStencilImage;
+      _depthStencilImage = nullptr;
    }
 }

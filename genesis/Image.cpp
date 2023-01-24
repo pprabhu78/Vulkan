@@ -33,19 +33,19 @@ namespace genesis
    void Image::allocateImageAndMemory(VkImageUsageFlags usageFlags
       , VkMemoryPropertyFlags memoryPropertyFlags
       , VkImageTiling imageTiling
-      , int numFaces)
+      , int arrayLayers)
    {
       VkImageCreateInfo imageCreateInfo = VulkanInitializers::imageCreateInfo();
       imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
       imageCreateInfo.format = _format;
       imageCreateInfo.extent = { static_cast<uint32_t>(_width), static_cast<uint32_t>(_height), 1 };
       imageCreateInfo.mipLevels = _numMipMapLevels;
-      imageCreateInfo.arrayLayers = numFaces;
+      imageCreateInfo.arrayLayers = arrayLayers;
       imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
       imageCreateInfo.tiling = imageTiling;
       imageCreateInfo.usage = usageFlags;
       imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      if (numFaces == 6)
+      if (arrayLayers == 6)
       {
          imageCreateInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
       }

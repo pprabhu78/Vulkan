@@ -49,7 +49,7 @@ namespace genesis
       virtual void allocateImageAndMemory(VkImageUsageFlags usageFlags
          , VkMemoryPropertyFlags memoryPropertyFlags
          , VkImageTiling imageTiling
-         , int numFaces);
+         , int arrayLayers);
 
       //! internal
       virtual void generateMipMaps(void);

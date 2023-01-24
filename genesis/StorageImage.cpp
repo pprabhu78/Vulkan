@@ -10,6 +10,7 @@ namespace genesis
       , VkImageUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkImageTiling imageTiling)
       : Image(device)
       , _imageView(0)
+      , _usageFlags(usageFlags)
    {
       _format = format;
       _width = width;
@@ -32,7 +33,18 @@ namespace genesis
          imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
          imageViewCreateInfo.format = _format;
          imageViewCreateInfo.subresourceRange = {};
-         imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+         if (_usageFlags == VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT)
+         {
+            imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+            if (_format >= VK_FORMAT_D16_UNORM_S8_UINT) {
+               imageViewCreateInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+            }
+         }
+         else
+         {
+            imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+         }
+         
          imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
          imageViewCreateInfo.subresourceRange.levelCount = 1;
          imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;

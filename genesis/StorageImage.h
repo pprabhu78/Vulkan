@@ -22,6 +22,7 @@ namespace genesis
    protected:
 
       VkImageView _imageView;
+      const VkImageUsageFlags _usageFlags;
    };
 }
 
