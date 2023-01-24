@@ -778,18 +778,18 @@ namespace genesis
 
    void VulkanApplication::setupDepthStencil()
    {
-      VkImageCreateInfo imageCI{};
-      imageCI.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-      imageCI.imageType = VK_IMAGE_TYPE_2D;
-      imageCI.format = _depthFormat;
-      imageCI.extent = { _width, _height, 1 };
-      imageCI.mipLevels = 1;
-      imageCI.arrayLayers = 1;
-      imageCI.samples = VK_SAMPLE_COUNT_1_BIT;
-      imageCI.tiling = VK_IMAGE_TILING_OPTIMAL;
-      imageCI.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+      VkImageCreateInfo imageCreateInfo{};
+      imageCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+      imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+      imageCreateInfo.format = _depthFormat;
+      imageCreateInfo.extent = { _width, _height, 1 };
+      imageCreateInfo.mipLevels = 1;
+      imageCreateInfo.arrayLayers = 1;
+      imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+      imageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+      imageCreateInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-      VK_CHECK_RESULT(vkCreateImage(_device->vulkanDevice(), &imageCI, nullptr, &_depthStencil.image));
+      VK_CHECK_RESULT(vkCreateImage(_device->vulkanDevice(), &imageCreateInfo, nullptr, &_depthStencil.image));
       VkMemoryRequirements memReqs{};
       vkGetImageMemoryRequirements(_device->vulkanDevice(), _depthStencil.image, &memReqs);
 
@@ -800,21 +800,21 @@ namespace genesis
       VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memAllloc, nullptr, &_depthStencil.mem));
       VK_CHECK_RESULT(vkBindImageMemory(_device->vulkanDevice(), _depthStencil.image, _depthStencil.mem, 0));
 
-      VkImageViewCreateInfo imageViewCI{};
-      imageViewCI.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-      imageViewCI.viewType = VK_IMAGE_VIEW_TYPE_2D;
-      imageViewCI.image = _depthStencil.image;
-      imageViewCI.format = _depthFormat;
-      imageViewCI.subresourceRange.baseMipLevel = 0;
-      imageViewCI.subresourceRange.levelCount = 1;
-      imageViewCI.subresourceRange.baseArrayLayer = 0;
-      imageViewCI.subresourceRange.layerCount = 1;
-      imageViewCI.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+      VkImageViewCreateInfo imageViewCreateInfo{};
+      imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+      imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+      imageViewCreateInfo.image = _depthStencil.image;
+      imageViewCreateInfo.format = _depthFormat;
+      imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+      imageViewCreateInfo.subresourceRange.levelCount = 1;
+      imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+      imageViewCreateInfo.subresourceRange.layerCount = 1;
+      imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
       // Stencil aspect should only be set on depth + stencil formats (VK_FORMAT_D16_UNORM_S8_UINT..VK_FORMAT_D32_SFLOAT_S8_UINT
       if (_depthFormat >= VK_FORMAT_D16_UNORM_S8_UINT) {
-         imageViewCI.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+         imageViewCreateInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
       }
-      VK_CHECK_RESULT(vkCreateImageView(_device->vulkanDevice(), &imageViewCI, nullptr, &_depthStencil.view));
+      VK_CHECK_RESULT(vkCreateImageView(_device->vulkanDevice(), &imageViewCreateInfo, nullptr, &_depthStencil.view));
    }
 
    void VulkanApplication::setupFrameBuffer()

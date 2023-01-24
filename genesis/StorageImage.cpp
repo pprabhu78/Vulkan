@@ -28,18 +28,18 @@ namespace genesis
    {
       if (_imageView == 0)
       {
-         VkImageViewCreateInfo colorImageView = genesis::VulkanInitializers::imageViewCreateInfo();
-         colorImageView.viewType = VK_IMAGE_VIEW_TYPE_2D;
-         colorImageView.format = _format;
-         colorImageView.subresourceRange = {};
-         colorImageView.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-         colorImageView.subresourceRange.baseMipLevel = 0;
-         colorImageView.subresourceRange.levelCount = 1;
-         colorImageView.subresourceRange.baseArrayLayer = 0;
-         colorImageView.subresourceRange.layerCount = 1;
-         colorImageView.image = _image;
+         VkImageViewCreateInfo imageViewCreateInfo = genesis::VulkanInitializers::imageViewCreateInfo();
+         imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+         imageViewCreateInfo.format = _format;
+         imageViewCreateInfo.subresourceRange = {};
+         imageViewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+         imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
+         imageViewCreateInfo.subresourceRange.levelCount = 1;
+         imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
+         imageViewCreateInfo.subresourceRange.layerCount = 1;
+         imageViewCreateInfo.image = _image;
          StorageImage* nonConst = const_cast<StorageImage*>(this);
-         VK_CHECK_RESULT(vkCreateImageView(_device->vulkanDevice(), &colorImageView, nullptr, &(nonConst->_imageView)));
+         VK_CHECK_RESULT(vkCreateImageView(_device->vulkanDevice(), &imageViewCreateInfo, nullptr, &(nonConst->_imageView)));
       }
 
       return _imageView;
