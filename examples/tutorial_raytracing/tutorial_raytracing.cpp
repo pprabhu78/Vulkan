@@ -639,7 +639,7 @@ void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
       // per the book: the outputs to the depth and stencil buffers occur as part of the late fragment test, so this along wit the early
       // fragment tests includes the depth and stencil outputs
       const VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-      transitions.setImageLayout(_drawCommandBuffers[i], _depthStencil.image
+      transitions.setImageLayout(_drawCommandBuffers[i], _depthStencilImage->vulkanImage()
          , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
          , VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 }
          , pipelineStageFlags, pipelineStageFlags);
@@ -654,7 +654,7 @@ void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
 
       VkRenderingAttachmentInfo depthStencilAttachment{};
       depthStencilAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-      depthStencilAttachment.imageView = _depthStencil.view;
+      depthStencilAttachment.imageView = _depthStencilImage->vulkanImageView();
       depthStencilAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
       depthStencilAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
       depthStencilAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
