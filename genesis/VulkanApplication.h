@@ -265,6 +265,8 @@ namespace genesis
       } _semaphores;
 
       std::vector<VkFence> _waitFences;
+
+      bool _dynamicRendering = false;
    private:
       virtual void windowResize();
       virtual void handleMouseMove(int32_t x, int32_t y);
@@ -277,7 +279,8 @@ namespace genesis
       virtual void setupSwapChain();
       virtual void createCommandBuffers();
       virtual void destroyCommandBuffers();
-      virtual void deleteDepthStencil(void);
+      virtual void destroyDepthStencil(void);
+      virtual void destroyFrameBuffers(void);
    private:
       std::string getWindowTitle();
       bool viewUpdated = false;

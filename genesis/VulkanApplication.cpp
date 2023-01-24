@@ -120,7 +120,10 @@ namespace genesis
       setupDepthStencil();
       setupRenderPass();
       createPipelineCache();
-      setupFrameBuffer();
+      if (_dynamicRendering==false)
+      {
+         setupFrameBuffer();
+      }
       _settings.overlay = _settings.overlay && (!benchmark.active);
 
       UIOverlay.device = _device;
@@ -406,17 +409,16 @@ namespace genesis
       }
       destroyCommandBuffers();
       delete _renderPass;
-      for (uint32_t i = 0; i < _frameBuffers.size(); i++)
+      if (_dynamicRendering==false)
       {
-         vkDestroyFramebuffer(_device->vulkanDevice(), _frameBuffers[i], nullptr);
+         destroyFrameBuffers();
       }
-
       for (Shader* shader : _shaders)
       {
          delete shader;
       }
 
-      deleteDepthStencil();
+      destroyDepthStencil();
 
       vkDestroyPipelineCache(_device->vulkanDevice(), pipelineCache, nullptr);
 
@@ -790,9 +792,7 @@ namespace genesis
       // Depth/Stencil attachment is the same for all frame buffers
       attachments[1] = _depthStencilImage->vulkanImageView();
 
-      VkFramebufferCreateInfo frameBufferCreateInfo = {};
-      frameBufferCreateInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-      frameBufferCreateInfo.pNext = NULL;
+      VkFramebufferCreateInfo frameBufferCreateInfo = VulkanInitializers::framebufferCreateInfo();
       frameBufferCreateInfo.renderPass = _renderPass->vulkanRenderPass();
       frameBufferCreateInfo.attachmentCount = 2;
       frameBufferCreateInfo.pAttachments = attachments;
@@ -806,6 +806,14 @@ namespace genesis
       {
          attachments[0] = _swapChain->imageView(i);
          VK_CHECK_RESULT(vkCreateFramebuffer(_device->vulkanDevice(), &frameBufferCreateInfo, nullptr, &_frameBuffers[i]));
+      }
+   }
+
+   void VulkanApplication::destroyFrameBuffers(void)
+   {
+      for (uint32_t i = 0; i < _frameBuffers.size(); i++)
+      {
+         vkDestroyFramebuffer(_device->vulkanDevice(), _frameBuffers[i], nullptr);
       }
    }
 
@@ -843,15 +851,17 @@ namespace genesis
       setupSwapChain();
 
       // Recreate the frame buffers
-      deleteDepthStencil();
+      destroyDepthStencil();
       setupDepthStencil();
-      for (uint32_t i = 0; i < _frameBuffers.size(); i++) {
-         vkDestroyFramebuffer(_device->vulkanDevice(), _frameBuffers[i], nullptr);
+      if (_dynamicRendering == false)
+      {
+         destroyFrameBuffers();
+         setupFrameBuffer();
       }
-      setupFrameBuffer();
-
-      if ((_width > 0.0f) && (_height > 0.0f)) {
-         if (_settings.overlay) {
+      if ((_width > 0.0f) && (_height > 0.0f)) 
+      {
+         if (_settings.overlay) 
+         {
             UIOverlay.resize(_width, _height);
          }
       }
@@ -942,7 +952,7 @@ namespace genesis
       // no op
    }
 
-   void VulkanApplication::deleteDepthStencil(void)
+   void VulkanApplication::destroyDepthStencil(void)
    {
       delete _depthStencilImage;
       _depthStencilImage = nullptr;

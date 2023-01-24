@@ -613,7 +613,10 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    // Transition ray tracing output image back to general layout
    transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
 
-   drawImgui(_drawCommandBuffers[commandBufferIndex], _frameBuffers[commandBufferIndex]);
+   if (_dynamicRendering == false)
+   {
+      drawImgui(_drawCommandBuffers[commandBufferIndex], _frameBuffers[commandBufferIndex]);
+   }
 
    VK_CHECK_RESULT(vkEndCommandBuffer(_drawCommandBuffers[commandBufferIndex]));
 }

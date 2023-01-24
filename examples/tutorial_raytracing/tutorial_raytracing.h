@@ -151,6 +151,4 @@ protected:
    int _materialComponentViz;
 
    uint32_t _glTFLoadingFlags;
-
-   bool _dynamicRendering = false;
 };
