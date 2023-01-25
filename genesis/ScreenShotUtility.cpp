@@ -1,3 +1,9 @@
+/*
+* Copyright (C) 2021-2023 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
+*
+* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+*/
+
 #include "ScreenShotUtility.h"
 #include "ImageTransitions.h"
 #include "StorageImage.h"
@@ -49,7 +55,7 @@ namespace genesis
          , VK_FORMAT_R8G8B8A8_UNORM, swapChainWidth, swapChainHeight
          , VK_IMAGE_USAGE_TRANSFER_DST_BIT
          , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-         , VK_IMAGE_TILING_LINEAR
+         , VK_IMAGE_TILING_LINEAR, 1
       );
 
       VkImage srcImage = swapChainCurrentImage;

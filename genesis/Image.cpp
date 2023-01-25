@@ -1,3 +1,9 @@
+/*
+* Copyright (C) 2021-2023 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
+*
+* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+*/
+
 #include "Image.h"
 #include "Device.h"
 #include "PhysicalDevice.h"
@@ -16,6 +22,17 @@
 
 namespace genesis
 {
+   VkSampleCountFlagBits Image::toSampleCountFlagBits(int sampleCount)
+   {
+      if (sampleCount == 1) return VK_SAMPLE_COUNT_1_BIT;
+      if (sampleCount == 2) return VK_SAMPLE_COUNT_2_BIT;
+      if (sampleCount == 4) return VK_SAMPLE_COUNT_4_BIT;
+      if (sampleCount == 8) return VK_SAMPLE_COUNT_8_BIT;
+      if (sampleCount == 16) return VK_SAMPLE_COUNT_16_BIT;
+
+      return VK_SAMPLE_COUNT_1_BIT;
+   }
+
    Image::Image(Device* _device)
       : _device(_device)
    {
@@ -33,7 +50,7 @@ namespace genesis
    void Image::allocateImageAndMemory(VkImageUsageFlags usageFlags
       , VkMemoryPropertyFlags memoryPropertyFlags
       , VkImageTiling imageTiling
-      , int arrayLayers)
+      , int arrayLayers, int sampleCount)
    {
       VkImageCreateInfo imageCreateInfo = VulkanInitializers::imageCreateInfo();
       imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -41,7 +58,7 @@ namespace genesis
       imageCreateInfo.extent = { static_cast<uint32_t>(_width), static_cast<uint32_t>(_height), 1 };
       imageCreateInfo.mipLevels = _numMipMapLevels;
       imageCreateInfo.arrayLayers = arrayLayers;
-      imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+      imageCreateInfo.samples = toSampleCountFlagBits(sampleCount);
       imageCreateInfo.tiling = imageTiling;
       imageCreateInfo.usage = usageFlags;
       imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -85,7 +102,7 @@ namespace genesis
 
       allocateImageAndMemory(imageUsageFlags
          , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT // on the gpu
-         , VK_IMAGE_TILING_OPTIMAL, numFaces);
+         , VK_IMAGE_TILING_OPTIMAL, numFaces, 1);
 
       std::vector<VkBufferImageCopy> bufferCopyRegions;
 

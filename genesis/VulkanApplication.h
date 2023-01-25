@@ -1,7 +1,5 @@
 /*
-* Vulkan Example base class
-*
-* Copyright (C) by Sascha Willems - www.saschawillems.de
+* Copyright (C) 2021-2023 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
@@ -91,6 +89,11 @@ namespace genesis
       /** @brief (Virtual) Called after the physical device features have been read, can be used to set features to enable on the device */
       virtual void enableFeatures();
 
+      virtual void destroyDepthStencil(void);
+      virtual void setupMultiSampleColor();
+      virtual void destroyMultiSampleColor();
+      virtual void destroyFrameBuffers(void);
+
       /** @brief Prepares all Vulkan resources and functions required to run the sample */
       virtual void prepare();
 
@@ -173,6 +176,7 @@ namespace genesis
       uint32_t apiVersion = VK_API_VERSION_1_0;
 
       StorageImage* _depthStencilImage = nullptr;
+      StorageImage* _multiSampledColorImage = nullptr;
 
       struct
       {
@@ -267,6 +271,8 @@ namespace genesis
       std::vector<VkFence> _waitFences;
 
       bool _dynamicRendering = false;
+
+      int _sampleCount = 1;
    private:
       virtual void windowResize();
       virtual void handleMouseMove(int32_t x, int32_t y);
@@ -279,8 +285,6 @@ namespace genesis
       virtual void setupSwapChain();
       virtual void createCommandBuffers();
       virtual void destroyCommandBuffers();
-      virtual void destroyDepthStencil(void);
-      virtual void destroyFrameBuffers(void);
    private:
       std::string getWindowTitle();
       bool viewUpdated = false;

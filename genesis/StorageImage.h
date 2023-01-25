@@ -1,3 +1,9 @@
+/*
+* Copyright (C) 2021-2023 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
+*
+* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+*/
+
 #pragma once
 
 #include <vulkan/vulkan.h>
@@ -13,7 +19,7 @@ namespace genesis
    {
    public:
       StorageImage(Device* device, VkFormat format, int width, int height
-         , VkImageUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkImageTiling imageTiling);
+         , VkImageUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkImageTiling imageTiling, int sampleCount);
 
       virtual ~StorageImage();
    public:

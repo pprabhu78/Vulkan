@@ -1,7 +1,5 @@
 /*
-* Vulkan Example base class
-*
-* Copyright (C) by Sascha Willems - www.saschawillems.de
+* Copyright (C) 2021-2023 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
@@ -117,6 +115,7 @@ namespace genesis
       setupSwapChain();
       createCommandBuffers();
       createSynchronizationPrimitives();
+      setupMultiSampleColor();
       setupDepthStencil();
       setupRenderPass();
       createPipelineCache();
@@ -129,6 +128,7 @@ namespace genesis
       UIOverlay.device = _device;
       UIOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.vert.spv", genesis::ST_VERTEX_SHADER));
       UIOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.frag.spv", genesis::ST_FRAGMENT_SHADER));
+      UIOverlay.rasterizationSamples = Image::toSampleCountFlagBits(_sampleCount);
       UIOverlay.prepareResources();
       UIOverlay.preparePipeline(pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
    }
@@ -419,6 +419,7 @@ namespace genesis
       }
 
       destroyDepthStencil();
+      destroyMultiSampleColor();
 
       vkDestroyPipelineCache(_device->vulkanDevice(), pipelineCache, nullptr);
 
@@ -777,25 +778,66 @@ namespace genesis
       VK_CHECK_RESULT(vkCreateCommandPool(_device->vulkanDevice(), &cmdPoolInfo, nullptr, &_commandPool));
    }
 
+   void VulkanApplication::setupMultiSampleColor()
+   {
+      if (_sampleCount == 1)
+      {
+         return;
+      }
+      // Image will only be used as a transient target
+      VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+      _multiSampledColorImage = new StorageImage(_device
+         , _swapChain->colorFormat(), _width, _height
+         , usageFlags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+         , VK_IMAGE_TILING_OPTIMAL, _sampleCount);
+   }
+
    void VulkanApplication::setupDepthStencil()
    {
+      VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+      if (_sampleCount > 1)
+      {
+         // Image will only be used as a transient target
+         usageFlags |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+      }
+
       _depthStencilImage = new StorageImage(_device
          , _depthFormat, _width, _height
-         , VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-         , VK_IMAGE_TILING_OPTIMAL);
+         , usageFlags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+         , VK_IMAGE_TILING_OPTIMAL, _sampleCount);
    }
 
    void VulkanApplication::setupFrameBuffer()
    {
-      VkImageView attachments[2];
+      if (_dynamicRendering)
+      {
+         return;
+      }
+      
+      std::vector<VkImageView> attachments;
+      int swapChainAttachmentIndex = 0;
 
-      // Depth/Stencil attachment is the same for all frame buffers
-      attachments[1] = _depthStencilImage->vulkanImageView();
+      if (_sampleCount > 1)
+      {
+         attachments.resize(3, {});
+         swapChainAttachmentIndex = 1;
+
+         // Depth/Stencil attachment is the same for all frame buffers
+         attachments[0] = _multiSampledColorImage->vulkanImageView();
+         attachments[2] = _depthStencilImage->vulkanImageView();
+      }
+      else
+      {
+         attachments.resize(2, {});
+         swapChainAttachmentIndex = 0;
+         // Depth/Stencil attachment is the same for all frame buffers
+         attachments[1] = _depthStencilImage->vulkanImageView();
+      }
 
       VkFramebufferCreateInfo frameBufferCreateInfo = VulkanInitializers::framebufferCreateInfo();
       frameBufferCreateInfo.renderPass = _renderPass->vulkanRenderPass();
-      frameBufferCreateInfo.attachmentCount = 2;
-      frameBufferCreateInfo.pAttachments = attachments;
+      frameBufferCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+      frameBufferCreateInfo.pAttachments = attachments.data();
       frameBufferCreateInfo.width = _width;
       frameBufferCreateInfo.height = _height;
       frameBufferCreateInfo.layers = 1;
@@ -804,7 +846,7 @@ namespace genesis
       _frameBuffers.resize(_swapChain->imageCount());
       for (uint32_t i = 0; i < _frameBuffers.size(); i++)
       {
-         attachments[0] = _swapChain->imageView(i);
+         attachments[swapChainAttachmentIndex] = _swapChain->imageView(i);
          VK_CHECK_RESULT(vkCreateFramebuffer(_device->vulkanDevice(), &frameBufferCreateInfo, nullptr, &_frameBuffers[i]));
       }
    }
@@ -821,7 +863,7 @@ namespace genesis
    {
       if (_dynamicRendering == false)
       {
-         _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
+         _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR, _sampleCount);
       }
    }
    
@@ -853,9 +895,12 @@ namespace genesis
       _height = destHeight;
       setupSwapChain();
 
-      // Recreate the frame buffers
+      destroyMultiSampleColor();
+      setupMultiSampleColor();
+
       destroyDepthStencil();
       setupDepthStencil();
+
       if (_dynamicRendering == false)
       {
          destroyFrameBuffers();
@@ -959,5 +1004,11 @@ namespace genesis
    {
       delete _depthStencilImage;
       _depthStencilImage = nullptr;
+   }
+
+   void VulkanApplication::destroyMultiSampleColor(void)
+   {
+      delete _multiSampledColorImage;
+      _multiSampledColorImage = nullptr;
    }
 }

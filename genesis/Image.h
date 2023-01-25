@@ -1,3 +1,8 @@
+/*
+* Copyright (C) 2021-2023 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
+*
+* This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
+*/
 #pragma once
 
 #include <vulkan/vulkan.h>
@@ -26,6 +31,7 @@ namespace genesis
       //! load from buffer
       virtual bool loadFromBuffer(void* buffer, VkDeviceSize bufferSize, VkFormat format, int width, int height, const std::vector<int>& mipMapDataOffsets);
 
+      //! access the device
       virtual const Device* device(void) const;
 
       //! query parameters
@@ -34,10 +40,13 @@ namespace genesis
       virtual int height(void) const;
       virtual bool isCubeMap(void) const;
 
-      //! get vulkan internal
+      //! get Vulkan internal
       virtual VkFormat vulkanFormat(void) const;
       virtual VkImage vulkanImage(void) const;
       virtual VkDeviceMemory vulkanDeviceMemory(void) const;
+   public:
+      //! convert an integer sample count to the flag bits that is recognized by Vulkan
+      static VkSampleCountFlagBits toSampleCountFlagBits(int sampleCount);
    protected:
       //! internal
       virtual bool copyFromFileIntoImage(const std::string& fileName, bool srgb, uint32_t numFaces);
@@ -49,7 +58,7 @@ namespace genesis
       virtual void allocateImageAndMemory(VkImageUsageFlags usageFlags
          , VkMemoryPropertyFlags memoryPropertyFlags
          , VkImageTiling imageTiling
-         , int arrayLayers);
+         , int arrayLayers, int sampleCount);
 
       //! internal
       virtual void generateMipMaps(void);

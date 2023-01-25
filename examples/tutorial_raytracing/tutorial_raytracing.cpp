@@ -1,7 +1,7 @@
 /*
 * Ray tracing sample
 *
-* Copyright (C) 2019-2022 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
+* Copyright (C) 2021-2023 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
@@ -113,6 +113,12 @@ TutorialRayTracing::TutorialRayTracing()
       else if (arg == "--dynamicRendering")
       {
          _dynamicRendering = true;
+      }
+      else if (arg == "--antiAliasing" && (i + 1) < args.size())
+      {
+         std::stringstream ss;
+         ss << args[i + 1];
+         ss >> _sampleCount;
       }
    }
 
@@ -488,7 +494,7 @@ void TutorialRayTracing::createRasterizationPipeline()
    VkPipelineRasterizationStateCreateInfo rasterizationState = genesis::VulkanInitializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_BACK_BIT, VK_FRONT_FACE_COUNTER_CLOCKWISE, 0);
 
    // multisample state
-   VkPipelineMultisampleStateCreateInfo multisampleState = genesis::VulkanInitializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
+   VkPipelineMultisampleStateCreateInfo multisampleState = genesis::VulkanInitializers::pipelineMultisampleStateCreateInfo(Image::toSampleCountFlagBits(_sampleCount), 0);
 
    // depth stencil
    VkPipelineDepthStencilStateCreateInfo depthStencilState = genesis::VulkanInitializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
@@ -685,7 +691,6 @@ void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
    const VkViewport viewport = VulkanInitializers::viewport((float)_width, (float)_height, 0.0f, 1.0f);
    const VkRect2D scissor = VulkanInitializers::rect2D(_width, _height, 0, 0);
 
-
    for (int32_t i = 0; i < _drawCommandBuffers.size(); ++i)
    {
       VK_CHECK_RESULT(vkBeginCommandBuffer(_drawCommandBuffers[i], &commandBufferBeginInfo));
@@ -742,17 +747,28 @@ void TutorialRayTracing::buildRasterizationCommandBuffers()
 
    // Set clear values for all framebuffer attachments with loadOp set to clear
    // We use two attachments (color and depth) that are cleared at the start of the subpass and as such we need to set clear values for both
-   VkClearValue clearValues[2];
-   clearValues[0].color = { { 0.0f, 0.0f, 0.2f, 1.0f } };
-   clearValues[1].depthStencil = { 1.0f, 0 };
+   std::vector<VkClearValue> clearValues;
+   if (_sampleCount > 1)
+   {
+      clearValues.resize(3, {});
+      clearValues[0].color = { { 0.0f, 0.0f, 0.2f, 1.0f } };
+      clearValues[1].color = { { 0.0f, 0.0f, 0.2f, 1.0f } };
+      clearValues[2].depthStencil = { 1.0f, 0 };
+   }
+   else
+   {
+      clearValues.resize(2, {});
+      clearValues[0].color = { { 0.0f, 0.0f, 0.2f, 1.0f } };
+      clearValues[1].depthStencil = { 1.0f, 0 };
+   }
 
    VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
    renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
    renderPassBeginInfo.renderArea.offset = { 0, 0 };
    renderPassBeginInfo.renderArea.extent = { _width, _height };
 
-   renderPassBeginInfo.clearValueCount = 2;
-   renderPassBeginInfo.pClearValues = clearValues;
+   renderPassBeginInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+   renderPassBeginInfo.pClearValues = clearValues.data();
 
    const VkViewport viewport = genesis::VulkanInitializers::viewport((float)_width, (float)_height, 0.0f, 1.0f);
    const VkRect2D scissor = genesis::VulkanInitializers::rect2D(_width, _height, 0, 0);
@@ -1167,7 +1183,7 @@ void TutorialRayTracing::setupRenderPass()
    {
       if (_dynamicRendering == false)
       {
-         _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
+         _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD, 1);
       }
    }
    else
@@ -1206,11 +1222,11 @@ void TutorialRayTracing::createStorageImages()
 {
    // intermediate image does computations in full floating point
    _intermediateImage = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, _width, _height
-      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
+      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1);
 
    // final image is used for presentation. So, its the same format as the swap chain
    _finalImageToPresent = new genesis::StorageImage(_device, _swapChain->colorFormat(), _width, _height
-      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL);
+      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1);
 
    genesis::ImageTransitions transitions;
    VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
