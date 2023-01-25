@@ -613,14 +613,71 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    // Transition ray tracing output image back to general layout
    transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
 
-   if (_dynamicRendering == false)
-   {
-      drawImgui(_drawCommandBuffers[commandBufferIndex], _frameBuffers[commandBufferIndex]);
-   }
+   drawGuiAfterRayTrace(commandBufferIndex);
 
    VK_CHECK_RESULT(vkEndCommandBuffer(_drawCommandBuffers[commandBufferIndex]));
 }
 
+void TutorialRayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoadOp colorLoadOp)
+{
+   int i = swapChainImageIndex;
+   ImageTransitions transitions;
+
+   transitions.setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
+      , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+      , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+   , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I Think this should be bottom of pipe
+
+// per the book: the outputs to the depth and stencil buffers occur as part of the late fragment test, so this along wit the early
+// fragment tests includes the depth and stencil outputs
+   const VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+   transitions.setImageLayout(_drawCommandBuffers[i], _depthStencilImage->vulkanImage()
+      , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+      , VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 }
+   , pipelineStageFlags, pipelineStageFlags);
+
+   VkRenderingAttachmentInfo colorAttachment{};
+   colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+   colorAttachment.imageView = _swapChain->imageView(i);
+   colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+   colorAttachment.loadOp = colorLoadOp;
+   colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+   colorAttachment.clearValue = { 0.0f, 0.0f, 0.2f, 1.0f };
+
+   VkRenderingAttachmentInfo depthStencilAttachment{};
+   depthStencilAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+   depthStencilAttachment.imageView = _depthStencilImage->vulkanImageView();
+   depthStencilAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+   depthStencilAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+   depthStencilAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+   depthStencilAttachment.clearValue = { 1.0f, 0.0f };
+
+   VkRenderingInfo renderingInfo{};
+   renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+   renderingInfo.renderArea = { 0, 0, _width, _height };
+   renderingInfo.layerCount = 1;
+   renderingInfo.colorAttachmentCount = 1;
+   renderingInfo.pColorAttachments = &colorAttachment;
+   renderingInfo.pDepthAttachment = &depthStencilAttachment;
+   renderingInfo.pDepthAttachment = &depthStencilAttachment;
+
+   _device->extensions().vkCmdBeginRenderingKHR(_drawCommandBuffers[i], &renderingInfo);
+}
+
+void TutorialRayTracing::endDynamicRendering(int swapChainImageIndex)
+{
+   ImageTransitions transitions;
+
+   int i = swapChainImageIndex;
+
+   _device->extensions().vkCmdEndRenderingKHR(_drawCommandBuffers[i]);
+
+   transitions.setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
+      , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+      , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+   , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT); // PPP: I think this should be top of pipe
+
+}
 void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
 {
    VkCommandBufferBeginInfo commandBufferBeginInfo = VulkanInitializers::commandBufferBeginInfo();
@@ -628,52 +685,13 @@ void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
    const VkViewport viewport = VulkanInitializers::viewport((float)_width, (float)_height, 0.0f, 1.0f);
    const VkRect2D scissor = VulkanInitializers::rect2D(_width, _height, 0, 0);
 
-   ImageTransitions transitions;
 
    for (int32_t i = 0; i < _drawCommandBuffers.size(); ++i)
    {
       VK_CHECK_RESULT(vkBeginCommandBuffer(_drawCommandBuffers[i], &commandBufferBeginInfo));
 
-      transitions.setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
-         , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-         , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-         , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I Think this should be bottom of pipe
-
-      // per the book: the outputs to the depth and stencil buffers occur as part of the late fragment test, so this along wit the early
-      // fragment tests includes the depth and stencil outputs
-      const VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-      transitions.setImageLayout(_drawCommandBuffers[i], _depthStencilImage->vulkanImage()
-         , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-         , VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 }
-         , pipelineStageFlags, pipelineStageFlags);
-
-      VkRenderingAttachmentInfo colorAttachment{};
-      colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-      colorAttachment.imageView = _swapChain->imageView(i);
-      colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-      colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-      colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-      colorAttachment.clearValue = { 0.0f, 0.0f, 0.2f, 1.0f };
-
-      VkRenderingAttachmentInfo depthStencilAttachment{};
-      depthStencilAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-      depthStencilAttachment.imageView = _depthStencilImage->vulkanImageView();
-      depthStencilAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-      depthStencilAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-      depthStencilAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-      depthStencilAttachment.clearValue = { 1.0f, 0.0f };
-
-      VkRenderingInfo renderingInfo{};
-      renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-      renderingInfo.renderArea = {0, 0, _width, _height};
-      renderingInfo.layerCount = 1;
-      renderingInfo.colorAttachmentCount = 1;
-      renderingInfo.pColorAttachments = &colorAttachment;
-      renderingInfo.pDepthAttachment = &depthStencilAttachment;
-      renderingInfo.pDepthAttachment = &depthStencilAttachment;
-         
-      _device->extensions().vkCmdBeginRenderingKHR(_drawCommandBuffers[i], &renderingInfo);
-
+      beginDynamicRendering(i, VK_ATTACHMENT_LOAD_OP_CLEAR);
+   
       // Update dynamic viewport state
       vkCmdSetViewport(_drawCommandBuffers[i], 0, 1, &viewport);
 
@@ -712,12 +730,7 @@ void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
       // draw the UI
       drawUI(_drawCommandBuffers[i]);
 
-      _device->extensions().vkCmdEndRenderingKHR(_drawCommandBuffers[i]);
-
-      transitions.setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
-         , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-         , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-         , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT); // PPP: I think this should be top of pipe
+      endDynamicRendering(i);
 
       VK_CHECK_RESULT(vkEndCommandBuffer(_drawCommandBuffers[i]));
    }
@@ -1114,27 +1127,37 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
    }
 }
 
-void TutorialRayTracing::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer)
+void TutorialRayTracing::drawGuiAfterRayTrace(int swapChainImageIndex)
 {
    if (_mode == RASTERIZATION)
    {
       return;
    }
-   VkClearValue clearValues[2];
-   clearValues[0].color = _defaultClearColor;
-   clearValues[1].depthStencil = { 1.0f, 0 };
 
-   VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
-   renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
-   renderPassBeginInfo.renderArea.offset = { 0, 0 };
-   renderPassBeginInfo.renderArea.extent = { _width, _height };
-   renderPassBeginInfo.clearValueCount = 2;
-   renderPassBeginInfo.pClearValues = clearValues;
-   renderPassBeginInfo.framebuffer = framebuffer;
+   if (_dynamicRendering == false)
+   {
+      VkClearValue clearValues[2];
+      clearValues[0].color = _defaultClearColor;
+      clearValues[1].depthStencil = { 1.0f, 0 };
 
-   vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-   VulkanApplication::drawUI(commandBuffer);
-   vkCmdEndRenderPass(commandBuffer);
+      VkRenderPassBeginInfo renderPassBeginInfo = genesis::VulkanInitializers::renderPassBeginInfo();
+      renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
+      renderPassBeginInfo.renderArea.offset = { 0, 0 };
+      renderPassBeginInfo.renderArea.extent = { _width, _height };
+      renderPassBeginInfo.clearValueCount = 2;
+      renderPassBeginInfo.pClearValues = clearValues;
+      renderPassBeginInfo.framebuffer = _frameBuffers[swapChainImageIndex];
+
+      vkCmdBeginRenderPass(_drawCommandBuffers[swapChainImageIndex], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+      VulkanApplication::drawUI(_drawCommandBuffers[swapChainImageIndex]);
+      vkCmdEndRenderPass(_drawCommandBuffers[swapChainImageIndex]);
+   }
+   else
+   {
+      beginDynamicRendering(swapChainImageIndex, VK_ATTACHMENT_LOAD_OP_LOAD);
+      VulkanApplication::drawUI(_drawCommandBuffers[swapChainImageIndex]);
+      endDynamicRendering(swapChainImageIndex);
+   }
 }
 
 void TutorialRayTracing::setupRenderPass()

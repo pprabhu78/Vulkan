@@ -61,7 +61,7 @@ protected:
 
    virtual void rayTrace(int commandBufferIndex);
 
-   virtual void drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebuffer);
+   virtual void drawGuiAfterRayTrace(int swapChainImageIndex);
    virtual void destroyRayTracingStuff(bool storageImages);
    virtual void destroyRasterizationStuff();
    virtual void destroyCommonStuff();
@@ -84,6 +84,9 @@ protected:
    virtual void reloadShaders(bool destroyExistingStuff);
 
    virtual void nextRenderingMode(void);
+
+   virtual void beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoadOp colorLoadOp);
+   virtual void endDynamicRendering(int swapChainImageIndex);
 
 protected:
    VkPhysicalDeviceBufferDeviceAddressFeatures _enabledBufferDeviceAddressFeatures{};
