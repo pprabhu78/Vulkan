@@ -710,7 +710,7 @@ void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
       _cellManager->cell(0)->draw(_drawCommandBuffers[i], _rasterizationPipelineLayout);
 
       // draw the UI
-      //drawUI(_drawCommandBuffers[i]);
+      drawUI(_drawCommandBuffers[i]);
 
       _device->extensions().vkCmdEndRenderingKHR(_drawCommandBuffers[i]);
 
@@ -1142,7 +1142,10 @@ void TutorialRayTracing::setupRenderPass()
    delete _renderPass;
    if (_mode == RAYTRACE)
    {
-      _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
+      if (_dynamicRendering == false)
+      {
+         _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_LOAD);
+      }
    }
    else
    {

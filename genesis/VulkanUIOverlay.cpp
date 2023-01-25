@@ -184,7 +184,7 @@ namespace genesis
    }
 
    /** Prepare a separate pipeline for the UI overlay rendering decoupled from the main application */
-   void UIOverlay::preparePipeline(const VkPipelineCache pipelineCache, const VkRenderPass renderPass)
+   void UIOverlay::preparePipeline(const VkPipelineCache pipelineCache, const VkRenderPass renderPass, VkFormat colorFormat, VkFormat depthFormat)
    {
       // Pipeline layout
       // Push constants for UI rendering parameters
@@ -251,6 +251,17 @@ namespace genesis
       
       pipelineCreateInfo.subpass = subpass;
 
+      VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo = {};
+      if (renderPass==VK_NULL_HANDLE)
+      {
+         pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+         pipelineRenderingCreateInfo.colorAttachmentCount = 1;
+         pipelineRenderingCreateInfo.pColorAttachmentFormats = &colorFormat;
+         pipelineRenderingCreateInfo.depthAttachmentFormat = depthFormat;
+         pipelineRenderingCreateInfo.stencilAttachmentFormat = depthFormat;
+         pipelineCreateInfo.pNext = &pipelineRenderingCreateInfo;
+      }
+      
       // Vertex bindings an attributes based on ImGui vertex definition
       std::vector<VkVertexInputBindingDescription> vertexInputBindings = {
       VulkanInitializers::vertexInputBindingDescription(0, sizeof(ImDrawVert), VK_VERTEX_INPUT_RATE_VERTEX),

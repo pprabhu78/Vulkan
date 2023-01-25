@@ -130,7 +130,7 @@ namespace genesis
       UIOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.vert.spv", genesis::ST_VERTEX_SHADER));
       UIOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.frag.spv", genesis::ST_FRAGMENT_SHADER));
       UIOverlay.prepareResources();
-      UIOverlay.preparePipeline(pipelineCache, _renderPass->vulkanRenderPass());
+      UIOverlay.preparePipeline(pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
    }
 
    genesis::Shader* VulkanApplication::loadShader(std::string fileName, genesis::ShaderType stage)
@@ -819,9 +819,12 @@ namespace genesis
 
    void VulkanApplication::setupRenderPass()
    {
-      _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
+      if (_dynamicRendering == false)
+      {
+         _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR);
+      }
    }
-
+   
    void VulkanApplication::enableFeatures() 
    {
       // no op

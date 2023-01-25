@@ -61,7 +61,7 @@ namespace genesis
 		UIOverlay();
 		~UIOverlay();
 
-		void preparePipeline(const VkPipelineCache pipelineCache, const VkRenderPass renderPass);
+		void preparePipeline(const VkPipelineCache pipelineCache, const VkRenderPass renderPass, VkFormat colorFormat, VkFormat depthFormat);
 		void prepareResources();
 
 		bool update();
