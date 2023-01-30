@@ -31,7 +31,7 @@ namespace genesis
 
       // Dimensions
       ImGuiIO& io = ImGui::GetIO();
-      io.FontGlobalScale = scale;
+      io.FontGlobalScale = _scale;
    }
 
    UIOverlay::~UIOverlay() { }
@@ -70,14 +70,14 @@ namespace genesis
       imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
       imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
       imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-      VK_CHECK_RESULT(vkCreateImage(device->vulkanDevice(), &imageInfo, nullptr, &fontImage));
+      VK_CHECK_RESULT(vkCreateImage(_device->vulkanDevice(), &imageInfo, nullptr, &fontImage));
       VkMemoryRequirements memReqs;
-      vkGetImageMemoryRequirements(device->vulkanDevice(), fontImage, &memReqs);
+      vkGetImageMemoryRequirements(_device->vulkanDevice(), fontImage, &memReqs);
       VkMemoryAllocateInfo memAllocInfo = VulkanInitializers::memoryAllocateInfo();
       memAllocInfo.allocationSize = memReqs.size;
-      memAllocInfo.memoryTypeIndex = device->physicalDevice()->getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-      VK_CHECK_RESULT(vkAllocateMemory(device->vulkanDevice(), &memAllocInfo, nullptr, &fontMemory));
-      VK_CHECK_RESULT(vkBindImageMemory(device->vulkanDevice(), fontImage, fontMemory, 0));
+      memAllocInfo.memoryTypeIndex = _device->physicalDevice()->getMemoryTypeIndex(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+      VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memAllocInfo, nullptr, &fontMemory));
+      VK_CHECK_RESULT(vkBindImageMemory(_device->vulkanDevice(), fontImage, fontMemory, 0));
 
       // Image view
       VkImageViewCreateInfo viewInfo = VulkanInitializers::imageViewCreateInfo();
@@ -87,10 +87,10 @@ namespace genesis
       viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
       viewInfo.subresourceRange.levelCount = 1;
       viewInfo.subresourceRange.layerCount = 1;
-      VK_CHECK_RESULT(vkCreateImageView(device->vulkanDevice(), &viewInfo, nullptr, &fontView));
+      VK_CHECK_RESULT(vkCreateImageView(_device->vulkanDevice(), &viewInfo, nullptr, &fontView));
 
       // Staging buffers for font data upload
-      VulkanBuffer* stagingBuffer = new VulkanBuffer(device
+      VulkanBuffer* stagingBuffer = new VulkanBuffer(_device
          , VK_BUFFER_USAGE_TRANSFER_SRC_BIT
          , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
          , uploadSize);
@@ -100,7 +100,7 @@ namespace genesis
       stagingBuffer->unmap();
 
       // Copy buffer data to font image
-      VkCommandBuffer copyCmd = device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
+      VkCommandBuffer copyCmd = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
       // Prepare for transfer
       ImageTransitions transitions;
@@ -140,7 +140,7 @@ namespace genesis
          VK_PIPELINE_STAGE_TRANSFER_BIT,
          VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 
-      device->flushCommandBuffer(copyCmd);
+      _device->flushCommandBuffer(copyCmd);
 
       delete stagingBuffer;
 
@@ -153,34 +153,34 @@ namespace genesis
       samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
       samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
       samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-      VK_CHECK_RESULT(vkCreateSampler(device->vulkanDevice(), &samplerInfo, nullptr, &sampler));
+      VK_CHECK_RESULT(vkCreateSampler(_device->vulkanDevice(), &samplerInfo, nullptr, &sampler));
 
       // Descriptor pool
       std::vector<VkDescriptorPoolSize> poolSizes = {
       VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1)
       };
       VkDescriptorPoolCreateInfo descriptorPoolInfo = VulkanInitializers::descriptorPoolCreateInfo(poolSizes, 2);
-      VK_CHECK_RESULT(vkCreateDescriptorPool(device->vulkanDevice(), &descriptorPoolInfo, nullptr, &descriptorPool));
+      VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolInfo, nullptr, &_descriptorPool));
 
       // Descriptor set layout
       std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = {
       VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
       };
       VkDescriptorSetLayoutCreateInfo descriptorLayout = VulkanInitializers::descriptorSetLayoutCreateInfo(setLayoutBindings);
-      VK_CHECK_RESULT(vkCreateDescriptorSetLayout(device->vulkanDevice(), &descriptorLayout, nullptr, &descriptorSetLayout));
+      VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &descriptorLayout, nullptr, &_descriptorSetLayout));
 
       // Descriptor set
-      VkDescriptorSetAllocateInfo allocInfo = VulkanInitializers::descriptorSetAllocateInfo(descriptorPool, &descriptorSetLayout, 1);
-      VK_CHECK_RESULT(vkAllocateDescriptorSets(device->vulkanDevice(), &allocInfo, &descriptorSet));
+      VkDescriptorSetAllocateInfo allocInfo = VulkanInitializers::descriptorSetAllocateInfo(_descriptorPool, &_descriptorSetLayout, 1);
+      VK_CHECK_RESULT(vkAllocateDescriptorSets(_device->vulkanDevice(), &allocInfo, &_descriptorSet));
       VkDescriptorImageInfo fontDescriptor = VulkanInitializers::descriptorImageInfo(
          sampler,
          fontView,
          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
       );
       std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-      VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &fontDescriptor)
+      VulkanInitializers::writeDescriptorSet(_descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &fontDescriptor)
       };
-      vkUpdateDescriptorSets(device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
+      vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
    }
 
    /** Prepare a separate pipeline for the UI overlay rendering decoupled from the main application */
@@ -189,10 +189,10 @@ namespace genesis
       // Pipeline layout
       // Push constants for UI rendering parameters
       VkPushConstantRange pushConstantRange = VulkanInitializers::pushConstantRange(VK_SHADER_STAGE_VERTEX_BIT, sizeof(PushConstBlock), 0);
-      VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = VulkanInitializers::pipelineLayoutCreateInfo(&descriptorSetLayout, 1);
+      VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = VulkanInitializers::pipelineLayoutCreateInfo(&_descriptorSetLayout, 1);
       pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
       pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstantRange;
-      VK_CHECK_RESULT(vkCreatePipelineLayout(device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout));
+      VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_pipelineLayout));
 
       // Setup graphics pipeline for UI rendering
       VkPipelineInputAssemblyStateCreateInfo inputAssemblyState =
@@ -222,7 +222,7 @@ namespace genesis
          VulkanInitializers::pipelineViewportStateCreateInfo(1, 1, 0);
 
       VkPipelineMultisampleStateCreateInfo multisampleState =
-         VulkanInitializers::pipelineMultisampleStateCreateInfo(rasterizationSamples);
+         VulkanInitializers::pipelineMultisampleStateCreateInfo(_rasterizationSamples);
 
       std::vector<VkDynamicState> dynamicStateEnables = {
       VK_DYNAMIC_STATE_VIEWPORT,
@@ -231,7 +231,7 @@ namespace genesis
       VkPipelineDynamicStateCreateInfo dynamicState =
          VulkanInitializers::pipelineDynamicStateCreateInfo(dynamicStateEnables);
 
-      VkGraphicsPipelineCreateInfo pipelineCreateInfo = VulkanInitializers::graphicsPipelineCreateInfo(pipelineLayout, renderPass);
+      VkGraphicsPipelineCreateInfo pipelineCreateInfo = VulkanInitializers::graphicsPipelineCreateInfo(_pipelineLayout, renderPass);
 
       pipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
       pipelineCreateInfo.pRasterizationState = &rasterizationState;
@@ -249,7 +249,7 @@ namespace genesis
       }
       pipelineCreateInfo.pStages = shaderInfos.data();
       
-      pipelineCreateInfo.subpass = subpass;
+      pipelineCreateInfo.subpass = _subpass;
 
       VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo = {};
       if (renderPass==VK_NULL_HANDLE)
@@ -279,7 +279,7 @@ namespace genesis
 
       pipelineCreateInfo.pVertexInputState = &vertexInputState;
 
-      VK_CHECK_RESULT(vkCreateGraphicsPipelines(device->vulkanDevice(), pipelineCache, 1, &pipelineCreateInfo, nullptr, &pipeline));
+      VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &pipelineCreateInfo, nullptr, &_pipeline));
    }
 
    /** Update vertex and index buffer containing the imGui elements when required */
@@ -300,38 +300,38 @@ namespace genesis
       }
 
       // Vertex buffer
-      if ((vertexBuffer == VK_NULL_HANDLE) || (vertexCount != imDrawData->TotalVtxCount)) {
-         if (vertexBuffer)
+      if ((_vertexBuffer == VK_NULL_HANDLE) || (_vertexCount != imDrawData->TotalVtxCount)) {
+         if (_vertexBuffer)
          {
-            vertexBuffer->unmap();
-            delete vertexBuffer;
-            vertexBuffer = nullptr;
+            _vertexBuffer->unmap();
+            delete _vertexBuffer;
+            _vertexBuffer = nullptr;
          }
         
-         vertexBuffer = new VulkanBuffer(device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, vertexBufferSize);
-         vertexCount = imDrawData->TotalVtxCount;
-         vertexBuffer->map();
+         _vertexBuffer = new VulkanBuffer(_device, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, vertexBufferSize);
+         _vertexCount = imDrawData->TotalVtxCount;
+         _vertexBuffer->map();
          updateCmdBuffers = true;
       }
 
       // Index buffer
       VkDeviceSize indexSize = imDrawData->TotalIdxCount * sizeof(ImDrawIdx);
-      if ((indexBuffer == VK_NULL_HANDLE) || (indexCount < imDrawData->TotalIdxCount)) {
-         if (indexBuffer)
+      if ((_indexBuffer == VK_NULL_HANDLE) || (_indexCount < imDrawData->TotalIdxCount)) {
+         if (_indexBuffer)
          {
-            indexBuffer->unmap();
-            delete indexBuffer;
-            indexBuffer = nullptr;
+            _indexBuffer->unmap();
+            delete _indexBuffer;
+            _indexBuffer = nullptr;
          }
-         indexBuffer = new VulkanBuffer(device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, indexBufferSize);
-         indexCount = imDrawData->TotalIdxCount;
-         indexBuffer->map();
+         _indexBuffer = new VulkanBuffer(_device, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, indexBufferSize);
+         _indexCount = imDrawData->TotalIdxCount;
+         _indexBuffer->map();
          updateCmdBuffers = true;
       }
 
       // Upload data
-      ImDrawVert* vtxDst = (ImDrawVert*)vertexBuffer->_mapped;
-      ImDrawIdx* idxDst = (ImDrawIdx*)indexBuffer->_mapped;
+      ImDrawVert* vtxDst = (ImDrawVert*)_vertexBuffer->_mapped;
+      ImDrawIdx* idxDst = (ImDrawIdx*)_indexBuffer->_mapped;
 
       for (int n = 0; n < imDrawData->CmdListsCount; n++) {
          const ImDrawList* cmd_list = imDrawData->CmdLists[n];
@@ -342,8 +342,8 @@ namespace genesis
       }
 
       // Flush to make writes visible to GPU
-      vertexBuffer->flush();
-      indexBuffer->flush();
+      _vertexBuffer->flush();
+      _indexBuffer->flush();
 
       return updateCmdBuffers;
    }
@@ -360,16 +360,16 @@ namespace genesis
 
       ImGuiIO& io = ImGui::GetIO();
 
-      vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-      vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSet, 0, NULL);
+      vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);
+      vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipelineLayout, 0, 1, &_descriptorSet, 0, NULL);
 
       pushConstBlock.scale = glm::vec2(2.0f / io.DisplaySize.x, 2.0f / io.DisplaySize.y);
       pushConstBlock.translate = glm::vec2(-1.0f);
-      vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstBlock), &pushConstBlock);
+      vkCmdPushConstants(commandBuffer, _pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstBlock), &pushConstBlock);
 
       VkDeviceSize offsets[1] = { 0 };
-      vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer->_buffer, offsets);
-      vkCmdBindIndexBuffer(commandBuffer, indexBuffer->_buffer, 0, VK_INDEX_TYPE_UINT16);
+      vkCmdBindVertexBuffers(commandBuffer, 0, 1, &_vertexBuffer->_buffer, offsets);
+      vkCmdBindIndexBuffer(commandBuffer, _indexBuffer->_buffer, 0, VK_INDEX_TYPE_UINT16);
 
       for (int32_t i = 0; i < imDrawData->CmdListsCount; i++)
       {
@@ -399,16 +399,16 @@ namespace genesis
    void UIOverlay::freeResources()
    {
       ImGui::DestroyContext();
-      delete vertexBuffer; vertexBuffer = nullptr;
-      delete indexBuffer; indexBuffer = nullptr;
-      vkDestroyImageView(device->vulkanDevice(), fontView, nullptr);
-      vkDestroyImage(device->vulkanDevice(), fontImage, nullptr);
-      vkFreeMemory(device->vulkanDevice(), fontMemory, nullptr);
-      vkDestroySampler(device->vulkanDevice(), sampler, nullptr);
-      vkDestroyDescriptorSetLayout(device->vulkanDevice(), descriptorSetLayout, nullptr);
-      vkDestroyDescriptorPool(device->vulkanDevice(), descriptorPool, nullptr);
-      vkDestroyPipelineLayout(device->vulkanDevice(), pipelineLayout, nullptr);
-      vkDestroyPipeline(device->vulkanDevice(), pipeline, nullptr);
+      delete _vertexBuffer; _vertexBuffer = nullptr;
+      delete _indexBuffer; _indexBuffer = nullptr;
+      vkDestroyImageView(_device->vulkanDevice(), fontView, nullptr);
+      vkDestroyImage(_device->vulkanDevice(), fontImage, nullptr);
+      vkFreeMemory(_device->vulkanDevice(), fontMemory, nullptr);
+      vkDestroySampler(_device->vulkanDevice(), sampler, nullptr);
+      vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _descriptorSetLayout, nullptr);
+      vkDestroyDescriptorPool(_device->vulkanDevice(), _descriptorPool, nullptr);
+      vkDestroyPipelineLayout(_device->vulkanDevice(), _pipelineLayout, nullptr);
+      vkDestroyPipeline(_device->vulkanDevice(), _pipeline, nullptr);
    }
 
    bool UIOverlay::header(const char* caption)
@@ -419,7 +419,7 @@ namespace genesis
    bool UIOverlay::checkBox(const char* caption, bool* value)
    {
       bool res = ImGui::Checkbox(caption, value);
-      if (res) { updated = true; };
+      if (res) { _updated = true; };
       return res;
    }
 
@@ -428,28 +428,28 @@ namespace genesis
       bool val = (*value == 1);
       bool res = ImGui::Checkbox(caption, &val);
       *value = val;
-      if (res) { updated = true; };
+      if (res) { _updated = true; };
       return res;
    }
 
    bool UIOverlay::inputFloat(const char* caption, float* value, float step, uint32_t precision)
    {
       bool res = ImGui::InputFloat(caption, value, step, step * 10.0f, precision);
-      if (res) { updated = true; };
+      if (res) { _updated = true; };
       return res;
    }
 
    bool UIOverlay::sliderFloat(const char* caption, float* value, float min, float max)
    {
       bool res = ImGui::SliderFloat(caption, value, min, max);
-      if (res) { updated = true; };
+      if (res) { _updated = true; };
       return res;
    }
 
    bool UIOverlay::sliderInt(const char* caption, int32_t* value, int32_t min, int32_t max)
    {
       bool res = ImGui::SliderInt(caption, value, min, max);
-      if (res) { updated = true; };
+      if (res) { _updated = true; };
       return res;
    }
 
@@ -465,14 +465,14 @@ namespace genesis
       }
       uint32_t itemCount = static_cast<uint32_t>(charitems.size());
       bool res = ImGui::Combo(caption, itemindex, &charitems[0], itemCount, itemCount);
-      if (res) { updated = true; };
+      if (res) { _updated = true; };
       return res;
    }
 
    bool UIOverlay::button(const char* caption)
    {
       bool res = ImGui::Button(caption);
-      if (res) { updated = true; };
+      if (res) { _updated = true; };
       return res;
    }
 

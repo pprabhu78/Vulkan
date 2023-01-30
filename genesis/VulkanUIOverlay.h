@@ -26,41 +26,9 @@ namespace genesis
 	class UIOverlay 
 	{
 	public:
-		Device* device;
-		
-		VkSampleCountFlagBits rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-		uint32_t subpass = 0;
-
-		VulkanBuffer* vertexBuffer = 0;
-		VulkanBuffer* indexBuffer = 0;
-		int32_t vertexCount = 0;
-		int32_t indexCount = 0;
-
-		std::vector<Shader*> _shaders;
-
-		VkDescriptorPool descriptorPool;
-		VkDescriptorSetLayout descriptorSetLayout;
-		VkDescriptorSet descriptorSet;
-		VkPipelineLayout pipelineLayout;
-		VkPipeline pipeline;
-
-		VkDeviceMemory fontMemory = VK_NULL_HANDLE;
-		VkImage fontImage = VK_NULL_HANDLE;
-		VkImageView fontView = VK_NULL_HANDLE;
-		VkSampler sampler;
-
-		struct PushConstBlock {
-			glm::vec2 scale;
-			glm::vec2 translate;
-		} pushConstBlock;
-
-		bool visible = true;
-		bool updated = false;
-		float scale = 1.0f;
-
 		UIOverlay();
 		~UIOverlay();
-
+	public:
 		void preparePipeline(const VkPipelineCache pipelineCache, const VkRenderPass renderPass, VkFormat colorFormat, VkFormat depthFormat);
 		void prepareResources();
 
@@ -79,5 +47,37 @@ namespace genesis
 		bool comboBox(const char* caption, int32_t* itemindex, std::vector<std::string> items);
 		bool button(const char* caption);
 		void text(const char* formatstr, ...);
+	public:
+      Device* _device;
+
+      VkSampleCountFlagBits _rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+      uint32_t _subpass = 0;
+
+      VulkanBuffer* _vertexBuffer = 0;
+      VulkanBuffer* _indexBuffer = 0;
+      int32_t _vertexCount = 0;
+      int32_t _indexCount = 0;
+
+      std::vector<Shader*> _shaders;
+
+      VkDescriptorPool _descriptorPool;
+      VkDescriptorSetLayout _descriptorSetLayout;
+      VkDescriptorSet _descriptorSet;
+      VkPipelineLayout _pipelineLayout;
+      VkPipeline _pipeline;
+
+      VkDeviceMemory fontMemory = VK_NULL_HANDLE;
+      VkImage fontImage = VK_NULL_HANDLE;
+      VkImageView fontView = VK_NULL_HANDLE;
+      VkSampler sampler;
+
+      struct PushConstBlock {
+         glm::vec2 scale;
+         glm::vec2 translate;
+      } pushConstBlock;
+
+      bool _visible = true;
+      bool _updated = false;
+      float _scale = 1.0f;
 	};
 }

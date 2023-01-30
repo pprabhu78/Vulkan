@@ -125,10 +125,10 @@ namespace genesis
       }
       _settings.overlay = _settings.overlay && (!benchmark.active);
 
-      UIOverlay.device = _device;
+      UIOverlay._device = _device;
       UIOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.vert.spv", genesis::ST_VERTEX_SHADER));
       UIOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.frag.spv", genesis::ST_FRAGMENT_SHADER));
-      UIOverlay.rasterizationSamples = Image::toSampleCountFlagBits(_sampleCount);
+      UIOverlay._rasterizationSamples = Image::toSampleCountFlagBits(_sampleCount);
       UIOverlay.prepareResources();
       UIOverlay.preparePipeline(pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
    }
@@ -270,7 +270,7 @@ namespace genesis
       ImGui::Text("%.2f ms/frame (%.1d fps)", (1000.0f / _lastFPS), _lastFPS);
 
 
-      ImGui::PushItemWidth(110.0f * UIOverlay.scale);
+      ImGui::PushItemWidth(110.0f * UIOverlay._scale);
       OnUpdateUIOverlay(&UIOverlay);
       ImGui::PopItemWidth();
 
@@ -279,9 +279,9 @@ namespace genesis
       ImGui::PopStyleVar();
       ImGui::Render();
 
-      if (UIOverlay.update() || UIOverlay.updated) {
+      if (UIOverlay.update() || UIOverlay._updated) {
          buildCommandBuffers();
-         UIOverlay.updated = false;
+         UIOverlay._updated = false;
       }
 
    }
@@ -595,7 +595,7 @@ namespace genesis
             break;
          case GLFW_KEY_F1:
             if (_settings.overlay) {
-               UIOverlay.visible = !UIOverlay.visible;
+               UIOverlay._visible = !UIOverlay._visible;
             }
             break;
          case GLFW_KEY_ESCAPE:
