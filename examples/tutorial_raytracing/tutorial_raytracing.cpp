@@ -105,6 +105,7 @@ void TutorialRayTracing::resetCamera()
 
 TutorialRayTracing::TutorialRayTracing()
    : _pushConstants{}
+   , _glTFLoadingFlags(genesis::VulkanGltfModel::PreTransformVertices)
 {
    _settings.overlay = false;
 
@@ -1110,7 +1111,8 @@ void TutorialRayTracing::createCells(void)
    std::string gltfModel;
    std::string gltfModel2;
 
-   if (_mainModel.find("sponza") !=std::string::npos)
+
+   if (_mainModel.find("sponza") != std::string::npos)
    {
       gltfModel = getAssetsPath() + "models/sponza/sponza.gltf";
    }
@@ -1135,7 +1137,13 @@ void TutorialRayTracing::createCells(void)
       gltfModel = _mainModel;
    }
 
-   _cellManager = new genesis::CellManager(_device, _glTFLoadingFlags);
+   uint32_t glTFLoadingFlags = _glTFLoadingFlags;
+   if (_mainModel.find("AI48_001") != std::string::npos)
+   {
+      glTFLoadingFlags |= genesis::VulkanGltfModel::ColorTexturesAreSrgb;
+   }
+   
+   _cellManager = new genesis::CellManager(_device, glTFLoadingFlags);
 
    _cellManager->addInstance(gltfModel, mat4());
 
@@ -1175,7 +1183,6 @@ void TutorialRayTracing::createSkyBox(void)
 
 void TutorialRayTracing::createScene()
 {
-   _glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices;
    createCells();
    createSkyBox();
 }

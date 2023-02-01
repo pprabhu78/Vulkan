@@ -163,7 +163,7 @@ protected:
 
    int _materialComponentViz;
 
-   uint32_t _glTFLoadingFlags;
+   uint32_t _glTFLoadingFlags = 0;
 
    int _sampleCountForRasterization = 1;
 };

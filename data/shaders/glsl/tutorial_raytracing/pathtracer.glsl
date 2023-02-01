@@ -115,6 +115,8 @@ MaterialProperties loadMaterialProperties(in Model model, in Vertex vertex)
 	materialProperties.roughness = roughness;
 	materialProperties.emissive = emissive;
 	materialProperties.occlusion = occlusion;
+	materialProperties.alpha = 1;
+	materialProperties.transmission = material.transmissionFactor;
 
 	return materialProperties;
 }
@@ -213,8 +215,8 @@ vec3 pathTrace(const ivec2 imageCoords, const ivec2 imageSize)
 			return materialComponentViz(materialProperties);
 		}
 
-#if 0
-		if (rnd(payLoad.seed) > materialProperties.alpha)
+#if 1
+		if (rnd(payLoad.seed) > materialProperties.alpha || rnd(payLoad.seed) > (1.0f - materialProperties.transmission))
 		{
 			ray.origin = worldPosition;
 			continue;
