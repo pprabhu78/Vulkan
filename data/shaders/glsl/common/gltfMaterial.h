@@ -31,19 +31,22 @@ struct Material
    int  alphaMode;
 
    float transmissionFactor;
-   int transmissionTexture;
+   int transmissionTextureIndex;
 
 #if CPU_SIDE_COMPILATION
    Material::Material()
       : baseColorFactor(vec4(1.0f))
       , emissiveFactor(vec4(0.0f))
+      , emissiveTextureIndex(-1)
       , padding(vec3(0, 0, 0))
       , baseColorTextureIndex(-1)
       , roughness(0)
       , metalness(0)
+      , occlusionRoughnessMetalnessTextureIndex(-1)
+      , normalTextureIndex(-1)
       , alphaMode(ALPHA_OPAQUE)
       , transmissionFactor(0)
-      , transmissionTexture(-1)
+      , transmissionTextureIndex(-1)
    {
    }
 #endif

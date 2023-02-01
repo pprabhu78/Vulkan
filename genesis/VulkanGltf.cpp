@@ -159,7 +159,7 @@ namespace genesis
    void VulkanGltfModel::loadMaterials(tinygltf::Model& glTfModel, bool srgbProcessing)
    {
       const size_t totalImagesInModel = glTfModel.images.size() + 1; // +1 for default
-      _materials.reserve(_materials.size() + 1); // 1 for the default
+      _materials.reserve(glTfModel.materials.size() + 1); // 1 for the default
       for (const auto& glTfMaterial : glTfModel.materials)
       {
          Material currentMaterial;
@@ -225,7 +225,7 @@ namespace genesis
          if (transmissionIter != glTfMaterial.extensions.end())
          {
             currentMaterial.transmissionFactor = (float)transmissionIter->second.Get("transmissionFactor").GetNumberAsDouble();
-            currentMaterial.transmissionTexture = (int)transmissionIter->second.Get("transmissionTexture").GetNumberAsInt();
+            currentMaterial.transmissionTextureIndex = (int)transmissionIter->second.Get("transmissionTexture").GetNumberAsInt();
          }
 
          // Normals
