@@ -85,6 +85,15 @@ void TutorialRayTracing::resetCamera()
       _camera.rotationSpeed = 0.2f;
       _pushConstants.contributionFromEnvironment = 1;
    }
+   else if (_mainModel.find("AI48_001") != std::string::npos)
+   {
+      _camera.type = genesis::Camera::CameraType::firstperson;
+
+      _camera.setPerspective(60.0f, (float)_width / (float)_height, 0.1f, 512.0f);
+      _camera.setRotation(glm::vec3(2.00000000, 85, 0));
+      _camera.setPosition(glm::vec3(-27.3725967, -69.4664993, -137.779266));
+      _pushConstants.contributionFromEnvironment = 10;
+   }
    else
    {
       _camera.type = genesis::Camera::CameraType::lookat;
