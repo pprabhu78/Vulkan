@@ -6,7 +6,7 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#include "tutorial_raytracing.h"
+#include "raytracing.h"
 
 #include "Device.h"
 #include "PhysicalDevice.h"
@@ -38,7 +38,7 @@
 using namespace genesis;
 using namespace genesis::tools;
 
-void TutorialRayTracing::resetCamera()
+void RayTracing::resetCamera()
 {
    if (_mainModel.find("venus")!=std::string::npos)
    {
@@ -103,7 +103,7 @@ void TutorialRayTracing::resetCamera()
    }
 }
 
-TutorialRayTracing::TutorialRayTracing()
+RayTracing::RayTracing()
    : _pushConstants{}
    , _glTFLoadingFlags(genesis::VulkanGltfModel::PreTransformVertices)
 {
@@ -174,7 +174,7 @@ TutorialRayTracing::TutorialRayTracing()
 #define  ADD_FIRST(first) deviceCreatepNextChain = &first;
 #define  ADD_NEXT(current, next) current.pNext = &next
 
-void TutorialRayTracing::enableFeatures()
+void RayTracing::enableFeatures()
 {
    // This is required for 64 bit math
    _physicalDevice->enabledPhysicalDeviceFeatures().shaderInt64 = true;
@@ -223,7 +223,7 @@ void TutorialRayTracing::enableFeatures()
    _dynamicRenderingFeatures.dynamicRendering = true;
 }
 
-void TutorialRayTracing::destroyRasterizationPipelines(void)
+void RayTracing::destroyRasterizationPipelines(void)
 {
    vkDestroyPipeline(_device->vulkanDevice(), _rasterizationPipeline, nullptr);
    vkDestroyPipeline(_device->vulkanDevice(), _rasterizationPipelineWireframe, nullptr);
@@ -241,7 +241,7 @@ void TutorialRayTracing::destroyRasterizationPipelines(void)
    _rasterizationSkyBoxPipelineLayout = 0;
 }
 
-void TutorialRayTracing::destroyRasterizationDescriptorSets()
+void RayTracing::destroyRasterizationDescriptorSets()
 {
    vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rasterizationDescriptorSetLayout, nullptr);
    vkDestroyDescriptorPool(_device->vulkanDevice(), _rasterizationDescriptorPool, nullptr);
@@ -249,7 +249,7 @@ void TutorialRayTracing::destroyRasterizationDescriptorSets()
    _rasterizationDescriptorPool = 0;
 }
 
-void TutorialRayTracing::destroyRayTracingPipeline(void)
+void RayTracing::destroyRayTracingPipeline(void)
 {
    vkDestroyPipeline(_device->vulkanDevice(), _rayTracingPipeline, nullptr);
    _rayTracingPipeline = 0;
@@ -258,7 +258,7 @@ void TutorialRayTracing::destroyRayTracingPipeline(void)
    _rayTracingPipelineLayout = 0;
 }
 
-void TutorialRayTracing::destroyRayTracingDescriptorSets()
+void RayTracing::destroyRayTracingDescriptorSets()
 {
    vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rayTracingDescriptorSetLayout, nullptr);
    _rayTracingDescriptorSetLayout = 0;
@@ -267,7 +267,7 @@ void TutorialRayTracing::destroyRayTracingDescriptorSets()
    _rayTracingDescriptorPool = 0;
 }
 
-void TutorialRayTracing::destroyCommonStuff()
+void RayTracing::destroyCommonStuff()
 {
    delete _cellManager;
 
@@ -279,14 +279,14 @@ void TutorialRayTracing::destroyCommonStuff()
    delete _skyCubeMapImage;
 }
 
-TutorialRayTracing::~TutorialRayTracing()
+RayTracing::~RayTracing()
 {
    destroyRayTracingStuff(true);
    destroyRasterizationStuff();
    destroyCommonStuff();
 }
 
-void TutorialRayTracing::createAndUpdateRayTracingDescriptorSets()
+void RayTracing::createAndUpdateRayTracingDescriptorSets()
 {
    std::vector<VkDescriptorPoolSize> poolSizes = {
    { VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1 },
@@ -319,7 +319,7 @@ void TutorialRayTracing::createAndUpdateRayTracingDescriptorSets()
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
 }
 
-void TutorialRayTracing::createAndUpdateRasterizationDescriptorSets()
+void RayTracing::createAndUpdateRasterizationDescriptorSets()
 {
    std::vector<VkDescriptorPoolSize> poolSizes = {
    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}
@@ -341,32 +341,32 @@ void TutorialRayTracing::createAndUpdateRasterizationDescriptorSets()
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
 }
 
-void TutorialRayTracing::reloadShaders(bool destroyExistingStuff)
+void RayTracing::reloadShaders(bool destroyExistingStuff)
 {
    std::string strVulkanDir = getenv("VULKAN_SDK");
    std::string glslValidator = strVulkanDir + "\\bin\\glslangValidator.exe";
 
-   std::string command = glslValidator + " " + "--target-env vulkan1.2 -V -o ../data/shaders/glsl/tutorial_raytracing/closesthit.rchit.spv ../data/shaders/glsl/tutorial_raytracing/closesthit.rchit";
+   std::string command = glslValidator + " " + "--target-env vulkan1.2 -V -o ../data/shaders/glsl/raytracing/closesthit.rchit.spv ../data/shaders/glsl/raytracing/closesthit.rchit";
    system(command.c_str());
 
-   command = glslValidator + " " + "--target-env vulkan1.2 -V -o ../data/shaders/glsl/tutorial_raytracing/miss.rmiss.spv ../data/shaders/glsl/tutorial_raytracing/miss.rmiss";
+   command = glslValidator + " " + "--target-env vulkan1.2 -V -o ../data/shaders/glsl/raytracing/miss.rmiss.spv ../data/shaders/glsl/raytracing/miss.rmiss";
    system(command.c_str());
 
-   command = glslValidator + " " + "--target-env vulkan1.2 -V -o ../data/shaders/glsl/tutorial_raytracing/raygen.rgen.spv ../data/shaders/glsl/tutorial_raytracing/raygen.rgen";
+   command = glslValidator + " " + "--target-env vulkan1.2 -V -o ../data/shaders/glsl/raytracing/raygen.rgen.spv ../data/shaders/glsl/raytracing/raygen.rgen";
    system(command.c_str());
 
    std::string glslc = strVulkanDir + "\\bin\\glslc.exe";
 
-   command = glslc + " " + "-o ../data/shaders/glsl/tutorial_raytracing/tutorial.vert.spv ../data/shaders/glsl/tutorial_raytracing/tutorial.vert";
+   command = glslc + " " + "-o ../data/shaders/glsl/raytracing/rasterizationPath.vert.spv ../data/shaders/glsl/raytracing/rasterizationPath.vert";
    system(command.c_str());
 
-   command = glslc + " " + "-o ../data/shaders/glsl/tutorial_raytracing/tutorial.frag.spv ../data/shaders/glsl/tutorial_raytracing/tutorial.frag";
+   command = glslc + " " + "-o ../data/shaders/glsl/raytracing/rasterizationPath.frag.spv ../data/shaders/glsl/raytracing/rasterizationPath.frag";
    system(command.c_str());
 
-   command = glslc + " " + "-o ../data/shaders/glsl/tutorial_raytracing/skybox.vert.spv ../data/shaders/glsl/tutorial_raytracing/skybox.vert";
+   command = glslc + " " + "-o ../data/shaders/glsl/raytracing/skybox.vert.spv ../data/shaders/glsl/raytracing/skybox.vert";
    system(command.c_str());
 
-   command = glslc + " " + "-o ../data/shaders/glsl/tutorial_raytracing/skybox.frag.spv ../data/shaders/glsl/tutorial_raytracing/skybox.frag";
+   command = glslc + " " + "-o ../data/shaders/glsl/raytracing/skybox.frag.spv ../data/shaders/glsl/raytracing/skybox.frag";
    system(command.c_str());
 
    if (destroyExistingStuff)
@@ -391,7 +391,7 @@ void TutorialRayTracing::reloadShaders(bool destroyExistingStuff)
 /*
 Create our ray tracing pipeline
 */
-void TutorialRayTracing::createRayTracingPipeline()
+void RayTracing::createRayTracingPipeline()
 {
    int bindingIndex = 0;
 
@@ -431,9 +431,9 @@ void TutorialRayTracing::createRayTracingPipeline()
    \-----------/
    */
    _shaderBindingTable = new genesis::ShaderBindingTable(_device);
-   _shaderBindingTable->addShader(getShadersPath() + "tutorial_raytracing/raygen.rgen.spv", genesis::ST_RT_RAYGEN);
-   _shaderBindingTable->addShader(getShadersPath() + "tutorial_raytracing/miss.rmiss.spv", genesis::ST_RT_MISS);
-   _shaderBindingTable->addShader(getShadersPath() + "tutorial_raytracing/closesthit.rchit.spv", genesis::ST_RT_CLOSEST_HIT);
+   _shaderBindingTable->addShader(getShadersPath() + "raytracing/raygen.rgen.spv", genesis::ST_RT_RAYGEN);
+   _shaderBindingTable->addShader(getShadersPath() + "raytracing/miss.rmiss.spv", genesis::ST_RT_MISS);
+   _shaderBindingTable->addShader(getShadersPath() + "raytracing/closesthit.rchit.spv", genesis::ST_RT_CLOSEST_HIT);
 
    // create the ray tracing pipeline
    VkRayTracingPipelineCreateInfoKHR rayTracingPipelineCreateInfo{};
@@ -449,7 +449,7 @@ void TutorialRayTracing::createRayTracingPipeline()
    _shaderBindingTable->build(_rayTracingPipeline);
 }
 
-void TutorialRayTracing::createRasterizationPipeline()
+void RayTracing::createRasterizationPipeline()
 {
    int bindingIndex = 0;
    std::vector<VkDescriptorSetLayoutBinding> set0Bindings =
@@ -529,8 +529,8 @@ void TutorialRayTracing::createRasterizationPipeline()
    graphicsPipelineCreateInfo.pColorBlendState = &colorBlendState;
    graphicsPipelineCreateInfo.pDynamicState = &dynamicState;
 
-   Shader* modelVertexShader = loadShader(getShadersPath() + "tutorial_raytracing/tutorial.vert.spv", genesis::ST_VERTEX_SHADER);
-   Shader* modelPixelShader = loadShader(getShadersPath() + "tutorial_raytracing/tutorial.frag.spv", genesis::ST_FRAGMENT_SHADER);
+   Shader* modelVertexShader = loadShader(getShadersPath() + "raytracing/rasterizationPath.vert.spv", genesis::ST_VERTEX_SHADER);
+   Shader* modelPixelShader = loadShader(getShadersPath() + "raytracing/rasterizationPath.frag.spv", genesis::ST_FRAGMENT_SHADER);
    std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos = { modelVertexShader->pipelineShaderStageCreateInfo(), modelPixelShader->pipelineShaderStageCreateInfo() };
    graphicsPipelineCreateInfo.stageCount = (uint32_t)shaderStageInfos.size();
    graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();
@@ -554,8 +554,8 @@ void TutorialRayTracing::createRasterizationPipeline()
    rasterizationState.polygonMode = VK_POLYGON_MODE_FILL; // reset
 
    // next 2 are the skybox
-   Shader* skyBoxVertexShader = loadShader(getShadersPath() + "tutorial_raytracing/skybox.vert.spv", genesis::ST_VERTEX_SHADER);
-   Shader* skyBoxPixelShader = loadShader(getShadersPath() + "tutorial_raytracing/skybox.frag.spv", genesis::ST_FRAGMENT_SHADER);
+   Shader* skyBoxVertexShader = loadShader(getShadersPath() + "raytracing/skybox.vert.spv", genesis::ST_VERTEX_SHADER);
+   Shader* skyBoxPixelShader = loadShader(getShadersPath() + "raytracing/skybox.frag.spv", genesis::ST_FRAGMENT_SHADER);
    shaderStageInfos = { skyBoxVertexShader->pipelineShaderStageCreateInfo(), skyBoxPixelShader->pipelineShaderStageCreateInfo() };
 
    graphicsPipelineCreateInfo.layout = _rasterizationSkyBoxPipelineLayout;
@@ -574,7 +574,7 @@ void TutorialRayTracing::createRasterizationPipeline()
 /*
 Command buffer generation
 */
-void TutorialRayTracing::rayTrace(int commandBufferIndex)
+void RayTracing::rayTrace(int commandBufferIndex)
 {
    VkCommandBufferBeginInfo cmdBufInfo = genesis::VulkanInitializers::commandBufferBeginInfo();
 
@@ -633,7 +633,7 @@ void TutorialRayTracing::rayTrace(int commandBufferIndex)
    VK_CHECK_RESULT(vkEndCommandBuffer(_drawCommandBuffers[commandBufferIndex]));
 }
 
-void TutorialRayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoadOp colorLoadOp)
+void RayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoadOp colorLoadOp)
 {
    int i = swapChainImageIndex;
    ImageTransitions transitions;
@@ -694,7 +694,7 @@ void TutorialRayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttach
    _device->extensions().vkCmdBeginRenderingKHR(_drawCommandBuffers[i], &renderingInfo);
 }
 
-void TutorialRayTracing::endDynamicRendering(int swapChainImageIndex)
+void RayTracing::endDynamicRendering(int swapChainImageIndex)
 {
    ImageTransitions transitions;
 
@@ -708,7 +708,7 @@ void TutorialRayTracing::endDynamicRendering(int swapChainImageIndex)
    , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT); // PPP: I think this should be top of pipe
 
 }
-void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
+void RayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
 {
    VkCommandBufferBeginInfo commandBufferBeginInfo = VulkanInitializers::commandBufferBeginInfo();
 
@@ -765,7 +765,7 @@ void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
    }
 }
 
-void TutorialRayTracing::buildRasterizationCommandBuffers()
+void RayTracing::buildRasterizationCommandBuffers()
 {
    VkCommandBufferBeginInfo cmdBufInfo = VulkanInitializers::commandBufferBeginInfo();
 
@@ -855,7 +855,7 @@ void TutorialRayTracing::buildRasterizationCommandBuffers()
    }
 }
 
-std::string TutorialRayTracing::generateTimeStampedFileName(void)
+std::string RayTracing::generateTimeStampedFileName(void)
 {
    using namespace std;
    using namespace std::chrono;
@@ -881,19 +881,19 @@ std::string TutorialRayTracing::generateTimeStampedFileName(void)
    return fileName;
 }
 
-void TutorialRayTracing::saveScreenShot(const std::string& fileName)
+void RayTracing::saveScreenShot(const std::string& fileName)
 {
    genesis::ScreenShotUtility screenShotUtility(_device);
    screenShotUtility.takeScreenShot(fileName, _swapChain->image(_currentFrameBufferIndex), _swapChain->colorFormat()
       , _width, _height);
 }
 
-void TutorialRayTracing::destroyRasterizationStuff(void)
+void RayTracing::destroyRasterizationStuff(void)
 {
    destroyRasterizationPipelines();
    destroyRasterizationDescriptorSets();
 }
-void TutorialRayTracing::destroyRayTracingStuff(bool storageImages)
+void RayTracing::destroyRayTracingStuff(bool storageImages)
 {
    destroyRayTracingPipeline();
    destroyRayTracingDescriptorSets();
@@ -905,7 +905,7 @@ void TutorialRayTracing::destroyRayTracingStuff(bool storageImages)
    }
 }
 
-void TutorialRayTracing::nextRenderingMode(void)
+void RayTracing::nextRenderingMode(void)
 {
    if (_mode == RASTERIZATION)
    {
@@ -974,7 +974,7 @@ void TutorialRayTracing::nextRenderingMode(void)
    _pushConstants.frameIndex = -1;
 }
 
-void TutorialRayTracing::keyPressed(uint32_t key)
+void RayTracing::keyPressed(uint32_t key)
 {
    if (key == KEY_F5)
    {
@@ -1009,7 +1009,7 @@ void TutorialRayTracing::keyPressed(uint32_t key)
    }
 }
 
-void TutorialRayTracing::draw()
+void RayTracing::draw()
 {
    VulkanApplication::prepareFrame();
 
@@ -1069,7 +1069,7 @@ void TutorialRayTracing::draw()
    }
 }
 
-void TutorialRayTracing::render()
+void RayTracing::render()
 {
    if (!_prepared)
    {
@@ -1078,13 +1078,13 @@ void TutorialRayTracing::render()
    draw();
 }
 
-void TutorialRayTracing::viewChanged()
+void RayTracing::viewChanged()
 {
    _pushConstants.frameIndex = -1;
    updateSceneUbo();
 }
 
-void TutorialRayTracing::updateSceneUbo()
+void RayTracing::updateSceneUbo()
 {
    SceneUbo ubo;
    ubo.viewMatrix = _camera.matrices.view;
@@ -1100,13 +1100,13 @@ void TutorialRayTracing::updateSceneUbo()
    _sceneUbo->syncToGpu(false);
 }
 
-void TutorialRayTracing::createSceneUbo()
+void RayTracing::createSceneUbo()
 {
    _sceneUbo = new genesis::Buffer(_device, genesis::BT_UBO, sizeof(SceneUbo), true);
    updateSceneUbo();
 }
 
-void TutorialRayTracing::createCells(void)
+void RayTracing::createCells(void)
 {
    std::string gltfModel;
    std::string gltfModel2;
@@ -1159,7 +1159,7 @@ void TutorialRayTracing::createCells(void)
    _cellManager->buildLayouts();
 }
 
-void TutorialRayTracing::createSkyBox(void)
+void RayTracing::createSkyBox(void)
 {
    const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices;
    _skyBoxManager = new genesis::CellManager(_device, glTFLoadingFlags);
@@ -1181,13 +1181,13 @@ void TutorialRayTracing::createSkyBox(void)
    _skyCubeMapTexture = new genesis::Texture(_skyCubeMapImage);
 }
 
-void TutorialRayTracing::createScene()
+void RayTracing::createScene()
 {
    createCells();
    createSkyBox();
 }
 
-void TutorialRayTracing::buildCommandBuffers()
+void RayTracing::buildCommandBuffers()
 {
    if (_mode == RASTERIZATION)
    {
@@ -1202,7 +1202,7 @@ void TutorialRayTracing::buildCommandBuffers()
    }
 }
 
-void TutorialRayTracing::prepare()
+void RayTracing::prepare()
 {
    VulkanApplication::prepare();
    reloadShaders(false);
@@ -1234,7 +1234,7 @@ void TutorialRayTracing::prepare()
    _prepared = true;
 }
 
-void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
+void RayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
 {
    if (overlay->header("Settings"))
    {
@@ -1267,7 +1267,7 @@ void TutorialRayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
    }
 }
 
-void TutorialRayTracing::drawGuiAfterRayTrace(int swapChainImageIndex)
+void RayTracing::drawGuiAfterRayTrace(int swapChainImageIndex)
 {
    if (_mode == RASTERIZATION)
    {
@@ -1300,7 +1300,7 @@ void TutorialRayTracing::drawGuiAfterRayTrace(int swapChainImageIndex)
    }
 }
 
-void TutorialRayTracing::setupRenderPass()
+void RayTracing::setupRenderPass()
 {
    delete _renderPass;
    if (_mode == RAYTRACE)
@@ -1316,7 +1316,7 @@ void TutorialRayTracing::setupRenderPass()
    }
 }
 
-void TutorialRayTracing::writeStorageImageDescriptors()
+void RayTracing::writeStorageImageDescriptors()
 {
    VkDescriptorImageInfo intermediateImageDescriptor{ VK_NULL_HANDLE, _intermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
    VkDescriptorImageInfo finalImageDescriptor{ VK_NULL_HANDLE, _finalImageToPresent->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
@@ -1330,7 +1330,7 @@ void TutorialRayTracing::writeStorageImageDescriptors()
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
 }
 
-void TutorialRayTracing::deleteStorageImages()
+void RayTracing::deleteStorageImages()
 {
    delete _finalImageToPresent;
    _finalImageToPresent = nullptr;
@@ -1342,7 +1342,7 @@ void TutorialRayTracing::deleteStorageImages()
 /*
 Set up a storage image that the ray generation shader will be writing to
 */
-void TutorialRayTracing::createStorageImages()
+void RayTracing::createStorageImages()
 {
    // intermediate image does computations in full floating point
    _intermediateImage = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, _width, _height
@@ -1364,7 +1364,7 @@ void TutorialRayTracing::createStorageImages()
 /*
 If the window has been resized, we need to recreate the storage image and it's descriptor
 */
-void TutorialRayTracing::windowResized()
+void RayTracing::windowResized()
 {
    // Delete allocated resources
    deleteStorageImages();
@@ -1376,7 +1376,7 @@ void TutorialRayTracing::windowResized()
    _pushConstants.frameIndex = -1;
 }
 
-void TutorialRayTracing::onDrop(const std::vector<std::string>& filesDropped)
+void RayTracing::onDrop(const std::vector<std::string>& filesDropped)
 {
    if (filesDropped.size() == 0)
    {

@@ -137,7 +137,7 @@ function(buildExamples)
 endfunction(buildExamples)
 
 set(EXAMPLES
-	tutorial_raytracing
+	raytracing
 	meshshaders
 )
 

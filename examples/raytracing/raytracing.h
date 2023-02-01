@@ -10,7 +10,7 @@
 #include "Camera.h"
 
 #define CPU_SIDE_COMPILATION 1
-#include "../data/shaders/glsl/tutorial_raytracing/rayTracingInputOutput.h"
+#include "../data/shaders/glsl/raytracing/rayTracingInputOutput.h"
 #include "../data/shaders/glsl/common/sceneUbo.h"
 
 namespace genesis
@@ -32,11 +32,11 @@ namespace genesis
    class ShaderBindingTable;
 }
 
-class TutorialRayTracing : public genesis::VulkanApplication
+class RayTracing : public genesis::VulkanApplication
 {
 public:
-   TutorialRayTracing();
-   virtual ~TutorialRayTracing();
+   RayTracing();
+   virtual ~RayTracing();
 
 public:
    virtual void windowResized() override;

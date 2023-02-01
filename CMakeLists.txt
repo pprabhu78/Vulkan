@@ -6,7 +6,7 @@ IF(WIN32)
   add_definitions(/MP)
 ENDIF()
 
-set(NAME vulkanExamples)
+set(NAME genesis3D)
 
 project(${NAME})
 
