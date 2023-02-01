@@ -202,7 +202,7 @@ void TutorialRayTracing::enableFeatures()
    _physicalDeviceDescriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
    _physicalDeviceDescriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-   
+
    ADD_NEXT(_physicalDeviceDescriptorIndexingFeatures, _physicalDeviceShaderClockFeaturesKHR);
    _physicalDeviceShaderClockFeaturesKHR.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR;
    _physicalDeviceShaderClockFeaturesKHR.shaderDeviceClock = true;
@@ -299,11 +299,11 @@ void TutorialRayTracing::createAndUpdateRayTracingDescriptorSets()
 
    int bindingIndex = 0;
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-        genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, bindingIndex++, &descriptorAccelerationStructureInfo)
-      , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &intermediateImageDescriptor)
-      , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &finalImageDescriptor)
-      , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++, _sceneUbo->descriptorPtr())
-      , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, bindingIndex++, _skyCubeMapTexture->descriptorPtr())
+   genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, bindingIndex++, &descriptorAccelerationStructureInfo)
+   , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &intermediateImageDescriptor)
+   , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &finalImageDescriptor)
+   , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++, _sceneUbo->descriptorPtr())
+   , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, bindingIndex++, _skyCubeMapTexture->descriptorPtr())
    };
 
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, VK_NULL_HANDLE);
@@ -313,7 +313,7 @@ void TutorialRayTracing::createAndUpdateRasterizationDescriptorSets()
 {
    std::vector<VkDescriptorPoolSize> poolSizes = {
    {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}
-,  {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}
+   ,  {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}
    };
 
    VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::VulkanInitializers::descriptorPoolCreateInfo(poolSizes, 1);
@@ -325,7 +325,7 @@ void TutorialRayTracing::createAndUpdateRasterizationDescriptorSets()
    int bindingIndex = 0;
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
    genesis::VulkanInitializers::writeDescriptorSet(_rasterizationDescriptorSet,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++,&_sceneUbo->descriptor())
-,  genesis::VulkanInitializers::writeDescriptorSet(_rasterizationDescriptorSet,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, bindingIndex++,&_skyCubeMapTexture->descriptor())
+   ,  genesis::VulkanInitializers::writeDescriptorSet(_rasterizationDescriptorSet,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, bindingIndex++,&_skyCubeMapTexture->descriptor())
    };
 
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
@@ -386,7 +386,7 @@ void TutorialRayTracing::createRayTracingPipeline()
    int bindingIndex = 0;
 
    std::vector<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings = {
-      genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR, bindingIndex++)
+   genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, VK_SHADER_STAGE_RAYGEN_BIT_KHR, bindingIndex++)
    ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR, bindingIndex++)
    ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_RAYGEN_BIT_KHR, bindingIndex++)
    ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR, bindingIndex++)
@@ -402,7 +402,7 @@ void TutorialRayTracing::createRayTracingPipeline()
 
    // Push constant: we want to be able to update constants used by the shaders
    VkPushConstantRange pushConstant{ VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR | VK_SHADER_STAGE_MISS_BIT_KHR,
-                                    0, sizeof(PushConstants) };
+   0, sizeof(PushConstants) };
 
    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
    pipelineLayoutCreateInfo.pPushConstantRanges = &pushConstant;
@@ -410,15 +410,15 @@ void TutorialRayTracing::createRayTracingPipeline()
    VK_CHECK_RESULT(vkCreatePipelineLayout(_device->vulkanDevice(), &pipelineLayoutCreateInfo, nullptr, &_rayTracingPipelineLayout));
 
    /*
-      SBT Layout used in this sample:
+   SBT Layout used in this sample:
 
-      /-----------\
-      | raygen    |
-      |-----------|
-      | miss      |
-      |-----------|
-      | hit       |
-      \-----------/
+   /-----------\
+   | raygen    |
+   |-----------|
+   | miss      |
+   |-----------|
+   | hit       |
+   \-----------/
    */
    _shaderBindingTable = new genesis::ShaderBindingTable(_device);
    _shaderBindingTable->addShader(getShadersPath() + "tutorial_raytracing/raygen.rgen.spv", genesis::ST_RT_RAYGEN);
@@ -444,7 +444,7 @@ void TutorialRayTracing::createRasterizationPipeline()
    int bindingIndex = 0;
    std::vector<VkDescriptorSetLayoutBinding> set0Bindings =
    {
-      genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+   genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
    ,  genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
    };
    VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
@@ -474,10 +474,10 @@ void TutorialRayTracing::createRasterizationPipeline()
    // input descriptions
    int location = 0;
    std::vector<VkVertexInputAttributeDescription> vertexInputAttributeDescriptions = {
-        genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, position))
-      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, normal))
-      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32_SFLOAT, offsetof(genesis::Vertex, uv))
-      , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, color))
+   genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, position))
+   , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, normal))
+   , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32_SFLOAT, offsetof(genesis::Vertex, uv))
+   , genesis::VulkanInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, color))
    };
 
    // input state
@@ -536,7 +536,7 @@ void TutorialRayTracing::createRasterizationPipeline()
       pipelineRenderingCreateInfo.stencilAttachmentFormat = _depthFormat;
       graphicsPipelineCreateInfo.pNext = &pipelineRenderingCreateInfo;
    }
-   
+
    VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), _pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipeline));
 
    rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
@@ -628,13 +628,21 @@ void TutorialRayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttach
    int i = swapChainImageIndex;
    ImageTransitions transitions;
 
+   if (_sampleCount > 1)
+   {
+      transitions.setImageLayout(_drawCommandBuffers[i], _multiSampledColorImage->vulkanImage()
+         , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+         , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+      , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I Think this should be bottom of pipe
+   }
+
    transitions.setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
       , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
       , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
    , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I Think this should be bottom of pipe
 
-// per the book: the outputs to the depth and stencil buffers occur as part of the late fragment test, so this along wit the early
-// fragment tests includes the depth and stencil outputs
+   // per the book: the outputs to the depth and stencil buffers occur as part of the late fragment test, so this along wit the early
+   // fragment tests includes the depth and stencil outputs
    const VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
    transitions.setImageLayout(_drawCommandBuffers[i], _depthStencilImage->vulkanImage()
       , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
@@ -643,11 +651,18 @@ void TutorialRayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttach
 
    VkRenderingAttachmentInfo colorAttachment{};
    colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-   colorAttachment.imageView = _swapChain->imageView(i);
+   colorAttachment.imageView = (_sampleCount > 1)? _multiSampledColorImage->vulkanImageView() : _swapChain->imageView(i);
    colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
    colorAttachment.loadOp = colorLoadOp;
    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
    colorAttachment.clearValue = { 0.0f, 0.0f, 0.2f, 1.0f };
+
+   if (_sampleCount > 1)
+   {
+      colorAttachment.resolveImageView = _swapChain->imageView(i);
+      colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+      colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+   }
 
    VkRenderingAttachmentInfo depthStencilAttachment{};
    depthStencilAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -695,7 +710,7 @@ void TutorialRayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
       VK_CHECK_RESULT(vkBeginCommandBuffer(_drawCommandBuffers[i], &commandBufferBeginInfo));
 
       beginDynamicRendering(i, VK_ATTACHMENT_LOAD_OP_CLEAR);
-   
+
       // Update dynamic viewport state
       vkCmdSetViewport(_drawCommandBuffers[i], 0, 1, &viewport);
 
@@ -1129,7 +1144,7 @@ void TutorialRayTracing::createCells(void)
 
 void TutorialRayTracing::createSkyBox(void)
 {
-   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices ;
+   const uint32_t glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices;
    _skyBoxManager = new genesis::CellManager(_device, glTFLoadingFlags);
    _skyBoxManager->addInstance(getAssetsPath() + "models/cube.gltf", glm::mat4());
 
@@ -1151,7 +1166,7 @@ void TutorialRayTracing::createSkyBox(void)
 
 void TutorialRayTracing::createScene()
 {
-   _glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices ;
+   _glTFLoadingFlags = genesis::VulkanGltfModel::PreTransformVertices;
    createCells();
    createSkyBox();
 }
@@ -1292,7 +1307,7 @@ void TutorialRayTracing::writeStorageImageDescriptors()
 
    int bindingIndex = 1;
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-     genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &intermediateImageDescriptor)
+   genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &intermediateImageDescriptor)
    , genesis::VulkanInitializers::writeDescriptorSet(_rayTracingDescriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, bindingIndex++, &finalImageDescriptor)
    };
 
