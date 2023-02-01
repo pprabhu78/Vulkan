@@ -345,7 +345,7 @@ void MeshShaders::createRasterizationPipeline()
    graphicsPipelineCreateInfo.stageCount = (uint32_t)shaderStageInfos.size();
    graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();
 
-   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipeline));
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), _pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipeline));
 
    // sky box
    Shader* skyBoxVertexShader = loadShader(getShadersPath() + "meshshaders/skybox.vert.spv", genesis::ST_VERTEX_SHADER);
@@ -359,7 +359,7 @@ void MeshShaders::createRasterizationPipeline()
    rasterizationState.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE; // cull the front facing polygons
    depthStencilState.depthWriteEnable = VK_FALSE;
    depthStencilState.depthTestEnable = VK_FALSE;
-   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxRasterizationPipeline));
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), _pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxRasterizationPipeline));
    debugmarker::setName(_device->vulkanDevice(), _skyBoxRasterizationPipeline, "_skyBoxPipeline");
 }
 

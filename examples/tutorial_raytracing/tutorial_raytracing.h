@@ -67,17 +67,22 @@ protected:
    virtual void rayTrace(int commandBufferIndex);
 
    virtual void drawGuiAfterRayTrace(int swapChainImageIndex);
-   virtual void destroyRayTracingStuff(bool storageImages);
-   virtual void destroyRasterizationStuff();
+   virtual void destroyRayTracingDescriptorSets();
+
+   virtual void destroyRasterizationDescriptorSets();
    virtual void destroyCommonStuff();
 
-   virtual void createAndUpdateDescriptorSets();
+   virtual void destroyRasterizationStuff(void);
+   virtual void destroyRayTracingStuff(bool storageImages);
+
    virtual void createAndUpdateRasterizationDescriptorSets();
    virtual void createAndUpdateRayTracingDescriptorSets();
 
-   virtual void createPipelines();
    virtual void createRasterizationPipeline();
    virtual void createRayTracingPipeline();
+
+   virtual void destroyRasterizationPipelines(void);
+   virtual void destroyRayTracingPipeline(void);
 
    virtual void createStorageImages(void);
    virtual void deleteStorageImages(void);
@@ -159,4 +164,6 @@ protected:
    int _materialComponentViz;
 
    uint32_t _glTFLoadingFlags;
+
+   int _sampleCountForRasterization = 1;
 };

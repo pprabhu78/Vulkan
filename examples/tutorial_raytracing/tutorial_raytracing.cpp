@@ -118,9 +118,11 @@ TutorialRayTracing::TutorialRayTracing()
       {
          std::stringstream ss;
          ss << args[i + 1];
-         ss >> _sampleCount;
+         ss >> _sampleCountForRasterization;
       }
    }
+
+   _sampleCount = (_mode == RASTERIZATION) ? _sampleCountForRasterization : 1;
 
    if (_mainModel == "")
    {
@@ -211,7 +213,7 @@ void TutorialRayTracing::enableFeatures()
    _dynamicRenderingFeatures.dynamicRendering = true;
 }
 
-void TutorialRayTracing::destroyRasterizationStuff()
+void TutorialRayTracing::destroyRasterizationPipelines(void)
 {
    vkDestroyPipeline(_device->vulkanDevice(), _rasterizationPipeline, nullptr);
    vkDestroyPipeline(_device->vulkanDevice(), _rasterizationPipelineWireframe, nullptr);
@@ -227,34 +229,32 @@ void TutorialRayTracing::destroyRasterizationStuff()
    vkDestroyPipelineLayout(_device->vulkanDevice(), _rasterizationSkyBoxPipelineLayout, nullptr);
    _rasterizationPipelineLayout = 0;
    _rasterizationSkyBoxPipelineLayout = 0;
+}
 
+void TutorialRayTracing::destroyRasterizationDescriptorSets()
+{
    vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rasterizationDescriptorSetLayout, nullptr);
    vkDestroyDescriptorPool(_device->vulkanDevice(), _rasterizationDescriptorPool, nullptr);
    _rasterizationDescriptorSetLayout = 0;
    _rasterizationDescriptorPool = 0;
 }
 
-void TutorialRayTracing::destroyRayTracingStuff(bool storageImages)
+void TutorialRayTracing::destroyRayTracingPipeline(void)
 {
    vkDestroyPipeline(_device->vulkanDevice(), _rayTracingPipeline, nullptr);
    _rayTracingPipeline = 0;
 
    vkDestroyPipelineLayout(_device->vulkanDevice(), _rayTracingPipelineLayout, nullptr);
    _rayTracingPipelineLayout = 0;
+}
 
+void TutorialRayTracing::destroyRayTracingDescriptorSets()
+{
    vkDestroyDescriptorSetLayout(_device->vulkanDevice(), _rayTracingDescriptorSetLayout, nullptr);
    _rayTracingDescriptorSetLayout = 0;
 
    vkDestroyDescriptorPool(_device->vulkanDevice(), _rayTracingDescriptorPool, nullptr);
    _rayTracingDescriptorPool = 0;
-
-   delete _shaderBindingTable;
-   _shaderBindingTable = nullptr;
-
-   if (storageImages)
-   {
-      deleteStorageImages();
-   }
 }
 
 void TutorialRayTracing::destroyCommonStuff()
@@ -331,12 +331,6 @@ void TutorialRayTracing::createAndUpdateRasterizationDescriptorSets()
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
 }
 
-void TutorialRayTracing::createAndUpdateDescriptorSets()
-{
-   createAndUpdateRayTracingDescriptorSets();
-   createAndUpdateRasterizationDescriptorSets();
-}
-
 void TutorialRayTracing::reloadShaders(bool destroyExistingStuff)
 {
    std::string strVulkanDir = getenv("VULKAN_SDK");
@@ -367,15 +361,20 @@ void TutorialRayTracing::reloadShaders(bool destroyExistingStuff)
 
    if (destroyExistingStuff)
    {
-      destroyRayTracingStuff(false);
-      createRayTracingPipeline();
-      createAndUpdateRayTracingDescriptorSets();
-      _pushConstants.frameIndex = -1;
-
-      destroyRasterizationStuff();
-      createRasterizationPipeline();
-      createAndUpdateRasterizationDescriptorSets();
-      buildCommandBuffers();
+      if (_mode == RAYTRACE)
+      {
+         destroyRayTracingStuff(false);
+         createRayTracingPipeline();
+         createAndUpdateRayTracingDescriptorSets();
+         _pushConstants.frameIndex = -1;
+      }
+      else if (_mode == RASTERIZATION)
+      {
+         destroyRasterizationStuff();
+         createRasterizationPipeline();
+         createAndUpdateRasterizationDescriptorSets();
+         buildCommandBuffers();
+      }
    }
 }
 
@@ -538,10 +537,10 @@ void TutorialRayTracing::createRasterizationPipeline()
       graphicsPipelineCreateInfo.pNext = &pipelineRenderingCreateInfo;
    }
    
-   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipeline));
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), _pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipeline));
 
    rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipelineWireframe));
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), _pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_rasterizationPipelineWireframe));
    rasterizationState.polygonMode = VK_POLYGON_MODE_FILL; // reset
 
    // next 2 are the skybox
@@ -554,11 +553,11 @@ void TutorialRayTracing::createRasterizationPipeline()
    rasterizationState.cullMode = VK_CULL_MODE_FRONT_BIT; // cull the front facing polygons
    depthStencilState.depthWriteEnable = VK_FALSE;
    depthStencilState.depthTestEnable = VK_FALSE;
-   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxRasterizationPipeline));
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), _pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxRasterizationPipeline));
    debugmarker::setName(_device->vulkanDevice(), _skyBoxRasterizationPipeline, "_skyBoxPipeline");
 
    rasterizationState.polygonMode = VK_POLYGON_MODE_LINE;
-   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxRasterizationPipelineWireframe));
+   VK_CHECK_RESULT(vkCreateGraphicsPipelines(_device->vulkanDevice(), _pipelineCache, 1, &graphicsPipelineCreateInfo, nullptr, &_skyBoxRasterizationPipelineWireframe));
    debugmarker::setName(_device->vulkanDevice(), _skyBoxRasterizationPipelineWireframe, "_skyBoxPipelineWireframe");
 }
 
@@ -864,14 +863,89 @@ void TutorialRayTracing::saveScreenShot(const std::string& fileName)
       , _width, _height);
 }
 
+void TutorialRayTracing::destroyRasterizationStuff(void)
+{
+   destroyRasterizationPipelines();
+   destroyRasterizationDescriptorSets();
+}
+void TutorialRayTracing::destroyRayTracingStuff(bool storageImages)
+{
+   destroyRayTracingPipeline();
+   destroyRayTracingDescriptorSets();
+   delete _shaderBindingTable;
+   _shaderBindingTable = nullptr;
+   if (storageImages)
+   {
+      deleteStorageImages();
+   }
+}
+
 void TutorialRayTracing::nextRenderingMode(void)
 {
+   if (_mode == RASTERIZATION)
+   {
+      destroyRasterizationStuff();
+   }
+   else if (_mode == RAYTRACE)
+   {
+      destroyRayTracingStuff(false);
+   }
+
+   // change the mode
    _mode = (RenderMode)((_mode + 1) % NUM_MODES);
+   if (_mode == RASTERIZATION)
+   {
+      _sampleCount = _sampleCountForRasterization;
+   }
+   else if (_mode == RAYTRACE)
+   {
+      _sampleCount = 1;
+   }
+
+   destroyMultiSampleColor();
+   destroyDepthStencil();
+   destroyFrameBuffers();
+
+   setupMultiSampleColor();
+   setupDepthStencil();
+
    setupRenderPass();
+   setupFrameBuffer();
+
+   if (_mode == RAYTRACE)
+   {
+      createRayTracingPipeline();
+   }
+   else if (_mode == RASTERIZATION)
+   {
+      createRasterizationPipeline();
+   }
+
+   if (_mode == RAYTRACE)
+   {
+      createAndUpdateRayTracingDescriptorSets();
+   }
+   else if (_mode == RASTERIZATION)
+   {
+      createAndUpdateRasterizationDescriptorSets();
+   }
+
    if (_mode == RASTERIZATION)
    {
       buildCommandBuffers();
    }
+
+   UIOverlay.destroyPipeline();
+   if (_mode == RASTERIZATION)
+   {
+      UIOverlay._rasterizationSamples = Image::toSampleCountFlagBits(_sampleCountForRasterization);
+   }
+   else if (_mode == RAYTRACE)
+   {
+      UIOverlay._rasterizationSamples = Image::toSampleCountFlagBits(1);
+   }
+   UIOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
+
    _pushConstants.frameIndex = -1;
 }
 
@@ -889,7 +963,10 @@ void TutorialRayTracing::keyPressed(uint32_t key)
    else if (key == KEY_F4)
    {
       _settings.overlay = !_settings.overlay;
-      buildCommandBuffers();
+      if (_mode == RASTERIZATION)
+      {
+         buildCommandBuffers();
+      }
    }
    else if (key == KEY_R)
    {
@@ -1079,21 +1156,18 @@ void TutorialRayTracing::createScene()
    createSkyBox();
 }
 
-void TutorialRayTracing::createPipelines()
-{
-   createRayTracingPipeline();
-   createRasterizationPipeline();
-}
-
 void TutorialRayTracing::buildCommandBuffers()
 {
-   if (_dynamicRendering)
+   if (_mode == RASTERIZATION)
    {
-      buildRasterizationCommandBuffersDynamicRendering();
-   }
-   else
-   {
-      buildRasterizationCommandBuffers();
+      if (_dynamicRendering)
+      {
+         buildRasterizationCommandBuffersDynamicRendering();
+      }
+      else
+      {
+         buildRasterizationCommandBuffers();
+      }
    }
 }
 
@@ -1104,9 +1178,28 @@ void TutorialRayTracing::prepare()
    createScene();
    createStorageImages();
    createSceneUbo();
-   createPipelines();
-   createAndUpdateDescriptorSets();
-   buildCommandBuffers();
+   if (_mode == RAYTRACE)
+   {
+      createRayTracingPipeline();
+   }
+   else if (_mode == RASTERIZATION)
+   {
+      createRasterizationPipeline();
+   }
+
+   if (_mode == RAYTRACE)
+   {
+      createAndUpdateRayTracingDescriptorSets();
+   }
+   else if (_mode == RASTERIZATION)
+   {
+      createAndUpdateRasterizationDescriptorSets();
+   }
+
+   if (_mode == RASTERIZATION)
+   {
+      buildCommandBuffers();
+   }
    _prepared = true;
 }
 
@@ -1263,20 +1356,33 @@ void TutorialRayTracing::onDrop(const std::vector<std::string>& filesDropped)
    {
       return;
    }
-   destroyRayTracingStuff(false);
-   destroyRasterizationStuff();
+   if (_mode == RAYTRACE)
+   {
+      destroyRayTracingStuff(false);
+   }
+   else if (_mode == RASTERIZATION)
+   {
+      destroyRasterizationStuff();
+   }
 
    delete _cellManager;
    _cellManager = nullptr;
 
    _mainModel = fileName;
    createCells();
-   createRayTracingPipeline();
-   createAndUpdateRayTracingDescriptorSets();
+   if (_mode == RAYTRACE)
+   {
+      createRayTracingPipeline();
+      createAndUpdateRayTracingDescriptorSets();
+   }
+   else if (_mode == RASTERIZATION)
+   {
+      createRasterizationPipeline();
+      createAndUpdateRasterizationDescriptorSets();
+      buildCommandBuffers();
+   }
+
    _pushConstants.frameIndex = -1;
 
-   createRasterizationPipeline();
-   createAndUpdateRasterizationDescriptorSets();
-   buildCommandBuffers();
    resetCamera();
 }

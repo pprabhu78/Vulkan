@@ -183,6 +183,15 @@ namespace genesis
       vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
    }
 
+   void UIOverlay::destroyPipeline(void)
+   {
+      vkDestroyPipelineLayout(_device->vulkanDevice(), _pipelineLayout, nullptr);
+      _pipelineLayout = VK_NULL_HANDLE;
+
+      vkDestroyPipeline(_device->vulkanDevice(), _pipeline, nullptr);
+      _pipeline = VK_NULL_HANDLE;
+   }
+
    /** Prepare a separate pipeline for the UI overlay rendering decoupled from the main application */
    void UIOverlay::preparePipeline(const VkPipelineCache pipelineCache, const VkRenderPass renderPass, VkFormat colorFormat, VkFormat depthFormat)
    {

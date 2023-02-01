@@ -30,6 +30,7 @@ namespace genesis
 		~UIOverlay();
 	public:
 		void preparePipeline(const VkPipelineCache pipelineCache, const VkRenderPass renderPass, VkFormat colorFormat, VkFormat depthFormat);
+		void destroyPipeline(void);
 		void prepareResources();
 
 		bool update();

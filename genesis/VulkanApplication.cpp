@@ -102,7 +102,7 @@ namespace genesis
    {
       VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
       pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
-      VK_CHECK_RESULT(vkCreatePipelineCache(_device->vulkanDevice(), &pipelineCacheCreateInfo, nullptr, &pipelineCache));
+      VK_CHECK_RESULT(vkCreatePipelineCache(_device->vulkanDevice(), &pipelineCacheCreateInfo, nullptr, &_pipelineCache));
    }
 
    void VulkanApplication::prepare()
@@ -130,7 +130,7 @@ namespace genesis
       UIOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.frag.spv", genesis::ST_FRAGMENT_SHADER));
       UIOverlay._rasterizationSamples = Image::toSampleCountFlagBits(_sampleCount);
       UIOverlay.prepareResources();
-      UIOverlay.preparePipeline(pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
+      UIOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
    }
 
    genesis::Shader* VulkanApplication::loadShader(std::string fileName, genesis::ShaderType stage)
@@ -421,7 +421,7 @@ namespace genesis
       destroyDepthStencil();
       destroyMultiSampleColor();
 
-      vkDestroyPipelineCache(_device->vulkanDevice(), pipelineCache, nullptr);
+      vkDestroyPipelineCache(_device->vulkanDevice(), _pipelineCache, nullptr);
 
       vkDestroyCommandPool(_device->vulkanDevice(), _commandPool, nullptr);
 

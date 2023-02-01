@@ -254,7 +254,7 @@ namespace genesis
       std::vector<Shader*> _shaders;
 
       // Pipeline cache object
-      VkPipelineCache pipelineCache;
+      VkPipelineCache _pipelineCache;
 
       // Wraps the swap chain to present images (framebuffers) to the windowing system
       SwapChain* _swapChain = nullptr;
