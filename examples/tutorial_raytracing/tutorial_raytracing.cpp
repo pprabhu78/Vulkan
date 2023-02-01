@@ -40,7 +40,7 @@ using namespace genesis::tools;
 
 void TutorialRayTracing::resetCamera()
 {
-   if (_mainModel == "venus")
+   if (_mainModel.find("venus")!=std::string::npos)
    {
       _camera.type = Camera::CameraType::lookat;
       _camera.setPosition(glm::vec3(0.0f, 0.0f, -2.5f));
@@ -48,7 +48,7 @@ void TutorialRayTracing::resetCamera()
       _camera.setPerspective(60.0f, (float)_width / (float)_height, 1.0f, 256.0f);
       _pushConstants.contributionFromEnvironment = 1;
    }
-   else if (_mainModel == "cornell")
+   else if (_mainModel.find("cornell") != std::string::npos)
    {
       _camera.type = Camera::CameraType::lookat;
       _camera.setPosition(glm::vec3(0.0f, 0.0f, -14.5f));
@@ -56,7 +56,7 @@ void TutorialRayTracing::resetCamera()
       _camera.setPerspective(60.0f, (float)_width / (float)_height, 1.0f, 256.0f);
       _pushConstants.contributionFromEnvironment = 0;
    }
-   else if (_mainModel == "sphere")
+   else if (_mainModel.find("sphere") != std::string::npos)
    {
       _camera.type = Camera::CameraType::lookat;
       _camera.setPosition(glm::vec3(0.0f, 0.0f, -10.5f));
@@ -64,7 +64,7 @@ void TutorialRayTracing::resetCamera()
       _camera.setPerspective(60.0f, (float)_width / (float)_height, 1.0f, 256.0f);
       _pushConstants.contributionFromEnvironment = 1;
    }
-   else if (_mainModel == "sponza")
+   else if (_mainModel.find("sponza") != std::string::npos)
    {
       _camera.type = genesis::Camera::CameraType::firstperson;
       _camera.setPosition(glm::vec3(0.0f, -1.0f, 0.0f));
@@ -74,7 +74,7 @@ void TutorialRayTracing::resetCamera()
       _camera.rotationSpeed = 0.2f;
       _pushConstants.contributionFromEnvironment = 10;
    }
-   else if (_mainModel == "bathroom")
+   else if (_mainModel.find("bathroom") != std::string::npos)
    {
       _camera.type = genesis::Camera::CameraType::firstperson;
 
@@ -1101,23 +1101,23 @@ void TutorialRayTracing::createCells(void)
    std::string gltfModel;
    std::string gltfModel2;
 
-   if (_mainModel == "sponza")
+   if (_mainModel.find("sponza") !=std::string::npos)
    {
       gltfModel = getAssetsPath() + "models/sponza/sponza.gltf";
    }
-   else if (_mainModel == "venus")
+   else if (_mainModel.find("venus") != std::string::npos)
    {
       gltfModel = getAssetsPath() + "models/venus.gltf";
    }
-   else if (_mainModel == "cornell")
+   else if (_mainModel.find("cornell") != std::string::npos)
    {
       gltfModel = getAssetsPath() + "models/cornellBox_used_for_comparison_gen_vs_ref.gltf";
    }
-   else if (_mainModel == "sphere")
+   else if (_mainModel.find("sphere") != std::string::npos)
    {
       gltfModel = getAssetsPath() + "models/sphere.gltf";
    }
-   else if (_mainModel == "bathroom")
+   else if (_mainModel.find("bathroom") != std::string::npos)
    {
       gltfModel = getAssetsPath() + "models/bathroom/LAZIENKA.gltf";
    }
@@ -1400,4 +1400,5 @@ void TutorialRayTracing::onDrop(const std::vector<std::string>& filesDropped)
    _pushConstants.frameIndex = -1;
 
    resetCamera();
+   viewChanged();
 }
