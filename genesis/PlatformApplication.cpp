@@ -24,7 +24,7 @@
 
 namespace genesis
 {
-   std::vector<const char*> PlatformApplication::args;
+   std::vector<const char*> PlatformApplication::_args;
 
    VkResult PlatformApplication::createInstance(bool enableValidation)
    {
@@ -123,14 +123,14 @@ namespace genesis
       {
          setupFrameBuffer();
       }
-      _settings.overlay = _settings.overlay && (!benchmark.active);
+      _settings.overlay = _settings.overlay && (!_benchmark.active);
 
-      UIOverlay._device = _device;
-      UIOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.vert.spv", genesis::ST_VERTEX_SHADER));
-      UIOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.frag.spv", genesis::ST_FRAGMENT_SHADER));
-      UIOverlay._rasterizationSamples = Image::toSampleCountFlagBits(_sampleCount);
-      UIOverlay.prepareResources();
-      UIOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
+      _uiOverlay._device = _device;
+      _uiOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.vert.spv", genesis::ST_VERTEX_SHADER));
+      _uiOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.frag.spv", genesis::ST_FRAGMENT_SHADER));
+      _uiOverlay._rasterizationSamples = Image::toSampleCountFlagBits(_sampleCount);
+      _uiOverlay.prepareResources();
+      _uiOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
    }
 
    genesis::Shader* PlatformApplication::loadShader(std::string fileName, genesis::ShaderType stage)
@@ -160,8 +160,8 @@ namespace genesis
       _frameCounter++;
       auto tEnd = std::chrono::high_resolution_clock::now();
       auto tDiff = std::chrono::duration<double, std::milli>(tEnd - tStart).count();
-      frameTimer = (float)tDiff / 1000.0f;
-      _camera.update(frameTimer);
+      _frameTimer = (float)tDiff / 1000.0f;
+      _camera.update(_frameTimer);
       if (_camera.moving())
       {
          viewUpdated = true;
@@ -169,7 +169,7 @@ namespace genesis
       // Convert to clamped timer value
       if (!_paused)
       {
-         _timer += _timerSpeed * frameTimer;
+         _timer += _timerSpeed * _frameTimer;
          if (_timer > 1.0)
          {
             _timer -= 1.0f;
@@ -183,9 +183,9 @@ namespace genesis
          if (!_settings.overlay) {
             std::string windowTitle = getWindowTitle();
 #if VK_USE_PLATFORM_GLFW
-            glfwSetWindowTitle(window, windowTitle.c_str());
+            glfwSetWindowTitle(_window, windowTitle.c_str());
 #else
-            SetWindowText(window, windowTitle.c_str());
+            SetWindowText(_window, windowTitle.c_str());
 #endif
          }
 #endif
@@ -206,11 +206,11 @@ namespace genesis
 
    void PlatformApplication::renderLoop()
    {
-      if (benchmark.active) {
-         benchmark.run([=] { render(); }, _physicalDevice->physicalDeviceProperties());
+      if (_benchmark.active) {
+         _benchmark.run([=] { render(); }, _physicalDevice->physicalDeviceProperties());
          vkDeviceWaitIdle(_device->vulkanDevice());
-         if (benchmark.filename != "") {
-            benchmark.saveResults();
+         if (_benchmark.filename != "") {
+            _benchmark.saveResults();
          }
          return;
       }
@@ -220,7 +220,7 @@ namespace genesis
       _lastTimestamp = std::chrono::high_resolution_clock::now();
 
       bool quitMessageReceived = false;
-      while (!glfwWindowShouldClose(window))
+      while (!glfwWindowShouldClose(_window))
       {
          glfwPollEvents();
 #if 0
@@ -231,7 +231,7 @@ namespace genesis
          }
 #endif
 
-         if (_prepared && !IsMinimized(window)) {
+         if (_prepared && !IsMinimized(_window)) {
             nextFrame();
          }
       }
@@ -241,7 +241,7 @@ namespace genesis
          vkDeviceWaitIdle(_device->vulkanDevice());
       }
 
-      glfwDestroyWindow(window);
+      glfwDestroyWindow(_window);
       glfwTerminate();
    }
 
@@ -253,7 +253,7 @@ namespace genesis
       ImGuiIO& io = ImGui::GetIO();
 
       io.DisplaySize = ImVec2((float)_width, (float)_height);
-      io.DeltaTime = frameTimer;
+      io.DeltaTime = _frameTimer;
 
       io.MousePos = ImVec2(_mousePos.x, _mousePos.y);
       io.MouseDown[0] = _mouseButtons.left;
@@ -270,8 +270,8 @@ namespace genesis
       ImGui::Text("%.2f ms/frame (%.1d fps)", (1000.0f / _lastFPS), _lastFPS);
 
 
-      ImGui::PushItemWidth(110.0f * UIOverlay._scale);
-      OnUpdateUIOverlay(&UIOverlay);
+      ImGui::PushItemWidth(110.0f * _uiOverlay._scale);
+      OnUpdateUIOverlay(&_uiOverlay);
       ImGui::PopItemWidth();
 
 
@@ -279,9 +279,9 @@ namespace genesis
       ImGui::PopStyleVar();
       ImGui::Render();
 
-      if (UIOverlay.update() || UIOverlay._updated) {
+      if (_uiOverlay.update() || _uiOverlay._updated) {
          buildCommandBuffers();
-         UIOverlay._updated = false;
+         _uiOverlay._updated = false;
       }
 
    }
@@ -294,7 +294,7 @@ namespace genesis
          vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
          vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-         UIOverlay.draw(commandBuffer);
+         _uiOverlay.draw(commandBuffer);
       }
    }
 
@@ -348,30 +348,30 @@ namespace genesis
       _settings.validation = enableValidation;
 
       // Command line arguments
-      commandLineParser.parse(args);
-      if (commandLineParser.isSet("help"))
+      _commandLineParser.parse(_args);
+      if (_commandLineParser.isSet("help"))
       {
-         commandLineParser.printHelp();
+         _commandLineParser.printHelp();
          std::cin.get();
          exit(0);
       }
-      if (commandLineParser.isSet("validation")) {
+      if (_commandLineParser.isSet("validation")) {
          _settings.validation = true;
       }
-      if (commandLineParser.isSet("vsync")) {
+      if (_commandLineParser.isSet("vsync")) {
          _settings.vsync = true;
       }
-      if (commandLineParser.isSet("height")) {
-         _height = commandLineParser.getValueAsInt("height", _width);
+      if (_commandLineParser.isSet("height")) {
+         _height = _commandLineParser.getValueAsInt("height", _width);
       }
-      if (commandLineParser.isSet("width")) {
-         _width = commandLineParser.getValueAsInt("width", _width);
+      if (_commandLineParser.isSet("width")) {
+         _width = _commandLineParser.getValueAsInt("width", _width);
       }
-      if (commandLineParser.isSet("fullscreen")) {
+      if (_commandLineParser.isSet("fullscreen")) {
          _settings.fullscreen = true;
       }
-      if (commandLineParser.isSet("shaders")) {
-         std::string value = commandLineParser.getValueAsString("shaders", "glsl");
+      if (_commandLineParser.isSet("shaders")) {
+         std::string value = _commandLineParser.getValueAsString("shaders", "glsl");
          if ((value != "glsl") && (value != "hlsl")) {
             std::cerr << "Shader type must be one of 'glsl' or 'hlsl'\n";
          }
@@ -379,23 +379,23 @@ namespace genesis
             shaderDir = value;
          }
       }
-      if (commandLineParser.isSet("benchmark")) {
-         benchmark.active = true;
+      if (_commandLineParser.isSet("benchmark")) {
+         _benchmark.active = true;
       }
-      if (commandLineParser.isSet("benchmarkwarmup")) {
-         benchmark.warmup = commandLineParser.getValueAsInt("benchmarkwarmup", benchmark.warmup);
+      if (_commandLineParser.isSet("benchmarkwarmup")) {
+         _benchmark.warmup = _commandLineParser.getValueAsInt("benchmarkwarmup", _benchmark.warmup);
       }
-      if (commandLineParser.isSet("benchmarkruntime")) {
-         benchmark.duration = commandLineParser.getValueAsInt("benchmarkruntime", benchmark.duration);
+      if (_commandLineParser.isSet("benchmarkruntime")) {
+         _benchmark.duration = _commandLineParser.getValueAsInt("benchmarkruntime", _benchmark.duration);
       }
-      if (commandLineParser.isSet("benchmarkresultfile")) {
-         benchmark.filename = commandLineParser.getValueAsString("benchmarkresultfile", benchmark.filename);
+      if (_commandLineParser.isSet("benchmarkresultfile")) {
+         _benchmark.filename = _commandLineParser.getValueAsString("benchmarkresultfile", _benchmark.filename);
       }
-      if (commandLineParser.isSet("benchmarkresultframes")) {
-         benchmark.outputFrameTimes = true;
+      if (_commandLineParser.isSet("benchmarkresultframes")) {
+         _benchmark.outputFrameTimes = true;
       }
-      if (commandLineParser.isSet("benchmarkframes")) {
-         benchmark.outputFrames = commandLineParser.getValueAsInt("benchmarkframes", benchmark.outputFrames);
+      if (_commandLineParser.isSet("benchmarkframes")) {
+         _benchmark.outputFrames = _commandLineParser.getValueAsInt("benchmarkframes", _benchmark.outputFrames);
       }
    }
 
@@ -431,7 +431,7 @@ namespace genesis
          vkDestroyFence(_device->vulkanDevice(), fence, nullptr);
       }
 
-      UIOverlay.freeResources();
+      _uiOverlay.freeResources();
 
       delete _device;
 
@@ -467,8 +467,8 @@ namespace genesis
 
 #if !defined(VK_USE_PLATFORM_ANDROID_KHR)
       // GPU selection via command line argument
-      if (commandLineParser.isSet("gpuselection")) {
-         uint32_t index = commandLineParser.getValueAsInt("gpuselection", 0);
+      if (_commandLineParser.isSet("gpuselection")) {
+         uint32_t index = _commandLineParser.getValueAsInt("gpuselection", 0);
          if (index > gpuCount - 1) {
             std::cerr << "Selected device index " << index << " is out of range, reverting to device 0 (use -listgpus to show available Vulkan devices)" << "\n";
          }
@@ -476,7 +476,7 @@ namespace genesis
             selectedDevice = index;
          }
       }
-      if (commandLineParser.isSet("gpulist")) {
+      if (_commandLineParser.isSet("gpulist")) {
          std::cout << "Available Vulkan devices" << "\n";
          for (uint32_t i = 0; i < gpuCount; i++) {
 
@@ -595,11 +595,11 @@ namespace genesis
             break;
          case GLFW_KEY_F1:
             if (_settings.overlay) {
-               UIOverlay._visible = !UIOverlay._visible;
+               _uiOverlay._visible = !_uiOverlay._visible;
             }
             break;
          case GLFW_KEY_ESCAPE:
-            glfwSetWindowShouldClose(window, 1);
+            glfwSetWindowShouldClose(_window, 1);
             break;
          }
 
@@ -655,7 +655,7 @@ namespace genesis
       (void)mods;
 
       double x, y;
-      glfwGetCursorPos(window, &x, &y);
+      glfwGetCursorPos(_window, &x, &y);
 
       if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS)
       {
@@ -737,7 +737,7 @@ namespace genesis
          return 0;
       }
       glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-      window = glfwCreateWindow(_width, _height, getWindowTitle().c_str(), nullptr, nullptr);
+      _window = glfwCreateWindow(_width, _height, getWindowTitle().c_str(), nullptr, nullptr);
 
       // Setup Vulkan
       if (!glfwVulkanSupported())
@@ -745,10 +745,10 @@ namespace genesis
          printf("GLFW: Vulkan Not Supported\n");
       }
 
-      glfwSetWindowUserPointer(window, this);
-      setupGlfwCallbacks(window);
+      glfwSetWindowUserPointer(_window, this);
+      setupGlfwCallbacks(_window);
 
-      return window;
+      return _window;
    }
 
    void PlatformApplication::viewChanged() {}
@@ -910,7 +910,7 @@ namespace genesis
       {
          if (_settings.overlay) 
          {
-            UIOverlay.resize(_width, _height);
+            _uiOverlay.resize(_width, _height);
          }
       }
 
@@ -972,9 +972,9 @@ namespace genesis
    void PlatformApplication::initSwapchain()
    {
 #if defined(VK_USE_PLATFORM_GLFW)
-      _swapChain->initSurface(window);
+      _swapChain->initSurface(_window);
 #elif defined(_WIN32)
-      swapChain.initSurface(windowInstance, window);
+      swapChain.initSurface(windowInstance, _window);
 #elif defined(VK_USE_PLATFORM_ANDROID_KHR)
       swapChain.initSurface(androidApp->window);
 #elif (defined(VK_USE_PLATFORM_IOS_MVK) || defined(VK_USE_PLATFORM_MACOS_MVK))
@@ -984,7 +984,7 @@ namespace genesis
 #elif defined(VK_USE_PLATFORM_WAYLAND_KHR)
       swapChain.initSurface(display, surface);
 #elif defined(VK_USE_PLATFORM_XCB_KHR)
-      swapChain.initSurface(connection, window);
+      swapChain.initSurface(connection, _window);
 #elif (defined(_DIRECT2DISPLAY) || defined(VK_USE_PLATFORM_HEADLESS_EXT))
       swapChain.initSurface(_width, _height);
 #endif

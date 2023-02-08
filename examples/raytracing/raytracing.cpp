@@ -109,26 +109,31 @@ RayTracing::RayTracing()
 {
    _settings.overlay = false;
 
-   for (int i = 0; i < args.size(); ++i)
+   for (int i = 0; i < _args.size(); ++i)
    {
-      const std::string arg = args[i];
+      const std::string arg = _args[i];
       if (arg == "--autoTest")
       {
          _autoTest = true;
       }
-      else if (arg == "--model" && (i + 1) < args.size())
+      else if (arg == "--model" && (i + 1) < _args.size())
       {
-         _mainModel = args[i + 1];
+         _mainModel = _args[i + 1];
       }
       else if (arg == "--dynamicRendering")
       {
          _dynamicRendering = true;
       }
-      else if (arg == "--antiAliasing" && (i + 1) < args.size())
+      else if (arg == "--antiAliasing" && (i + 1) < _args.size())
       {
          std::stringstream ss;
-         ss << args[i + 1];
+         ss << _args[i + 1];
          ss >> _sampleCountForRasterization;
+         ++i;
+      }
+      else if (arg == "--gl")
+      {
+         _useGlRendering = true;
       }
    }
 
@@ -960,16 +965,16 @@ void RayTracing::nextRenderingMode(void)
       buildCommandBuffers();
    }
 
-   UIOverlay.destroyPipeline();
+   _uiOverlay.destroyPipeline();
    if (_mode == RASTERIZATION)
    {
-      UIOverlay._rasterizationSamples = Image::toSampleCountFlagBits(_sampleCountForRasterization);
+      _uiOverlay._rasterizationSamples = Image::toSampleCountFlagBits(_sampleCountForRasterization);
    }
    else if (_mode == RAYTRACE)
    {
-      UIOverlay._rasterizationSamples = Image::toSampleCountFlagBits(1);
+      _uiOverlay._rasterizationSamples = Image::toSampleCountFlagBits(1);
    }
-   UIOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
+   _uiOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
 
    _pushConstants.frameIndex = -1;
 }

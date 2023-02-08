@@ -2,7 +2,7 @@
 
 int main(int argc, char** argv)
 {
-   for (size_t i = 0; i < __argc; i++) { RayTracing::args.push_back(argv[i]); };
+   for (size_t i = 0; i < __argc; i++) { RayTracing::_args.push_back(argv[i]); };
    RayTracing* myTutorial = new RayTracing();
    myTutorial->initVulkan();
    myTutorial->setupWindow();

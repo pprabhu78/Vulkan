@@ -126,18 +126,36 @@ namespace genesis
       virtual void onFramebufferSize(int w, int h);
       virtual void onDrop(const std::vector<std::string>& filesDropped);
 
+   protected:
+      // Returns the path to the root of the glsl or hlsl shader directory.
+      virtual std::string getShadersPath() const;
+
+      virtual std::string getAssetsPath(void) const;
+
+   private:
+      virtual void windowResize();
+      virtual void handleMouseMove(int32_t x, int32_t y);
+      virtual void nextFrame();
+      virtual void updateOverlay();
+      virtual void createPipelineCache();
+      virtual void createCommandPool();
+      virtual void createSynchronizationPrimitives();
+      virtual void initSwapchain();
+      virtual void setupSwapChain();
+      virtual void createCommandBuffers();
+      virtual void destroyCommandBuffers();
    public:
       bool _prepared = false;
       uint32_t _width = 1280 * 2;
       uint32_t _height = 720 * 2;
 
-      genesis::UIOverlay UIOverlay;
-      CommandLineParser commandLineParser;
+      genesis::UIOverlay _uiOverlay;
+      CommandLineParser _commandLineParser;
 
       /** @brief Last frame time measured using a high performance timer (if available) */
-      float frameTimer = 1.0f;
+      float _frameTimer = 1.0f;
 
-      Benchmark benchmark;
+      Benchmark _benchmark;
 
       /** @brief Example settings that can be changed e.g. by command line arguments */
       struct Settings
@@ -154,7 +172,7 @@ namespace genesis
 
       VkClearColorValue _defaultClearColor = { { 0.025f, 0.025f, 0.025f, 1.0f } };
 
-      static std::vector<const char*> args;
+      static std::vector<const char*> _args;
 
       // Defines a frame rate independent timer value clamped from -1.0...1.0
       // For use in animations, rotations, etc.
@@ -191,17 +209,12 @@ namespace genesis
          bool middle = false;
       } _mouseButtons;
 
-      GLFWwindow* window;
+      GLFWwindow* _window = nullptr;
 
    protected:
-      ApiInstance* _instance;
+      ApiInstance* _instance = nullptr;
 
-      Device* _device;
-
-      // Returns the path to the root of the glsl or hlsl shader directory.
-      std::string getShadersPath() const;
-
-      std::string getAssetsPath(void) const;
+      Device* _device = nullptr;
 
       // Frame counter to display fps
       uint32_t _frameCounter = 0;
@@ -273,18 +286,9 @@ namespace genesis
       bool _dynamicRendering = false;
 
       int _sampleCount = 1;
-   private:
-      virtual void windowResize();
-      virtual void handleMouseMove(int32_t x, int32_t y);
-      virtual void nextFrame();
-      virtual void updateOverlay();
-      virtual void createPipelineCache();
-      virtual void createCommandPool();
-      virtual void createSynchronizationPrimitives();
-      virtual void initSwapchain();
-      virtual void setupSwapChain();
-      virtual void createCommandBuffers();
-      virtual void destroyCommandBuffers();
+
+      bool _useGlRendering = false;
+
    private:
       std::string getWindowTitle();
       bool viewUpdated = false;

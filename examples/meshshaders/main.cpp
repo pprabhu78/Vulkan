@@ -2,7 +2,7 @@
 
 int main(int argc, char** argv)
 {
-   for (size_t i = 0; i < __argc; i++) { MeshShaders::args.push_back(argv[i]); };
+   for (size_t i = 0; i < __argc; i++) { MeshShaders::_args.push_back(argv[i]); };
    MeshShaders* myTutorial = new MeshShaders();
    myTutorial->initVulkan();
    myTutorial->setupWindow();
