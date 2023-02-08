@@ -65,7 +65,7 @@ namespace genesis
       _drawCommandBuffers.resize(_swapChain->imageCount());
 
       VkCommandBufferAllocateInfo cmdBufAllocateInfo =
-         VulkanInitializers::commandBufferAllocateInfo(
+         vkInitaliazers::commandBufferAllocateInfo(
             _commandPool,
             VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             static_cast<uint32_t>(_drawCommandBuffers.size()));
@@ -110,6 +110,7 @@ namespace genesis
       if (_device->enableDebugMarkers()) {
          genesis::debugmarker::setup(_device->vulkanDevice());
       }
+
       initSwapchain();
       createCommandPool();
       setupSwapChain();
@@ -289,8 +290,8 @@ namespace genesis
    void PlatformApplication::drawUI(const VkCommandBuffer commandBuffer)
    {
       if (_settings.overlay) {
-         const VkViewport viewport = VulkanInitializers::viewport((float)_width, (float)_height, 0.0f, 1.0f, false);
-         const VkRect2D scissor = VulkanInitializers::rect2D(_width, _height, 0, 0);
+         const VkViewport viewport = vkInitaliazers::viewport((float)_width, (float)_height, 0.0f, 1.0f, false);
+         const VkRect2D scissor = vkInitaliazers::rect2D(_width, _height, 0, 0);
          vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
          vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
@@ -500,10 +501,13 @@ namespace genesis
       VkBool32 validDepthFormat = _physicalDevice->getSupportedDepthFormat(_depthFormat);
       assert(validDepthFormat);
 
-      _swapChain = new SwapChain(_device);
-
+      if (!_useGlRendering)
+      {
+         _swapChain = new SwapChain(_device);
+      }
+      
       // Create synchronization objects
-      VkSemaphoreCreateInfo semaphoreCreateInfo = VulkanInitializers::semaphoreCreateInfo();
+      VkSemaphoreCreateInfo semaphoreCreateInfo = vkInitaliazers::semaphoreCreateInfo();
       // Create a semaphore used to synchronize image presentation
       // Ensures that the image is displayed before we start submitting new commands to the queue
       VK_CHECK_RESULT(vkCreateSemaphore(_device->vulkanDevice(), &semaphoreCreateInfo, nullptr, &_semaphores.presentComplete));
@@ -514,7 +518,7 @@ namespace genesis
       // Set up submit info structure
       // Semaphores will stay the same during application lifetime
       // Command buffer submission info is set by each example
-      _submitInfo = VulkanInitializers::submitInfo();
+      _submitInfo = vkInitaliazers::submitInfo();
       _submitInfo.pWaitDstStageMask = &submitPipelineStages;
       _submitInfo.waitSemaphoreCount = 1;
       _submitInfo.pWaitSemaphores = &_semaphores.presentComplete;
@@ -736,7 +740,14 @@ namespace genesis
       {
          return 0;
       }
-      glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+      if (_useGlRendering)
+      {
+         // default will use the gl rendering
+      }
+      else
+      {
+         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+      }
       _window = glfwCreateWindow(_width, _height, getWindowTitle().c_str(), nullptr, nullptr);
 
       // Setup Vulkan
@@ -762,7 +773,7 @@ namespace genesis
    void PlatformApplication::createSynchronizationPrimitives()
    {
       // Wait fences to sync command buffer access
-      VkFenceCreateInfo fenceCreateInfo = VulkanInitializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+      VkFenceCreateInfo fenceCreateInfo = vkInitaliazers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
       _waitFences.resize(_drawCommandBuffers.size());
       for (auto& fence : _waitFences) {
          VK_CHECK_RESULT(vkCreateFence(_device->vulkanDevice(), &fenceCreateInfo, nullptr, &fence));
@@ -834,7 +845,7 @@ namespace genesis
          attachments[1] = _depthStencilImage->vulkanImageView();
       }
 
-      VkFramebufferCreateInfo frameBufferCreateInfo = VulkanInitializers::framebufferCreateInfo();
+      VkFramebufferCreateInfo frameBufferCreateInfo = vkInitaliazers::framebufferCreateInfo();
       frameBufferCreateInfo.renderPass = _renderPass->vulkanRenderPass();
       frameBufferCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
       frameBufferCreateInfo.pAttachments = attachments.data();

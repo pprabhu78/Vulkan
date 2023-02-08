@@ -106,7 +106,7 @@ namespace genesis
          actualName = incomingName;
       }
 
-      VkBufferCreateInfo bufferCreateInfo = VulkanInitializers::bufferCreateInfo(usageFlags, sizeInBytes);
+      VkBufferCreateInfo bufferCreateInfo = vkInitaliazers::bufferCreateInfo(usageFlags, sizeInBytes);
 
       VK_CHECK_RESULT(vkCreateBuffer(_device->vulkanDevice(), &bufferCreateInfo, nullptr, &_buffer));
 
@@ -115,10 +115,10 @@ namespace genesis
       VkMemoryRequirements memoryRequirements;
       vkGetBufferMemoryRequirements(_device->vulkanDevice(), _buffer, &memoryRequirements);
 
-      VkMemoryAllocateInfo memoryAllocateInfo = VulkanInitializers::memoryAllocateInfo();
+      VkMemoryAllocateInfo memoryAllocateInfo = vkInitaliazers::memoryAllocateInfo();
       memoryAllocateInfo.allocationSize = memoryRequirements.size;
 
-      VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo = VulkanInitializers::memoryAllocateFlagsInfo();
+      VkMemoryAllocateFlagsInfo memoryAllocateFlagsInfo = vkInitaliazers::memoryAllocateFlagsInfo();
       if (usageFlags & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
       {
          memoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;

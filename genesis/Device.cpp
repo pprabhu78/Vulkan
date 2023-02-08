@@ -173,7 +173,7 @@ namespace genesis
       // If requested, also start the new command buffer
       if (begin)
       {
-         VkCommandBufferBeginInfo cmdBufInfo = genesis::VulkanInitializers::commandBufferBeginInfo();
+         VkCommandBufferBeginInfo cmdBufInfo = genesis::vkInitaliazers::commandBufferBeginInfo();
          VK_CHECK_RESULT(vkBeginCommandBuffer(cmdBuffer, &cmdBufInfo));
       }
 
@@ -190,12 +190,12 @@ namespace genesis
 
       VK_CHECK_RESULT(vkEndCommandBuffer(commandBuffer));
 
-      VkSubmitInfo submitInfo = VulkanInitializers::submitInfo();
+      VkSubmitInfo submitInfo = vkInitaliazers::submitInfo();
       submitInfo.commandBufferCount = 1;
       submitInfo.pCommandBuffers = &commandBuffer;
 
       // Create fence to ensure that the command buffer has finished executing
-      VkFenceCreateInfo fenceCreateInfo = VulkanInitializers::fenceCreateInfo();
+      VkFenceCreateInfo fenceCreateInfo = vkInitaliazers::fenceCreateInfo();
       VkFence fence;
       VK_CHECK_RESULT(vkCreateFence(_logicalDevice, &fenceCreateInfo, nullptr, &fence));
 

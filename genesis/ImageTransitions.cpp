@@ -23,7 +23,7 @@ namespace genesis
       VkPipelineStageFlags dstStageMask)
    {
       // Create an image barrier object
-      VkImageMemoryBarrier imageMemoryBarrier = VulkanInitializers::imageMemoryBarrier();
+      VkImageMemoryBarrier imageMemoryBarrier = vkInitaliazers::imageMemoryBarrier();
       imageMemoryBarrier.oldLayout = oldImageLayout;
       imageMemoryBarrier.newLayout = newImageLayout;
       imageMemoryBarrier.image = image;

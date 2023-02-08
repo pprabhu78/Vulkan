@@ -33,11 +33,11 @@ namespace genesis
 
       const std::vector<Texture*>& textures = model->textures();
 
-      poolSizes.push_back(genesis::VulkanInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (uint32_t)textures.size()));
+      poolSizes.push_back(genesis::vkInitaliazers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, (uint32_t)textures.size()));
 
       const uint32_t maxSets = (uint32_t)textures.size();
 
-      VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::VulkanInitializers::descriptorPoolCreateInfo(poolSizes, maxSets);
+      VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vkInitaliazers::descriptorPoolCreateInfo(poolSizes, maxSets);
       VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &_descriptorPool));
    }
 
@@ -48,8 +48,8 @@ namespace genesis
 
       VkDescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo;
 
-      setBindings.push_back(genesis::VulkanInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++));
-      descriptorSetLayoutCreateInfo = genesis::VulkanInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
+      setBindings.push_back(genesis::vkInitaliazers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++));
+      descriptorSetLayoutCreateInfo = genesis::vkInitaliazers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
 
       VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &descriptorSetLayoutCreateInfo, nullptr, &_descriptorSetLayout));
    }
@@ -59,7 +59,7 @@ namespace genesis
       const std::vector<Texture*>& textures = model->textures();
       for (int i = 0; i < textures.size(); ++i)
       {
-         const VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::VulkanInitializers::descriptorSetAllocateInfo(_descriptorPool, &_descriptorSetLayout, 1);
+         const VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vkInitaliazers::descriptorSetAllocateInfo(_descriptorPool, &_descriptorSetLayout, 1);
 
          // allocate a set
          VkDescriptorSet descriptorSet;
@@ -67,7 +67,7 @@ namespace genesis
 
          std::vector<VkWriteDescriptorSet> writeDescriptorSets =
          {
-         genesis::VulkanInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &textures[i]->descriptor())
+         genesis::vkInitaliazers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 0, &textures[i]->descriptor())
          };
 
          vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);

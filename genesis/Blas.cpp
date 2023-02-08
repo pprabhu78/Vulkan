@@ -40,7 +40,7 @@ namespace genesis
       triangles.indexType = VK_INDEX_TYPE_UINT32;
       triangles.indexData = indexBufferDeviceAddress;
 
-      VkAccelerationStructureGeometryKHR accelerationStructureGeometry = VulkanInitializers::accelerationStructureGeometryKHR();
+      VkAccelerationStructureGeometryKHR accelerationStructureGeometry = vkInitaliazers::accelerationStructureGeometryKHR();
       accelerationStructureGeometry.flags = VK_GEOMETRY_OPAQUE_BIT_KHR;
       accelerationStructureGeometry.geometryType = VK_GEOMETRY_TYPE_TRIANGLES_KHR;
       accelerationStructureGeometry.geometry.triangles = triangles;
@@ -66,13 +66,13 @@ namespace genesis
       );
 
       // Get size info
-      VkAccelerationStructureBuildGeometryInfoKHR accelerationStructureBuildGeometryInfo = VulkanInitializers::accelerationStructureBuildGeometryInfoKHR();
+      VkAccelerationStructureBuildGeometryInfoKHR accelerationStructureBuildGeometryInfo = vkInitaliazers::accelerationStructureBuildGeometryInfoKHR();
       accelerationStructureBuildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
       accelerationStructureBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
       accelerationStructureBuildGeometryInfo.geometryCount = (uint32_t)vecAccelerationStructureGeometries.size();
       accelerationStructureBuildGeometryInfo.pGeometries = vecAccelerationStructureGeometries.data();
 
-      VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo = VulkanInitializers::accelerationStructureBuildSizesInfoKHR();
+      VkAccelerationStructureBuildSizesInfoKHR accelerationStructureBuildSizesInfo = vkInitaliazers::accelerationStructureBuildSizesInfoKHR();
       _device->extensions().vkGetAccelerationStructureBuildSizesKHR(
          _device->vulkanDevice(),
          VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
@@ -86,7 +86,7 @@ namespace genesis
 
       Buffer* scratchBuffer = new Buffer(_device, BT_SBO, (int)accelerationStructureBuildSizesInfo.buildScratchSize, false, flags);
 
-      VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo = VulkanInitializers::accelerationStructureBuildGeometryInfoKHR();
+      VkAccelerationStructureBuildGeometryInfoKHR accelerationBuildGeometryInfo = vkInitaliazers::accelerationStructureBuildGeometryInfoKHR();
       accelerationBuildGeometryInfo.type = VK_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL_KHR;
       accelerationBuildGeometryInfo.flags = VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR;
       accelerationBuildGeometryInfo.mode = VK_BUILD_ACCELERATION_STRUCTURE_MODE_BUILD_KHR;
