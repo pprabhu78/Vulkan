@@ -55,11 +55,11 @@ namespace genesis
    class PhysicalDevice;
    class Device;
 
-   class VulkanApplication
+   class PlatformApplication
    {
    public:
-      VulkanApplication(bool enableValidation = false);
-      virtual ~VulkanApplication();
+      PlatformApplication(bool enableValidation = false);
+      virtual ~PlatformApplication();
    public:
       /** @brief Setup the vulkan instance, enable required extensions and connect to the physical device (GPU) */
       bool initVulkan();

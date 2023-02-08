@@ -4,7 +4,7 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#include "VulkanApplication.h"
+#include "PlatformApplication.h"
 #include "RenderPass.h"
 #include "Instance.h"
 #include "Device.h"
@@ -24,9 +24,9 @@
 
 namespace genesis
 {
-   std::vector<const char*> VulkanApplication::args;
+   std::vector<const char*> PlatformApplication::args;
 
-   VkResult VulkanApplication::createInstance(bool enableValidation)
+   VkResult PlatformApplication::createInstance(bool enableValidation)
    {
       this->_settings.validation = enableValidation;
 
@@ -39,16 +39,16 @@ namespace genesis
       return _instance->creationStatus();
    }
 
-   void VulkanApplication::renderFrame()
+   void PlatformApplication::renderFrame()
    {
-      VulkanApplication::prepareFrame();
+      PlatformApplication::prepareFrame();
       _submitInfo.commandBufferCount = 1;
       _submitInfo.pCommandBuffers = &_drawCommandBuffers[_currentFrameBufferIndex];
       VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &_submitInfo, VK_NULL_HANDLE));
-      VulkanApplication::submitFrame();
+      PlatformApplication::submitFrame();
    }
 
-   std::string VulkanApplication::getWindowTitle()
+   std::string PlatformApplication::getWindowTitle()
    {
       std::string device(_physicalDevice->physicalDeviceProperties().deviceName);
       std::string windowTitle;
@@ -59,7 +59,7 @@ namespace genesis
       return windowTitle;
    }
 
-   void VulkanApplication::createCommandBuffers()
+   void PlatformApplication::createCommandBuffers()
    {
       // Create one command buffer for each swap chain image and reuse for rendering
       _drawCommandBuffers.resize(_swapChain->imageCount());
@@ -73,7 +73,7 @@ namespace genesis
       VK_CHECK_RESULT(vkAllocateCommandBuffers(_device->vulkanDevice(), &cmdBufAllocateInfo, _drawCommandBuffers.data()));
    }
 
-   void VulkanApplication::destroyCommandBuffers()
+   void PlatformApplication::destroyCommandBuffers()
    {
       if (_drawCommandBuffers.empty())
       {
@@ -82,7 +82,7 @@ namespace genesis
       vkFreeCommandBuffers(_device->vulkanDevice(), _commandPool, static_cast<uint32_t>(_drawCommandBuffers.size()), _drawCommandBuffers.data());
    }
 
-   std::string VulkanApplication::getAssetsPath() const
+   std::string PlatformApplication::getAssetsPath() const
    {
 #if defined(VK_USE_PLATFORM_ANDROID_KHR)
       return "";
@@ -93,19 +93,19 @@ namespace genesis
 #endif
    }
 
-   std::string VulkanApplication::getShadersPath() const
+   std::string PlatformApplication::getShadersPath() const
    {
       return getAssetsPath() + "shaders/" + shaderDir + "/";
    }
 
-   void VulkanApplication::createPipelineCache()
+   void PlatformApplication::createPipelineCache()
    {
       VkPipelineCacheCreateInfo pipelineCacheCreateInfo = {};
       pipelineCacheCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO;
       VK_CHECK_RESULT(vkCreatePipelineCache(_device->vulkanDevice(), &pipelineCacheCreateInfo, nullptr, &_pipelineCache));
    }
 
-   void VulkanApplication::prepare()
+   void PlatformApplication::prepare()
    {
       if (_device->enableDebugMarkers()) {
          genesis::debugmarker::setup(_device->vulkanDevice());
@@ -133,7 +133,7 @@ namespace genesis
       UIOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
    }
 
-   genesis::Shader* VulkanApplication::loadShader(std::string fileName, genesis::ShaderType stage)
+   genesis::Shader* PlatformApplication::loadShader(std::string fileName, genesis::ShaderType stage)
    {
       genesis::Shader* shader = new genesis::Shader(_device);
       shader->loadFromFile(fileName, stage);
@@ -147,7 +147,7 @@ namespace genesis
       return shader;
    }
 
-   void VulkanApplication::nextFrame()
+   void PlatformApplication::nextFrame()
    {
       auto tStart = std::chrono::high_resolution_clock::now();
       if (viewUpdated)
@@ -204,7 +204,7 @@ namespace genesis
       return minimized;
    }
 
-   void VulkanApplication::renderLoop()
+   void PlatformApplication::renderLoop()
    {
       if (benchmark.active) {
          benchmark.run([=] { render(); }, _physicalDevice->physicalDeviceProperties());
@@ -245,7 +245,7 @@ namespace genesis
       glfwTerminate();
    }
 
-   void VulkanApplication::updateOverlay()
+   void PlatformApplication::updateOverlay()
    {
       if (!_settings.overlay)
          return;
@@ -286,7 +286,7 @@ namespace genesis
 
    }
 
-   void VulkanApplication::drawUI(const VkCommandBuffer commandBuffer)
+   void PlatformApplication::drawUI(const VkCommandBuffer commandBuffer)
    {
       if (_settings.overlay) {
          const VkViewport viewport = VulkanInitializers::viewport((float)_width, (float)_height, 0.0f, 1.0f, false);
@@ -298,7 +298,7 @@ namespace genesis
       }
    }
 
-   void VulkanApplication::prepareFrame()
+   void PlatformApplication::prepareFrame()
    {
       // Acquire the next image from the swap chain
       VkResult result = _swapChain->acquireNextImage(_currentFrameBufferIndex, _semaphores.presentComplete);
@@ -311,7 +311,7 @@ namespace genesis
       }
    }
 
-   void VulkanApplication::submitFrame()
+   void PlatformApplication::submitFrame()
    {
       VkResult result = _swapChain->queuePresent(_device->graphicsQueue(), _currentFrameBufferIndex, _semaphores.renderComplete);
       if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
@@ -327,7 +327,7 @@ namespace genesis
       VK_CHECK_RESULT(vkQueueWaitIdle(_device->graphicsQueue()));
    }
 
-   VulkanApplication::VulkanApplication(bool enableValidation)
+   PlatformApplication::PlatformApplication(bool enableValidation)
       : _device(nullptr)
    {
 #if !defined(VK_USE_PLATFORM_ANDROID_KHR)
@@ -399,7 +399,7 @@ namespace genesis
       }
    }
 
-   VulkanApplication::~VulkanApplication()
+   PlatformApplication::~PlatformApplication()
    {
       delete _swapChain;
 
@@ -439,7 +439,7 @@ namespace genesis
 
    }
 
-   bool VulkanApplication::initVulkan()
+   bool PlatformApplication::initVulkan()
    {
       VkResult err;
 
@@ -533,31 +533,31 @@ namespace genesis
 
    static void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
    {
-      auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
+      auto app = reinterpret_cast<PlatformApplication*>(glfwGetWindowUserPointer(window));
       app->onKeyboard(key, scancode, action, mods);
    }
 
    static void mousebutton_cb(GLFWwindow* window, int button, int action, int mods)
    {
-      auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
+      auto app = reinterpret_cast<PlatformApplication*>(glfwGetWindowUserPointer(window));
       app->onMouseButton(button, action, mods);
    }
 
    static void cursorpos_cb(GLFWwindow* window, double x, double y)
    {
-      auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
+      auto app = reinterpret_cast<PlatformApplication*>(glfwGetWindowUserPointer(window));
       app->onMouseMotion(static_cast<int>(x), static_cast<int>(y));
    }
 
    static void scroll_cb(GLFWwindow* window, double x, double y)
    {
-      auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
+      auto app = reinterpret_cast<PlatformApplication*>(glfwGetWindowUserPointer(window));
       app->onMouseWheel(static_cast<int>(y));
    }
 
    static void framebuffersize_cb(GLFWwindow* window, int w, int h)
    {
-      auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
+      auto app = reinterpret_cast<PlatformApplication*>(glfwGetWindowUserPointer(window));
       app->onFramebufferSize(w, h);
    }
 
@@ -578,12 +578,12 @@ namespace genesis
       }
       if (filesDropped.size()>0)
       {
-         auto app = reinterpret_cast<VulkanApplication*>(glfwGetWindowUserPointer(window));
+         auto app = reinterpret_cast<PlatformApplication*>(glfwGetWindowUserPointer(window));
          app->onDrop(filesDropped);
       }
    }
 
-   void VulkanApplication::onKeyboard(int key, int scancode, int action, int mods)
+   void PlatformApplication::onKeyboard(int key, int scancode, int action, int mods)
    {
       switch (action)
       {
@@ -650,7 +650,7 @@ namespace genesis
       }
    }
 
-   void VulkanApplication::onMouseButton(int button, int action, int mods)
+   void PlatformApplication::onMouseButton(int button, int action, int mods)
    {
       (void)mods;
 
@@ -687,19 +687,19 @@ namespace genesis
       }
    }
 
-   void VulkanApplication::onMouseMotion(int x, int y)
+   void PlatformApplication::onMouseMotion(int x, int y)
    {
       handleMouseMove(x, y);
    }
 
-   void VulkanApplication::onMouseWheel(int delta)
+   void PlatformApplication::onMouseWheel(int delta)
    {
       short wheelDelta = delta;
       _camera.translate(glm::vec3(0.0f, 0.0f, (float)wheelDelta));
       viewUpdated = true;
    }
 
-   void VulkanApplication::onFramebufferSize(int w, int h)
+   void PlatformApplication::onFramebufferSize(int w, int h)
    {
       if ((_prepared && w != 0 && h != 0))
       {
@@ -709,7 +709,7 @@ namespace genesis
       }
    }
 
-   void VulkanApplication::onDrop(const std::vector<std::string>& filesDropped)
+   void PlatformApplication::onDrop(const std::vector<std::string>& filesDropped)
    {
       // no op
    }
@@ -726,7 +726,7 @@ namespace genesis
       glfwSetDropCallback(window, &drop_cb);
    }
 
-   GLFWwindow* VulkanApplication::setupWindow()
+   GLFWwindow* PlatformApplication::setupWindow()
    {
       //if (settings.fullscreen)
 
@@ -751,15 +751,15 @@ namespace genesis
       return window;
    }
 
-   void VulkanApplication::viewChanged() {}
+   void PlatformApplication::viewChanged() {}
 
-   void VulkanApplication::keyPressed(uint32_t) {}
+   void PlatformApplication::keyPressed(uint32_t) {}
 
-   void VulkanApplication::mouseMoved(double x, double y, bool& handled) {}
+   void PlatformApplication::mouseMoved(double x, double y, bool& handled) {}
 
-   void VulkanApplication::buildCommandBuffers() {}
+   void PlatformApplication::buildCommandBuffers() {}
 
-   void VulkanApplication::createSynchronizationPrimitives()
+   void PlatformApplication::createSynchronizationPrimitives()
    {
       // Wait fences to sync command buffer access
       VkFenceCreateInfo fenceCreateInfo = VulkanInitializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
@@ -769,7 +769,7 @@ namespace genesis
       }
    }
 
-   void VulkanApplication::createCommandPool()
+   void PlatformApplication::createCommandPool()
    {
       VkCommandPoolCreateInfo cmdPoolInfo = {};
       cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -778,7 +778,7 @@ namespace genesis
       VK_CHECK_RESULT(vkCreateCommandPool(_device->vulkanDevice(), &cmdPoolInfo, nullptr, &_commandPool));
    }
 
-   void VulkanApplication::setupMultiSampleColor()
+   void PlatformApplication::setupMultiSampleColor()
    {
       if (_sampleCount == 1)
       {
@@ -792,7 +792,7 @@ namespace genesis
          , VK_IMAGE_TILING_OPTIMAL, _sampleCount);
    }
 
-   void VulkanApplication::setupDepthStencil()
+   void PlatformApplication::setupDepthStencil()
    {
       VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
       if (_sampleCount > 1)
@@ -807,7 +807,7 @@ namespace genesis
          , VK_IMAGE_TILING_OPTIMAL, _sampleCount);
    }
 
-   void VulkanApplication::setupFrameBuffer()
+   void PlatformApplication::setupFrameBuffer()
    {
       if (_dynamicRendering)
       {
@@ -851,7 +851,7 @@ namespace genesis
       }
    }
 
-   void VulkanApplication::destroyFrameBuffers(void)
+   void PlatformApplication::destroyFrameBuffers(void)
    {
       for (uint32_t i = 0; i < _frameBuffers.size(); i++)
       {
@@ -859,7 +859,7 @@ namespace genesis
       }
    }
 
-   void VulkanApplication::setupRenderPass()
+   void PlatformApplication::setupRenderPass()
    {
       if (_dynamicRendering == false)
       {
@@ -867,12 +867,12 @@ namespace genesis
       }
    }
    
-   void VulkanApplication::enableFeatures() 
+   void PlatformApplication::enableFeatures() 
    {
       // no op
    }
 
-   void VulkanApplication::windowResize()
+   void PlatformApplication::windowResize()
    {
       if (!_prepared)
       {
@@ -933,7 +933,7 @@ namespace genesis
       _prepared = true;
    }
 
-   void VulkanApplication::handleMouseMove(int32_t x, int32_t y)
+   void PlatformApplication::handleMouseMove(int32_t x, int32_t y)
    {
       int32_t dx = (int32_t)_mousePos.x - x;
       int32_t dy = (int32_t)_mousePos.y - y;
@@ -967,9 +967,9 @@ namespace genesis
       _mousePos = glm::vec2((float)x, (float)y);
    }
 
-   void VulkanApplication::windowResized() {}
+   void PlatformApplication::windowResized() {}
 
-   void VulkanApplication::initSwapchain()
+   void PlatformApplication::initSwapchain()
    {
 #if defined(VK_USE_PLATFORM_GLFW)
       _swapChain->initSurface(window);
@@ -990,23 +990,23 @@ namespace genesis
 #endif
    }
 
-   void VulkanApplication::setupSwapChain()
+   void PlatformApplication::setupSwapChain()
    {
       _swapChain->create(&_width, &_height, _settings.vsync);
    }
 
-   void VulkanApplication::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
+   void PlatformApplication::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
    {
       // no op
    }
 
-   void VulkanApplication::destroyDepthStencil(void)
+   void PlatformApplication::destroyDepthStencil(void)
    {
       delete _depthStencilImage;
       _depthStencilImage = nullptr;
    }
 
-   void VulkanApplication::destroyMultiSampleColor(void)
+   void PlatformApplication::destroyMultiSampleColor(void)
    {
       delete _multiSampledColorImage;
       _multiSampledColorImage = nullptr;

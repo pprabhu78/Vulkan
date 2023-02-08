@@ -1011,7 +1011,7 @@ void RayTracing::keyPressed(uint32_t key)
 
 void RayTracing::draw()
 {
-   VulkanApplication::prepareFrame();
+   PlatformApplication::prepareFrame();
 
    if (_mode == RAYTRACE)
    {
@@ -1025,7 +1025,7 @@ void RayTracing::draw()
    _submitInfo.commandBufferCount = 1;
    _submitInfo.pCommandBuffers = &_drawCommandBuffers[_currentFrameBufferIndex];
    VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &_submitInfo, VK_NULL_HANDLE));
-   VulkanApplication::submitFrame();
+   PlatformApplication::submitFrame();
 
 #if 1
    if (_pushConstants.frameIndex == 15000)
@@ -1204,7 +1204,7 @@ void RayTracing::buildCommandBuffers()
 
 void RayTracing::prepare()
 {
-   VulkanApplication::prepare();
+   PlatformApplication::prepare();
    reloadShaders(false);
    createScene();
    createStorageImages();
@@ -1289,13 +1289,13 @@ void RayTracing::drawGuiAfterRayTrace(int swapChainImageIndex)
       renderPassBeginInfo.framebuffer = _frameBuffers[swapChainImageIndex];
 
       vkCmdBeginRenderPass(_drawCommandBuffers[swapChainImageIndex], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-      VulkanApplication::drawUI(_drawCommandBuffers[swapChainImageIndex]);
+      PlatformApplication::drawUI(_drawCommandBuffers[swapChainImageIndex]);
       vkCmdEndRenderPass(_drawCommandBuffers[swapChainImageIndex]);
    }
    else
    {
       beginDynamicRendering(swapChainImageIndex, VK_ATTACHMENT_LOAD_OP_LOAD);
-      VulkanApplication::drawUI(_drawCommandBuffers[swapChainImageIndex]);
+      PlatformApplication::drawUI(_drawCommandBuffers[swapChainImageIndex]);
       endDynamicRendering(swapChainImageIndex);
    }
 }
@@ -1312,7 +1312,7 @@ void RayTracing::setupRenderPass()
    }
    else
    {
-      VulkanApplication::setupRenderPass();
+      PlatformApplication::setupRenderPass();
    }
 }
 

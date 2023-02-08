@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../genesis/VulkanApplication.h"
+#include "../genesis/PlatformApplication.h"
 
 #include "GenMath.h"
 #include "Camera.h"
@@ -22,7 +22,7 @@ namespace genesis
    class CellManager;
 }
 
-class MeshShaders : public genesis::VulkanApplication
+class MeshShaders : public genesis::PlatformApplication
 {
 public:
    MeshShaders();

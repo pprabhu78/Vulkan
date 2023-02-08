@@ -495,14 +495,14 @@ void MeshShaders::keyPressed(uint32_t key)
 
 void MeshShaders::draw()
 {
-   VulkanApplication::prepareFrame();
+   PlatformApplication::prepareFrame();
 
    ++_pushConstants.frameIndex;
 
    _submitInfo.commandBufferCount = 1;
    _submitInfo.pCommandBuffers = &_drawCommandBuffers[_currentFrameBufferIndex];
    VK_CHECK_RESULT(vkQueueSubmit(_device->graphicsQueue(), 1, &_submitInfo, VK_NULL_HANDLE));
-   VulkanApplication::submitFrame();
+   PlatformApplication::submitFrame();
 
 #if 1
    if (_pushConstants.frameIndex == 15000)
@@ -586,7 +586,7 @@ void MeshShaders::buildCommandBuffers()
 
 void MeshShaders::prepare()
 {
-   VulkanApplication::prepare();
+   PlatformApplication::prepare();
    reloadShaders(false);
    createScene();
    createSceneUbo();
@@ -643,13 +643,13 @@ void MeshShaders::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebu
    renderPassBeginInfo.framebuffer = framebuffer;
 
    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-   VulkanApplication::drawUI(commandBuffer);
+   PlatformApplication::drawUI(commandBuffer);
    vkCmdEndRenderPass(commandBuffer);
 }
 
 void MeshShaders::setupRenderPass()
 {
-   VulkanApplication::setupRenderPass();
+   PlatformApplication::setupRenderPass();
 }
 
 void MeshShaders::windowResized()

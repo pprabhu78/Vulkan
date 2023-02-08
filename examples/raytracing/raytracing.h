@@ -5,7 +5,7 @@
 */
 #pragma once
 
-#include "../genesis/VulkanApplication.h"
+#include "../genesis/PlatformApplication.h"
 #include "GenMath.h"
 #include "Camera.h"
 
@@ -32,7 +32,7 @@ namespace genesis
    class ShaderBindingTable;
 }
 
-class RayTracing : public genesis::VulkanApplication
+class RayTracing : public genesis::PlatformApplication
 {
 public:
    RayTracing();
