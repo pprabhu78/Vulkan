@@ -112,8 +112,8 @@ namespace genesis
       }
 
       initSwapchain();
-      createCommandPool();
       setupSwapChain();
+      createCommandPool();
       createCommandBuffers();
       createSynchronizationPrimitives();
       setupMultiSampleColor();
@@ -232,7 +232,8 @@ namespace genesis
       }
 
       // Flush device to make sure all resources can be freed
-      if (_device->vulkanDevice() != VK_NULL_HANDLE) {
+      if (_device->vulkanDevice() != VK_NULL_HANDLE) 
+      {
          vkDeviceWaitIdle(_device->vulkanDevice());
       }
 
