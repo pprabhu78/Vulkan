@@ -11,7 +11,7 @@
 #include "PhysicalDevice.h"
 #include "VulkanDebug.h"
 #include "VulkanInitializers.h"
-#include "VulkanExtensions.h"
+#include "VkExtensions.h"
 
 
 #ifdef VK_USE_PLATFORM_GLFW
