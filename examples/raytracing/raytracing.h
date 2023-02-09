@@ -154,7 +154,7 @@ protected:
       , NUM_MODES = 2
    };
 
-   RenderMode _mode = RAYTRACE;
+   RenderMode _mode = RASTERIZATION;
 
    bool _wireframe = false;
 

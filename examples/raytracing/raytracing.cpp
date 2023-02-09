@@ -611,13 +611,12 @@ void RayTracing::rayTrace(int commandBufferIndex)
       , _height
       , 1);
 
-   genesis::ImageTransitions transitions;
    // Prepare current swap chain image as transfer destination
    VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
+   transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
    // Prepare ray tracing output image as transfer source
-   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange);
+   transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange);
 
    VkImageCopy copyRegion{};
    copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
@@ -628,10 +627,10 @@ void RayTracing::rayTrace(int commandBufferIndex)
    vkCmdCopyImage(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
    // Transition swap chain image back for presentation
-   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subresourceRange);
+   transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subresourceRange);
 
    // Transition ray tracing output image back to general layout
-   transitions.setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
+   transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
 
    drawGuiAfterRayTrace(commandBufferIndex);
 
@@ -641,17 +640,15 @@ void RayTracing::rayTrace(int commandBufferIndex)
 void RayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoadOp colorLoadOp)
 {
    int i = swapChainImageIndex;
-   ImageTransitions transitions;
-
    if (_sampleCount > 1)
    {
-      transitions.setImageLayout(_drawCommandBuffers[i], _multiSampledColorImage->vulkanImage()
+      transitions::setImageLayout(_drawCommandBuffers[i], _multiSampledColorImage->vulkanImage()
          , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
          , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
       , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I Think this should be bottom of pipe
    }
 
-   transitions.setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
+   transitions::setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
       , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
       , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
    , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I Think this should be bottom of pipe
@@ -659,7 +656,7 @@ void RayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoad
    // per the book: the outputs to the depth and stencil buffers occur as part of the late fragment test, so this along wit the early
    // fragment tests includes the depth and stencil outputs
    const VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-   transitions.setImageLayout(_drawCommandBuffers[i], _depthStencilImage->vulkanImage()
+   transitions::setImageLayout(_drawCommandBuffers[i], _depthStencilImage->vulkanImage()
       , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
       , VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 }
    , pipelineStageFlags, pipelineStageFlags);
@@ -701,13 +698,11 @@ void RayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoad
 
 void RayTracing::endDynamicRendering(int swapChainImageIndex)
 {
-   ImageTransitions transitions;
-
    int i = swapChainImageIndex;
 
    _device->extensions().vkCmdEndRenderingKHR(_drawCommandBuffers[i]);
 
-   transitions.setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
+   transitions::setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
       , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
       , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
    , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT); // PPP: I think this should be top of pipe
@@ -1357,11 +1352,10 @@ void RayTracing::createStorageImages()
    _finalImageToPresent = new genesis::StorageImage(_device, _swapChain->colorFormat(), _width, _height
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1);
 
-   genesis::ImageTransitions transitions;
    VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-   transitions.setImageLayout(commandBuffer, _intermediateImage->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-   transitions.setImageLayout(commandBuffer, _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+   transitions::setImageLayout(commandBuffer, _intermediateImage->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+   transitions::setImageLayout(commandBuffer, _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
    _device->flushCommandBuffer(commandBuffer);
 }

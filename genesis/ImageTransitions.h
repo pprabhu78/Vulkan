@@ -4,13 +4,9 @@
 
 namespace genesis
 {
-   class ImageTransitions
+   namespace transitions
    {
-   public:
-      ImageTransitions();
-      virtual ~ImageTransitions();
-   public:
-      virtual void setImageLayout(
+      void setImageLayout(
          VkCommandBuffer cmdbuffer,
          VkImage image,
          VkImageLayout oldImageLayout,
@@ -19,7 +15,7 @@ namespace genesis
          VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
          VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
 
-      virtual void setImageLayout(
+      void setImageLayout(
          VkCommandBuffer cmdbuffer,
          VkImage image,
          VkImageAspectFlags aspectMask,
@@ -27,5 +23,5 @@ namespace genesis
          VkImageLayout newImageLayout,
          VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
          VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-   };
+   }
 }

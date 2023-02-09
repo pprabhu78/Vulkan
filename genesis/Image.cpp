@@ -137,8 +137,7 @@ namespace genesis
 
       VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT , 0, numMipMaps, 0, numFaces };
 
-      ImageTransitions transition;
-      transition.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
+      transitions::setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
       vkCmdCopyBufferToImage(commandBuffer
          , stagingBuffer->vulkanBuffer()
@@ -151,7 +150,7 @@ namespace genesis
       VkImageLayout newImageLayout = (generatingMipMaps) ? VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
          : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-      transition.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, newImageLayout, subresourceRange);
+      transitions::setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, newImageLayout, subresourceRange);
 
       _device->flushCommandBuffer(commandBuffer);
 
@@ -250,8 +249,6 @@ namespace genesis
 
    void Image::generateMipMaps(void)
    {
-      genesis::ImageTransitions transitions;
-
       // Generate the mip chain (glTF uses jpg and png, so we need to create this manually)
       VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
@@ -287,13 +284,13 @@ namespace genesis
          mipSubRange.layerCount = 1;
 
          // the next level is in undefined state, because only one level was filled, and it was set as VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
-         transitions.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipSubRange);
+         transitions::setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipSubRange);
 
          // the source level is in VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL state, because only one level was filled, and it was set as VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
          vkCmdBlitImage(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &imageBlit, VK_FILTER_LINEAR);
 
          // set this to be the source for the next blit
-         transitions.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipSubRange);
+         transitions::setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, mipSubRange);
       }
 
       VkImageSubresourceRange subresourceRange = {};
@@ -302,7 +299,7 @@ namespace genesis
       subresourceRange.layerCount = 1;
 
       // transfer the whole image
-      transitions.setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange);
+      transitions::setImageLayout(commandBuffer, _image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, subresourceRange);
 
       _device->flushCommandBuffer(commandBuffer);
    }

@@ -63,13 +63,11 @@ namespace genesis
 
       VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-      genesis::ImageTransitions transitions;
-
       VkImageSubresourceRange subResourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-      transitions.setImageLayout(commandBuffer, srcImage, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subResourceRange);
+      transitions::setImageLayout(commandBuffer, srcImage, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subResourceRange);
 
-      transitions.setImageLayout(commandBuffer, dstImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subResourceRange);
+      transitions::setImageLayout(commandBuffer, dstImage, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subResourceRange);
 
       // blit does filtering and down sampling
       // here source and destination sizes are the same, so it doesn't matter
@@ -111,9 +109,9 @@ namespace genesis
             &imageCopyRegion);
       }
 
-      transitions.setImageLayout(commandBuffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subResourceRange);
+      transitions::setImageLayout(commandBuffer, srcImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subResourceRange);
 
-      transitions.setImageLayout(commandBuffer, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subResourceRange);
+      transitions::setImageLayout(commandBuffer, dstImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subResourceRange);
 
       _device->flushCommandBuffer(commandBuffer);
 

@@ -102,9 +102,8 @@ namespace genesis
       // Copy buffer data to font image
       VkCommandBuffer copyCmd = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-      // Prepare for transfer
-      ImageTransitions transitions;
-      transitions.setImageLayout(
+      // Prepare for transfer;
+      transitions::setImageLayout(
          copyCmd,
          fontImage,
          VK_IMAGE_ASPECT_COLOR_BIT,
@@ -131,7 +130,7 @@ namespace genesis
       );
 
       // Prepare for shader read
-      transitions.setImageLayout(
+      transitions::setImageLayout(
          copyCmd,
          fontImage,
          VK_IMAGE_ASPECT_COLOR_BIT,
