@@ -224,15 +224,9 @@ namespace genesis
       while (!glfwWindowShouldClose(_window))
       {
          glfwPollEvents();
-#if 0
-         if (msg.message == WM_QUIT)
-         {
-            quitMessageReceived = true;
-            break;
-         }
-#endif
 
-         if (_prepared && !IsMinimized(_window)) {
+         if (_prepared && !IsMinimized(_window)) 
+         {
             nextFrame();
          }
       }

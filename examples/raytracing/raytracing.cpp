@@ -309,8 +309,8 @@ void RayTracing::createAndUpdateRayTracingDescriptorSets()
    descriptorAccelerationStructureInfo.accelerationStructureCount = 1;
    descriptorAccelerationStructureInfo.pAccelerationStructures = &(_cellManager->cell(0)->tlas()->handle());
 
-   VkDescriptorImageInfo intermediateImageDescriptor = genesis::vkInitaliazers::descriptorImageInfo(VK_NULL_HANDLE, _intermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL);
-   VkDescriptorImageInfo finalImageDescriptor = genesis::vkInitaliazers::descriptorImageInfo(VK_NULL_HANDLE, _finalImageToPresent->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL);
+   VkDescriptorImageInfo intermediateImageDescriptor = genesis::vkInitaliazers::descriptorImageInfo(VK_NULL_HANDLE, _rayTracingIntermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL);
+   VkDescriptorImageInfo finalImageDescriptor = genesis::vkInitaliazers::descriptorImageInfo(VK_NULL_HANDLE, _rayTracingFinalImageToPresent->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL);
 
    int bindingIndex = 0;
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
@@ -616,7 +616,7 @@ void RayTracing::rayTrace(int commandBufferIndex)
    transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
    // Prepare ray tracing output image as transfer source
-   transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange);
+   transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _rayTracingFinalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange);
 
    VkImageCopy copyRegion{};
    copyRegion.srcSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
@@ -624,13 +624,13 @@ void RayTracing::rayTrace(int commandBufferIndex)
    copyRegion.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
    copyRegion.dstOffset = { 0, 0, 0 };
    copyRegion.extent = { _width, _height, 1 };
-   vkCmdCopyImage(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+   vkCmdCopyImage(_drawCommandBuffers[commandBufferIndex], _rayTracingFinalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
    // Transition swap chain image back for presentation
    transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subresourceRange);
 
    // Transition ray tracing output image back to general layout
-   transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
+   transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _rayTracingFinalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
 
    drawGuiAfterRayTrace(commandBufferIndex);
 
@@ -1009,8 +1009,12 @@ void RayTracing::keyPressed(uint32_t key)
    }
 }
 
-void RayTracing::draw()
+void RayTracing::render()
 {
+   if (!_prepared)
+   {
+      return;
+   }
    PlatformApplication::prepareFrame();
 
    if (_mode == RAYTRACE)
@@ -1067,15 +1071,6 @@ void RayTracing::draw()
          nextRenderingMode();
       }
    }
-}
-
-void RayTracing::render()
-{
-   if (!_prepared)
-   {
-      return;
-   }
-   draw();
 }
 
 void RayTracing::viewChanged()
@@ -1318,8 +1313,8 @@ void RayTracing::setupRenderPass()
 
 void RayTracing::writeStorageImageDescriptors()
 {
-   VkDescriptorImageInfo intermediateImageDescriptor{ VK_NULL_HANDLE, _intermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
-   VkDescriptorImageInfo finalImageDescriptor{ VK_NULL_HANDLE, _finalImageToPresent->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
+   VkDescriptorImageInfo intermediateImageDescriptor{ VK_NULL_HANDLE, _rayTracingIntermediateImage->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
+   VkDescriptorImageInfo finalImageDescriptor{ VK_NULL_HANDLE, _rayTracingFinalImageToPresent->vulkanImageView(), VK_IMAGE_LAYOUT_GENERAL };
 
    int bindingIndex = 1;
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
@@ -1332,11 +1327,11 @@ void RayTracing::writeStorageImageDescriptors()
 
 void RayTracing::deleteStorageImages()
 {
-   delete _finalImageToPresent;
-   _finalImageToPresent = nullptr;
+   delete _rayTracingFinalImageToPresent;
+   _rayTracingFinalImageToPresent = nullptr;
 
-   delete _intermediateImage;
-   _intermediateImage = nullptr;
+   delete _rayTracingIntermediateImage;
+   _rayTracingIntermediateImage = nullptr;
 }
 
 /*
@@ -1345,17 +1340,17 @@ Set up a storage image that the ray generation shader will be writing to
 void RayTracing::createStorageImages()
 {
    // intermediate image does computations in full floating point
-   _intermediateImage = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, _width, _height
+   _rayTracingIntermediateImage = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, _width, _height
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1);
 
    // final image is used for presentation. So, its the same format as the swap chain
-   _finalImageToPresent = new genesis::StorageImage(_device, _swapChain->colorFormat(), _width, _height
+   _rayTracingFinalImageToPresent = new genesis::StorageImage(_device, _swapChain->colorFormat(), _width, _height
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1);
 
    VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
-   transitions::setImageLayout(commandBuffer, _intermediateImage->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-   transitions::setImageLayout(commandBuffer, _finalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+   transitions::setImageLayout(commandBuffer, _rayTracingIntermediateImage->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+   transitions::setImageLayout(commandBuffer, _rayTracingFinalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
    _device->flushCommandBuffer(commandBuffer);
 }

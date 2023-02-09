@@ -51,7 +51,6 @@ public:
    virtual void onDrop(const std::vector<std::string>& filesDropped) override;
    
 protected:
-   virtual void draw();
 
    virtual void createSceneUbo();
    virtual void updateSceneUbo();
@@ -117,8 +116,8 @@ protected:
 
    genesis::ShaderBindingTable* _shaderBindingTable = nullptr;
 
-   genesis::StorageImage* _finalImageToPresent;
-   genesis::StorageImage* _intermediateImage;
+   genesis::StorageImage* _rayTracingFinalImageToPresent;
+   genesis::StorageImage* _rayTracingIntermediateImage;
 
 
    // Rasterization
@@ -154,7 +153,7 @@ protected:
       , NUM_MODES = 2
    };
 
-   RenderMode _mode = RASTERIZATION;
+   RenderMode _mode = RAYTRACE;
 
    bool _wireframe = false;
 
