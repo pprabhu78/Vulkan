@@ -4,7 +4,7 @@
 #include "Buffer.h"
 #include "Device.h"
 #include "AccelerationStructure.h"
-#include "VulkanExtensions.h"
+#include "VkExtensions.h"
 
 #include <vector>
 #include <deque>

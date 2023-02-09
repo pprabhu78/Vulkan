@@ -1,7 +1,7 @@
 #include "Buffer.h"
 #include "Device.h"
 #include "PhysicalDevice.h"
-#include "VulkanExtensions.h"
+#include "VkExtensions.h"
 #include "VulkanDebug.h"
 #include "VulkanInitializers.h"
 #include "GenAssert.h"

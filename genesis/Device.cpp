@@ -239,7 +239,7 @@ namespace genesis
       return _enableDebugMarkers;
    }
 
-   const VulkanExtensions& Device::extensions() const
+   const vkExtensions& Device::extensions() const
    {
       return _vulkanFunctions;
    }

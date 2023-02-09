@@ -14,11 +14,11 @@ namespace genesis
 {  
    class Device;
 
-   class VulkanExtensions
+   class vkExtensions
    {
    public:
-      VulkanExtensions();
-      virtual ~VulkanExtensions();
+      vkExtensions();
+      virtual ~vkExtensions();
    public:
       virtual void initialize(Device* device);
    public:

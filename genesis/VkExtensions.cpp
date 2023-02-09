@@ -6,27 +6,26 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#include "VulkanExtensions.h"
+#include "VkExtensions.h"
 
 #include "Device.h"
 #include "PhysicalDevice.h"
 #include "Instance.h"
 #include <iostream>
 
-
 namespace genesis
 { 
-   VulkanExtensions::VulkanExtensions()
+   vkExtensions::vkExtensions()
    {
       // no op
    }
 
-   VulkanExtensions::~VulkanExtensions()
+   vkExtensions::~vkExtensions()
    {
       // no op
    }
 
-   void VulkanExtensions::initialize(Device* gndevice)
+   void vkExtensions::initialize(Device* gndevice)
    {
       if (_initialized)
       {

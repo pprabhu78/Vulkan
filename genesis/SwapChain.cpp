@@ -10,7 +10,7 @@
 
 #include "SwapChain.h"
 #include "VulkanDebug.h"
-#include "VulkanExtensions.h"
+#include "VkExtensions.h"
 #include "Device.h"
 #include "PhysicalDevice.h"
 #include "Instance.h"

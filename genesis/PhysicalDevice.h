@@ -37,7 +37,11 @@ namespace genesis
       virtual uint32_t getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
 
       //! queue family index that supports the flag bits passed in
+      //! This is not an or'ed combination of VkQueueFlagBits
       virtual uint32_t queueFamilyIndexWithFlags(VkQueueFlagBits queueFlags) const;
+
+      //! queue family index that supports all the flag bits passed in
+      virtual uint32_t queueFamilyIndexWithFlags(VkQueueFlags queueFlags) const;
 
       const std::vector<VkQueueFamilyProperties>& queueFamilyProperties(void) const;
 

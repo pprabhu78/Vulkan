@@ -3,7 +3,7 @@
 #include "VulkanGltf.h"
 #include "AccelerationStructure.h"
 #include "Buffer.h"
-#include "VulkanExtensions.h"
+#include "VkExtensions.h"
 #include "Device.h"
 #include "InstanceContainer.h"
 #include "ModelRegistry.h"

@@ -2,7 +2,7 @@
 #include "Device.h"
 #include "PhysicalDevice.h"
 #include "VulkanDebug.h"
-#include "VulkanExtensions.h"
+#include "VkExtensions.h"
 #include "Buffer.h"
 
 #include <iostream>

@@ -8,7 +8,7 @@
 #include "Device.h"
 #include "VulkanInitializers.h"
 #include "VulkanDebug.h"
-#include "VulkanExtensions.h"
+#include "VkExtensions.h"
 #include "VulkanInitializers.h"
 #include "AccelerationStructure.h"
 

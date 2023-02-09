@@ -3,7 +3,7 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
-#include "VulkanExtensions.h"
+#include "VkExtensions.h"
 
 namespace genesis
 {
@@ -38,7 +38,7 @@ namespace genesis
 
       virtual bool enableDebugMarkers(void) const;
 
-      virtual const VulkanExtensions& extensions() const;
+      virtual const vkExtensions& extensions() const;
    protected:
       virtual void initQueueFamilyIndices(VkQueueFlags requestedQueueTypes);
    public:
@@ -62,6 +62,6 @@ namespace genesis
 
       const float _defaultQueuePriority = 0.0f;
 
-      VulkanExtensions _vulkanFunctions;
+      vkExtensions _vulkanFunctions;
    };
 }

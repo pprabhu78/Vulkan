@@ -173,6 +173,19 @@ namespace genesis
       return _queueFamilyProperties;
    }
 
+   uint32_t PhysicalDevice::queueFamilyIndexWithFlags(VkQueueFlags queueFlags) const
+   {
+      for (uint32_t i = 0; i < static_cast<uint32_t>(_queueFamilyProperties.size()); i++)
+      {
+         if (_queueFamilyProperties[i].queueFlags & queueFlags)
+         {
+            return i;
+         }
+      }
+
+      throw std::runtime_error("Could not find a matching queue family index");
+   }
+
    uint32_t PhysicalDevice::queueFamilyIndexWithFlags(VkQueueFlagBits queueFlags) const
    {	
       // Dedicated queue for compute

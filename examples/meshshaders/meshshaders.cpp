@@ -19,7 +19,7 @@
 #include "RenderPass.h"
 #include "VulkanInitializers.h"
 #include "VulkanDebug.h"
-#include "VulkanExtensions.h"
+#include "VkExtensions.h"
 #include "AccelerationStructure.h"
 #include "StorageImage.h"
 #include "ImageTransitions.h"
