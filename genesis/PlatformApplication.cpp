@@ -62,7 +62,8 @@ namespace genesis
    void PlatformApplication::createCommandBuffers()
    {
       // Create one command buffer for each swap chain image and reuse for rendering
-      _drawCommandBuffers.resize(_swapChain->imageCount());
+      int imageCount = (_useSwapChainRendering) ? _swapChain->imageCount() : 3;
+      _drawCommandBuffers.resize(imageCount);
 
       VkCommandBufferAllocateInfo cmdBufAllocateInfo =
          vkInitaliazers::commandBufferAllocateInfo(
@@ -111,11 +112,18 @@ namespace genesis
          genesis::debugmarker::setup(_device->vulkanDevice());
       }
 
-      initSwapchain();
-      setupSwapChain();
+      if (_useSwapChainRendering)
+      {
+         initSwapchain();
+         setupSwapChain();
+      }
       createCommandPool();
       createCommandBuffers();
       createSynchronizationPrimitives();
+      if (!_useSwapChainRendering)
+      {
+         setupColor();
+      }
       setupMultiSampleColor();
       setupDepthStencil();
       setupRenderPass();
@@ -131,7 +139,7 @@ namespace genesis
       _uiOverlay._shaders.push_back(loadShader(getShadersPath() + "genesis/uioverlay.frag.spv", genesis::ST_FRAGMENT_SHADER));
       _uiOverlay._rasterizationSamples = Image::toSampleCountFlagBits(_sampleCount);
       _uiOverlay.prepareResources();
-      _uiOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
+      _uiOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, colorFormat(), _depthFormat);
    }
 
    genesis::Shader* PlatformApplication::loadShader(std::string fileName, genesis::ShaderType stage)
@@ -197,6 +205,11 @@ namespace genesis
       updateOverlay();
    }
 
+   void PlatformApplication::postFrame(void)
+   {
+      // no op
+   }
+
    static bool IsMinimized(GLFWwindow* window)
    {
       int w, h;
@@ -229,6 +242,7 @@ namespace genesis
          {
             nextFrame();
          }
+         postFrame();
       }
 
       // Flush device to make sure all resources can be freed
@@ -296,6 +310,10 @@ namespace genesis
 
    void PlatformApplication::prepareFrame()
    {
+      if (!_useSwapChainRendering)
+      {
+         return;
+      }
       // Acquire the next image from the swap chain
       VkResult result = _swapChain->acquireNextImage(_currentFrameBufferIndex, _semaphores.presentComplete);
       // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
@@ -309,6 +327,10 @@ namespace genesis
 
    void PlatformApplication::submitFrame()
    {
+      if (!_useSwapChainRendering)
+      {
+         return;
+      }
       VkResult result = _swapChain->queuePresent(_device->graphicsQueue(), _currentFrameBufferIndex, _semaphores.renderComplete);
       if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
          if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -416,6 +438,7 @@ namespace genesis
 
       destroyDepthStencil();
       destroyMultiSampleColor();
+      destroyColor();
 
       vkDestroyPipelineCache(_device->vulkanDevice(), _pipelineCache, nullptr);
 
@@ -496,7 +519,7 @@ namespace genesis
       VkBool32 validDepthFormat = _physicalDevice->getSupportedDepthFormat(_depthFormat);
       assert(validDepthFormat);
 
-      if (!_useGlRendering)
+      if (_useSwapChainRendering)
       {
          _swapChain = new SwapChain(_device);
       }
@@ -713,7 +736,7 @@ namespace genesis
       // no op
    }
 
-   static void setupGlfwCallbacks(GLFWwindow* window)
+   void PlatformApplication::setupGlfwCallbacks(GLFWwindow* window)
    {
       glfwSetKeyCallback(window, &key_cb);
       glfwSetMouseButtonCallback(window, &mousebutton_cb);
@@ -735,11 +758,7 @@ namespace genesis
       {
          return 0;
       }
-      if (_useGlRendering)
-      {
-         // default will use the gl rendering
-      }
-      else
+      if (_useSwapChainRendering)
       {
          glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
       }
@@ -779,7 +798,11 @@ namespace genesis
    {
       VkCommandPoolCreateInfo cmdPoolInfo = {};
       cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-      cmdPoolInfo.queueFamilyIndex = _swapChain->presentationQueueFamilyIndex();
+
+      // If no swap chain, we are using gl to render, so use the family index with all of graphics+compute+transfer bits
+      cmdPoolInfo.queueFamilyIndex = (_useSwapChainRendering) ? _swapChain->presentationQueueFamilyIndex()
+         : _device->physicalDevice()->queueFamilyIndexWithFlags(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT);
+
       cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
       VK_CHECK_RESULT(vkCreateCommandPool(_device->vulkanDevice(), &cmdPoolInfo, nullptr, &_commandPool));
    }
@@ -904,6 +927,9 @@ namespace genesis
       destroyMultiSampleColor();
       setupMultiSampleColor();
 
+      destroyColor();
+      setupColor();
+
       destroyDepthStencil();
       setupDepthStencil();
 
@@ -1016,5 +1042,41 @@ namespace genesis
    {
       delete _multiSampledColorImage;
       _multiSampledColorImage = nullptr;
+   }
+
+   VkFormat PlatformApplication::colorFormat() const
+   {
+      return (_useSwapChainRendering) ? _swapChain->colorFormat() : _colorFormatGlRendering;
+   }
+
+   void PlatformApplication::setupColor(void)
+   {
+      if (_useSwapChainRendering)
+      {
+         return;
+      }
+      // This image can be rendered directly to -> VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+      // 
+      // This is read by glDrawVkImageNV to draw using gl. So it is source -> VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+      // 
+      // This can be blitted to. For example, if there is post processing or if we are doing ray tracing
+      // So it is also destination-> VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+      // 
+      // Sample count is always 1, because the multisample color will be resolved into this image
+      VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+      _colorImage = new StorageImage(_device
+         , colorFormat(), _width, _height
+         , usageFlags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+         , VK_IMAGE_TILING_OPTIMAL, 1);
+   }
+
+   void PlatformApplication::destroyColor(void)
+   {
+      if (_useSwapChainRendering)
+      {
+         return;
+      }
+      delete _colorImage;
+      _colorImage = nullptr;
    }
 }

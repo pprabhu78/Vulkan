@@ -64,7 +64,7 @@ namespace genesis
       /** @brief Setup the vulkan instance, enable required extensions and connect to the physical device (GPU) */
       bool initVulkan();
 
-      GLFWwindow* setupWindow();
+      virtual GLFWwindow* setupWindow();
 
       /** @brief (Virtual) Creates the application wide Vulkan instance */
       virtual VkResult createInstance(bool enableValidation);
@@ -80,18 +80,26 @@ namespace genesis
       virtual void windowResized();
       /** @brief (Virtual) Called when resources have been recreated that require a rebuild of the command buffers (e.g. frame buffer), to be implemented by the sample application */
       virtual void buildCommandBuffers();
-      /** @brief (Virtual) Setup default depth and stencil views */
-      virtual void setupDepthStencil();
-      /** @brief (Virtual) Setup default framebuffers for all requested swapchain images */
-      virtual void setupFrameBuffer();
       /** @brief (Virtual) Setup a default renderpass */
       virtual void setupRenderPass();
       /** @brief (Virtual) Called after the physical device features have been read, can be used to set features to enable on the device */
       virtual void enableFeatures();
 
+      //! This is the final image that will be rendered by OpenGL into its whichever framebuffer
+      //! it wants to render into (it can be the default or offscreen framebuffer)
+      virtual void setupColor(void);
+      virtual void destroyColor(void);
+
+      //! Set up depth-stencil
+      virtual void setupDepthStencil();
       virtual void destroyDepthStencil(void);
+
+      //! Set up multi-sample
       virtual void setupMultiSampleColor();
       virtual void destroyMultiSampleColor();
+
+      //! Set up framebuffer
+      virtual void setupFrameBuffer();
       virtual void destroyFrameBuffers(void);
 
       /** @brief Prepares all Vulkan resources and functions required to run the sample */
@@ -126,16 +134,22 @@ namespace genesis
       virtual void onFramebufferSize(int w, int h);
       virtual void onDrop(const std::vector<std::string>& filesDropped);
 
+      virtual VkFormat colorFormat(void) const;
+
    protected:
       // Returns the path to the root of the glsl or hlsl shader directory.
       virtual std::string getShadersPath() const;
 
       virtual std::string getAssetsPath(void) const;
 
+      virtual std::string getWindowTitle();
+
+      virtual void setupGlfwCallbacks(GLFWwindow* window);
    private:
       virtual void windowResize();
       virtual void handleMouseMove(int32_t x, int32_t y);
       virtual void nextFrame();
+      virtual void postFrame(void);
       virtual void updateOverlay();
       virtual void createPipelineCache();
       virtual void createCommandPool();
@@ -287,16 +301,16 @@ namespace genesis
 
       int _sampleCount = 1;
 
-      bool _useGlRendering = false;
-
-   private:
-      std::string getWindowTitle();
       bool viewUpdated = false;
       uint32_t destWidth;
       uint32_t destHeight;
       bool resizing = false;
 
       std::string shaderDir = "glsl";
+
+      VkFormat _colorFormatGlRendering = VK_FORMAT_R8G8B8A8_UNORM;
+      StorageImage* _colorImage = nullptr;
+	  bool _useSwapChainRendering = true;
    };
 
    // OS specific macros for the example main entry points

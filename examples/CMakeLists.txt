@@ -38,7 +38,7 @@ function(add_shader TARGET SHADER)
 endfunction(add_shader)
 
 # Function for building single example
-function(buildExample EXAMPLE_NAME)
+function(buildExample EXAMPLE_NAME GLRENDERING)
 	SET(EXAMPLE_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/${EXAMPLE_NAME})
 	message(STATUS "Generating project file for example in ${EXAMPLE_FOLDER}")
 	# Main
@@ -62,6 +62,13 @@ function(buildExample EXAMPLE_NAME)
 	ENDIF()
 	# Add optional readme / tutorial
 	file(GLOB README_FILES "${EXAMPLE_FOLDER}/*.md")
+
+	if (GLRENDERING)
+		set(GLEW_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../external/glew)
+		set(GLEW_SOURCES ${GLEW_DIR}/src/glew.cpp)
+		source_group("glew" FILES ${GLEW_SOURCES})
+	endif(GLRENDERING)
+
 	if(WIN32)	
 		# Add shaders
 		set(SHADER_DIR_GLSL "../data/shaders/glsl/${EXAMPLE_NAME}")
@@ -78,11 +85,23 @@ function(buildExample EXAMPLE_NAME)
 
 		source_group("Shaders" FILES ${vertex-shaders} ${fragment-shaders} ${compute-shaders} ${raytracing-shaders} ${mesh-shaders} ${other-shaders})
 		
-		add_executable(${EXAMPLE_NAME} ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})
-		
+	if (GLRENDERING)
+		add_executable(${EXAMPLE_NAME} ${MAIN_CPP} ${SOURCE} ${GLEW_SOURCES} ${MAIN_HEADER} ${SHADERS})
+	else(GLRENDERING)
+		add_executable(${EXAMPLE_NAME} ${MAIN_CPP} ${SOURCE} ${MAIN_HEADER} ${SHADERS})	
+	endif(GLRENDERING)
+	
 		target_include_directories(${EXAMPLE_NAME} PRIVATE "../genesis")
 
+	if (GLRENDERING)
+		target_include_directories(${EXAMPLE_NAME} PRIVATE ../external/glew/include)
+	endif(GLRENDERING)
+	
 		target_link_libraries(${EXAMPLE_NAME} genesis)
+
+		if(GLRENDERING)
+			target_link_libraries(${EXAMPLE_NAME} opengl32.lib)
+		endif()
 		
 		# Add them to the build.
 		foreach(vertex-shader ${vertex-shaders})
@@ -124,6 +143,11 @@ function(buildExample EXAMPLE_NAME)
 		endif()
 	endif()
 
+	if (GLRENDERING)
+		target_compile_definitions(${EXAMPLE_NAME} PRIVATE GLRENDERING)
+		target_compile_definitions(${EXAMPLE_NAME} PRIVATE GLEW_STATIC)
+	endif(GLRENDERING)
+	
 	if(RESOURCE_INSTALL_DIR)
 		install(TARGETS ${EXAMPLE_NAME} DESTINATION ${CMAKE_INSTALL_BINDIR})
 	endif()
@@ -131,14 +155,9 @@ endfunction(buildExample)
 
 # Build all examples
 function(buildExamples)
-	foreach(EXAMPLE ${EXAMPLES})
-		buildExample(${EXAMPLE})
-	endforeach(EXAMPLE)
+	buildExample(raytracing false)
+	buildExample(meshshaders false)
+	buildExample(gl_vk_interop true)
 endfunction(buildExamples)
-
-set(EXAMPLES
-	raytracing
-	meshshaders
-)
 
 buildExamples()

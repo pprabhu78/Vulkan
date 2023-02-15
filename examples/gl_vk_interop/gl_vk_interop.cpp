@@ -6,7 +6,12 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-#include "raytracing.h"
+#if GLRENDERING
+#include "../external/glew/include/GL/glew.h"
+#include "GlExtensions.h"
+#endif
+
+#include "gl_vk_interop.h"
 
 #include "Device.h"
 #include "PhysicalDevice.h"
@@ -29,6 +34,9 @@
 #include "CellManager.h"
 #include "IndirectLayout.h"
 
+#include "../external/glfw/include/GLFW/glfw3.h"
+#include "../external/glfw/include/GLFW/glfw3native.h"
+
 #include <chrono>
 #include <sstream>
 
@@ -40,7 +48,7 @@ using namespace genesis::tools;
 
 void RayTracing::resetCamera()
 {
-   if (_mainModel.find("venus")!=std::string::npos)
+   if (_mainModel.find("venus") != std::string::npos)
    {
       _camera.type = Camera::CameraType::lookat;
       _camera.setPosition(glm::vec3(0.0f, 0.0f, -2.5f));
@@ -131,6 +139,10 @@ RayTracing::RayTracing()
          ss >> _sampleCountForRasterization;
          ++i;
       }
+      else if (arg == "--gl")
+      {
+         _useSwapChainRendering = false;
+      }
    }
 
    _sampleCount = (_mode == RASTERIZATION) ? _sampleCountForRasterization : 1;
@@ -141,6 +153,14 @@ RayTracing::RayTracing()
    }
 
    _title = "genesis: path tracer";
+   if (_useSwapChainRendering)
+   {
+      _title += ": VULKAN";
+   }
+   else
+   {
+      _title += ": OPENGL";
+   }
 
    resetCamera();
 
@@ -537,12 +557,14 @@ void RayTracing::createRasterizationPipeline()
    graphicsPipelineCreateInfo.pStages = shaderStageInfos.data();
 
    VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{};
-   VkFormat colorFormat = _swapChain->colorFormat();
+
+   // This is here, because of this in the if (_dynamicRendering): pipelineRenderingCreateInfo.pColorAttachmentFormats = &localColorFormat;
+   VkFormat localColorFormat = colorFormat();
    if (_dynamicRendering)
    {
       pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
       pipelineRenderingCreateInfo.colorAttachmentCount = 1;
-      pipelineRenderingCreateInfo.pColorAttachmentFormats = &colorFormat;
+      pipelineRenderingCreateInfo.pColorAttachmentFormats = &localColorFormat;
       pipelineRenderingCreateInfo.depthAttachmentFormat = _depthFormat;
       pipelineRenderingCreateInfo.stencilAttachmentFormat = _depthFormat;
       graphicsPipelineCreateInfo.pNext = &pipelineRenderingCreateInfo;
@@ -609,7 +631,10 @@ void RayTracing::rayTrace(int commandBufferIndex)
 
    // Prepare current swap chain image as transfer destination
    VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-   transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
+
+   // Prepare current swap chain image as transfer destination
+   VkImage imageToCopyto = (_useSwapChainRendering) ? _swapChain->image(commandBufferIndex) : _colorImage->vulkanImage();
+   transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], imageToCopyto, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
    // Prepare ray tracing output image as transfer source
    transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _rayTracingFinalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange);
@@ -620,10 +645,17 @@ void RayTracing::rayTrace(int commandBufferIndex)
    copyRegion.dstSubresource = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
    copyRegion.dstOffset = { 0, 0, 0 };
    copyRegion.extent = { _width, _height, 1 };
-   vkCmdCopyImage(_drawCommandBuffers[commandBufferIndex], _rayTracingFinalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+   vkCmdCopyImage(_drawCommandBuffers[commandBufferIndex], _rayTracingFinalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, imageToCopyto, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
-   // Transition swap chain image back for presentation
-   transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subresourceRange);
+   if (_useSwapChainRendering)
+   {
+      // Transition swap chain image back for presentation
+      transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _swapChain->image(commandBufferIndex), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, subresourceRange);
+   }
+   else
+   {
+      transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _colorImage->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, subresourceRange);
+   }
 
    // Transition ray tracing output image back to general layout
    transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], _rayTracingFinalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL, subresourceRange);
@@ -644,7 +676,9 @@ void RayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoad
       , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I Think this should be bottom of pipe
    }
 
-   transitions::setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
+   VkImage imageToRenderTo = (_useSwapChainRendering) ? _swapChain->image(swapChainImageIndex) : _colorImage->vulkanImage();
+   VkImageView imageToRenderToView = (_useSwapChainRendering) ? _swapChain->imageView(swapChainImageIndex) : _colorImage->vulkanImageView();
+   transitions::setImageLayout(_drawCommandBuffers[i], imageToRenderTo
       , VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
       , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
    , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I Think this should be bottom of pipe
@@ -659,7 +693,7 @@ void RayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoad
 
    VkRenderingAttachmentInfo colorAttachment{};
    colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-   colorAttachment.imageView = (_sampleCount > 1)? _multiSampledColorImage->vulkanImageView() : _swapChain->imageView(i);
+   colorAttachment.imageView = (_sampleCount > 1) ? _multiSampledColorImage->vulkanImageView() : imageToRenderToView;
    colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
    colorAttachment.loadOp = colorLoadOp;
    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -698,10 +732,20 @@ void RayTracing::endDynamicRendering(int swapChainImageIndex)
 
    _device->extensions().vkCmdEndRenderingKHR(_drawCommandBuffers[i]);
 
-   transitions::setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
-      , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-      , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-   , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT); // PPP: I think this should be top of pipe
+   if (_useSwapChainRendering)
+   {
+      transitions::setImageLayout(_drawCommandBuffers[i], _swapChain->image(i)
+         , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+         , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+      , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT); // PPP: I think this should be top of pipe
+   }
+   else
+   {
+      transitions::setImageLayout(_drawCommandBuffers[i], _colorImage->vulkanImage()
+         , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+         , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
+      , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT); // PPP: I think this should be top of pipe
+   }
 
 }
 void RayTracing::buildRasterizationCommandBuffersDynamicRendering(void)
@@ -879,6 +923,10 @@ std::string RayTracing::generateTimeStampedFileName(void)
 
 void RayTracing::saveScreenShot(const std::string& fileName)
 {
+   if (_swapChain == nullptr)
+   {
+      return;
+   }
    genesis::ScreenShotUtility screenShotUtility(_device);
    screenShotUtility.takeScreenShot(fileName, _swapChain->image(_currentFrameBufferIndex), _swapChain->colorFormat()
       , _width, _height);
@@ -1069,6 +1117,26 @@ void RayTracing::render()
    }
 }
 
+
+void RayTracing::postFrame()
+{
+#if GLRENDERING
+   if (!_useSwapChainRendering)
+   {
+      glDisable(GL_DEPTH_TEST);
+      glViewport(0, 0, _width, _height);
+      glWaitVkSemaphoreNV((GLuint64)_semaphores.renderComplete);
+      glDrawVkImageNV((GLuint64)_colorImage->vulkanImage(), 0
+         , 0, 0, (float)_width, (float)_height
+         , 0, 0, 1, 1, 0);
+      glEnable(GL_DEPTH_TEST);
+      glSignalVkSemaphoreNV((GLuint64)_semaphores.presentComplete);
+
+      glfwSwapBuffers(_window);
+   }
+#endif
+}
+
 void RayTracing::viewChanged()
 {
    _pushConstants.frameIndex = -1;
@@ -1133,7 +1201,7 @@ void RayTracing::createCells(void)
    {
       glTFLoadingFlags |= genesis::VulkanGltfModel::ColorTexturesAreSrgb;
    }
-   
+
    _cellManager = new genesis::CellManager(_device, glTFLoadingFlags);
 
    _cellManager->addInstance(gltfModel, mat4());
@@ -1260,6 +1328,7 @@ void RayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
 
 void RayTracing::drawGuiAfterRayTrace(int swapChainImageIndex)
 {
+   return;
    if (_mode == RASTERIZATION)
    {
       return;
@@ -1340,7 +1409,7 @@ void RayTracing::createStorageImages()
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1);
 
    // final image is used for presentation. So, its the same format as the swap chain
-   _rayTracingFinalImageToPresent = new genesis::StorageImage(_device, _swapChain->colorFormat(), _width, _height
+   _rayTracingFinalImageToPresent = new genesis::StorageImage(_device, colorFormat(), _width, _height
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1);
 
    VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
@@ -1349,6 +1418,63 @@ void RayTracing::createStorageImages()
    transitions::setImageLayout(commandBuffer, _rayTracingFinalImageToPresent->vulkanImage(), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
    _device->flushCommandBuffer(commandBuffer);
+}
+
+static void onErrorCallback(int error, const char* description)
+{
+   fprintf(stderr, "GLFW Error %d: %s\n", error, description);
+}
+
+GLFWwindow* RayTracing::setupWindow()
+{
+   glfwSetErrorCallback(onErrorCallback);
+   if (!glfwInit())
+   {
+      return 0;
+   }
+  
+   if (_useSwapChainRendering)
+   {
+      glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+   }
+   else
+   {
+      // setting nothing will cause glfw to make an OpenGL context
+   }
+
+   _window = glfwCreateWindow(_width, _height, getWindowTitle().c_str(), nullptr, nullptr);
+
+#if GLRENDERING
+   if (!_useSwapChainRendering)
+   {
+      glfwMakeContextCurrent(_window);
+      glfwSwapInterval(0);
+
+      // default will use the gl rendering
+      GLenum glewInitialized = glewInit();
+      if (glewInitialized != GLEW_OK)
+      {
+         std::cerr << "Could not initialize GLEW!" << std::endl;
+         return 0;
+      }
+
+      _glExtensions = new glExtensions();
+      _glExtensions->initialize();
+      _glExtensions->glSignalVkSemaphoreNV((GLuint64)_semaphores.presentComplete);
+      glFlush();
+   }
+#endif
+
+   // Setup Vulkan
+   if (!glfwVulkanSupported())
+   {
+      printf("GLFW: Vulkan Not Supported\n");
+   }
+
+   glfwSetWindowUserPointer(_window, this);
+   setupGlfwCallbacks(_window);
+
+   return _window;
 }
 
 /*
