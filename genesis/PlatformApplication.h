@@ -82,6 +82,8 @@ namespace genesis
       virtual void buildCommandBuffers();
       /** @brief (Virtual) Setup a default renderpass */
       virtual void setupRenderPass();
+      /** @brief (Virtual) Called after the physical device features have been read, can be used to set features to check whether to proceed further */
+      virtual bool physicalDeviceAcceptable() const;
       /** @brief (Virtual) Called after the physical device features have been read, can be used to set features to enable on the device */
       virtual void enableFeatures();
 

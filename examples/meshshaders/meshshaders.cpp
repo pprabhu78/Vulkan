@@ -82,6 +82,16 @@ MeshShaders::MeshShaders()
    _enabledPhysicalDeviceExtensions.push_back(VK_EXT_MESH_SHADER_EXTENSION_NAME);
 }
 
+bool MeshShaders::physicalDeviceAcceptable() const
+{
+   if (_physicalDevice->extensionSupported(VK_EXT_MESH_SHADER_EXTENSION_NAME) == false)
+   {
+      std::cout << VK_EXT_MESH_SHADER_EXTENSION_NAME << " not supported!" << std::endl;
+      return false;
+   }
+   return true;
+}
+
 #define  ADD_NEXT(previous, current) current.pNext = &previous
 
 void MeshShaders::enableFeatures()
@@ -129,6 +139,10 @@ void MeshShaders::enableFeatures()
 
 void MeshShaders::destroyRasterizationStuff()
 {
+   if (_device == VK_NULL_HANDLE)
+   {
+      return;
+   }
    vkDestroyPipeline(_device->vulkanDevice(), _skyBoxRasterizationPipeline, nullptr);
    _skyBoxRasterizationPipeline = 0;
 

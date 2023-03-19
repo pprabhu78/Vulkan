@@ -406,6 +406,10 @@ namespace genesis
 
    void UIOverlay::freeResources()
    {
+      if (_device == nullptr)
+      {
+         return;
+      }
       ImGui::DestroyContext();
       delete _vertexBuffer; _vertexBuffer = nullptr;
       delete _indexBuffer; _indexBuffer = nullptr;

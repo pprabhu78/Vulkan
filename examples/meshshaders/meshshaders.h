@@ -33,6 +33,7 @@ public:
    virtual void keyPressed(uint32_t key) override;
    virtual void render() override;
    virtual void viewChanged() override;
+   virtual bool physicalDeviceAcceptable() const override;
    virtual void enableFeatures() override;
    virtual void OnUpdateUIOverlay(genesis::UIOverlay* overlay) override;
    virtual void setupRenderPass() override;

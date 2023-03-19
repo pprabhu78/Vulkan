@@ -77,12 +77,33 @@ namespace genesis
    {
       initQueueFamilyIndices(requestedQueueTypes);
 
+      std::vector<const char*> deviceExtensionsRequestedToBeEnabled;
+
       // Create the logical device representation
-      std::vector<const char*> deviceExtensions(_physicalDevice->enabledPhysicalDeviceExtensions());
+      for (const char* deviceExtensionRequestedToBeEnabled : _physicalDevice->enabledPhysicalDeviceExtensions())
+      {
+         if (_physicalDevice->extensionSupported(deviceExtensionRequestedToBeEnabled))
+         {
+            deviceExtensionsRequestedToBeEnabled.push_back(deviceExtensionRequestedToBeEnabled);
+         }
+         else
+         {
+            std::cerr << deviceExtensionRequestedToBeEnabled << " not supported" << std::endl;
+         }
+      }
+
       if (useSwapChain)
       {
-         // If the device will be used for presenting to a display via a swapchain we need to request the swapchain extension
-         deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+         if (_physicalDevice->extensionSupported(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
+         {
+            // If the device will be used for presenting to a display via a swapchain we need to request the swapchain extension
+            deviceExtensionsRequestedToBeEnabled.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+         }
+         else
+         {
+            std::cerr << "swap chain extension not supported" << std::endl;
+         }
+
       }
 
       VkDeviceCreateInfo deviceCreateInfo = {};
@@ -109,18 +130,10 @@ namespace genesis
          _enableDebugMarkers = true;
       }
 
-      if (deviceExtensions.size() > 0)
+      if (deviceExtensionsRequestedToBeEnabled.size() > 0)
       {
-         for (const char* enabledExtension : deviceExtensions)
-         {
-            if (!_physicalDevice->extensionSupported(enabledExtension)) 
-            {
-               std::cerr << "Enabled device extension \"" << enabledExtension << "\" is not present at device level\n";
-            }
-         }
-
-         deviceCreateInfo.enabledExtensionCount = (uint32_t)deviceExtensions.size();
-         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
+         deviceCreateInfo.enabledExtensionCount = (uint32_t)deviceExtensionsRequestedToBeEnabled.size();
+         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensionsRequestedToBeEnabled.data();
       }
 
       VkResult result = vkCreateDevice(_physicalDevice->vulkanPhysicalDevice(), &deviceCreateInfo, nullptr, &_logicalDevice);

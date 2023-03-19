@@ -452,22 +452,24 @@ namespace genesis
       destroyMultiSampleColor();
       destroyColor();
 
-      vkDestroyPipelineCache(_device->vulkanDevice(), _pipelineCache, nullptr);
+      if (_device)
+      {
+         vkDestroyPipelineCache(_device->vulkanDevice(), _pipelineCache, nullptr);
 
-      vkDestroyCommandPool(_device->vulkanDevice(), _commandPool, nullptr);
+         vkDestroyCommandPool(_device->vulkanDevice(), _commandPool, nullptr);
 
-      vkDestroySemaphore(_device->vulkanDevice(), _semaphores.presentComplete, nullptr);
-      vkDestroySemaphore(_device->vulkanDevice(), _semaphores.renderComplete, nullptr);
-      for (auto& fence : _waitFences) {
-         vkDestroyFence(_device->vulkanDevice(), fence, nullptr);
+         vkDestroySemaphore(_device->vulkanDevice(), _semaphores.presentComplete, nullptr);
+         vkDestroySemaphore(_device->vulkanDevice(), _semaphores.renderComplete, nullptr);
+         for (auto& fence : _waitFences) 
+         {
+            vkDestroyFence(_device->vulkanDevice(), fence, nullptr);
+         }
       }
 
       _uiOverlay.freeResources();
 
       delete _device;
-
       delete _instance;
-
    }
 
    bool PlatformApplication::initVulkan()
@@ -518,6 +520,13 @@ namespace genesis
 #endif
 
       _physicalDevice = new PhysicalDevice(_instance, selectedDevice, _enabledPhysicalDeviceExtensions);
+      if (!physicalDeviceAcceptable())
+      {
+         delete _physicalDevice;
+         _physicalDevice = nullptr;
+
+         return false;
+      }
 
       // Derived examples can override this to set actual features (based on above readings) to enable for logical device creation
       enableFeatures();
@@ -908,6 +917,11 @@ namespace genesis
       }
       
       _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR, _sampleCount);
+   }
+
+   bool PlatformApplication::physicalDeviceAcceptable() const
+   {
+      return true;
    }
    
    void PlatformApplication::enableFeatures() 
