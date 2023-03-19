@@ -164,5 +164,6 @@ protected:
 
    uint32_t _glTFLoadingFlags = 0;
 
+   //! Anti-aliasing is only needed for rasterization
    int _sampleCountForRasterization = 1;
 };

@@ -286,19 +286,35 @@ namespace genesis
       // Wraps the swap chain to present images (framebuffers) to the windowing system
       SwapChain* _swapChain = nullptr;
 
-      // Synchronization semaphores
+      //! Flow of swap chain rendering:
+      //! vkAcquireNextImageKHR(..., semaphoreToSignal, ...)
+      //! vkQueueSubmit(..., semaphoreToSignal, semaphoreToWaitOn, ...)
+      //! vkQueuePresentKHR(..., semaphoreToWaitOn, ...)
+      //! -> 
+      //! acquire signals presentComplete
+      //! submit waits on presentComplete and signals renderComplete
+      //! present waits on renderComplete
       struct
       {
-         // Swap chain image presentation
+         //! This is passed to vkAcquireNextImageKHR.
+         //! It gets signaled when the image index acquired can actually be rendered to.
+         //! This is because the presentation engine may still be reading from that image (because of earlier call to vkQueuePresentKHR)
+         //! This is the semaphore that vkQueueSubmit will _wait_ on
          VkSemaphore presentComplete;
-         // Command buffer submission and execution
+
+         //! This is passed as the one of the pSignalSemaphores to VkSubmitInfo for vkQueueSubmit.
+         //! It gets signaled after the command buffers to vkQueueSubmit have been actually executed.
+         //! This is the semaphore that vkQueuePresentKHR will _wait_ on
          VkSemaphore renderComplete;
       } _semaphores;
 
       std::vector<VkFence> _waitFences;
 
+      //! If dynamic rendering is true, there is no need to create render pass
+      //! or frame buffers
       bool _dynamicRendering = false;
 
+      //! The anti-aliasing level
       int _sampleCount = 1;
 
       bool viewUpdated = false;
@@ -308,9 +324,10 @@ namespace genesis
 
       std::string shaderDir = "glsl";
 
+      //! If swap chain rendering is false, the image is rendered to the color image below
+      bool _useSwapChainRendering = true;
       VkFormat _colorFormatGlRendering = VK_FORMAT_R8G8B8A8_UNORM;
       StorageImage* _colorImage = nullptr;
-	  bool _useSwapChainRendering = true;
    };
 
    // OS specific macros for the example main entry points

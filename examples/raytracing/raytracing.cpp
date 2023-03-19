@@ -1011,6 +1011,7 @@ void RayTracing::render()
    {
       return;
    }
+
    PlatformApplication::prepareFrame();
 
    if (_mode == RAYTRACE)

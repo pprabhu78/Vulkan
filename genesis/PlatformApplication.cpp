@@ -126,7 +126,10 @@ namespace genesis
       }
       setupMultiSampleColor();
       setupDepthStencil();
-      setupRenderPass();
+      if (_dynamicRendering == false)
+      {
+         setupRenderPass();
+      }
       createPipelineCache();
       if (_dynamicRendering==false)
       {
@@ -298,14 +301,17 @@ namespace genesis
 
    void PlatformApplication::drawUI(const VkCommandBuffer commandBuffer)
    {
-      if (_settings.overlay) {
-         const VkViewport viewport = vkInitaliazers::viewport((float)_width, (float)_height, 0.0f, 1.0f, false);
-         const VkRect2D scissor = vkInitaliazers::rect2D(_width, _height, 0, 0);
-         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-         _uiOverlay.draw(commandBuffer);
+      if (_settings.overlay == false)
+      {
+         return;
       }
+
+      const VkViewport viewport = vkInitaliazers::viewport((float)_width, (float)_height, 0.0f, 1.0f, false);
+      const VkRect2D scissor = vkInitaliazers::rect2D(_width, _height, 0, 0);
+      vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+      vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+      _uiOverlay.draw(commandBuffer);
    }
 
    void PlatformApplication::prepareFrame()
@@ -315,12 +321,15 @@ namespace genesis
          return;
       }
       // Acquire the next image from the swap chain
+      // presentComplete is the semaphore to signal 
       VkResult result = _swapChain->acquireNextImage(_currentFrameBufferIndex, _semaphores.presentComplete);
       // Recreate the swapchain if it's no longer compatible with the surface (OUT_OF_DATE) or no longer optimal for presentation (SUBOPTIMAL)
-      if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) {
+      if ((result == VK_ERROR_OUT_OF_DATE_KHR) || (result == VK_SUBOPTIMAL_KHR)) 
+      {
          windowResize();
       }
-      else {
+      else 
+      {
          VK_CHECK_RESULT(result);
       }
    }
@@ -332,13 +341,16 @@ namespace genesis
          return;
       }
       VkResult result = _swapChain->queuePresent(_device->graphicsQueue(), _currentFrameBufferIndex, _semaphores.renderComplete);
-      if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) {
-         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+      if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) 
+      {
+         if (result == VK_ERROR_OUT_OF_DATE_KHR) 
+         {
             // Swap chain is no longer compatible with the surface and needs to be recreated
             windowResize();
             return;
          }
-         else {
+         else 
+         {
             VK_CHECK_RESULT(result);
          }
       }
@@ -551,7 +563,6 @@ namespace genesis
    {
       fprintf(stderr, "GLFW Error %d: %s\n", error, description);
    }
-
 
    static void key_cb(GLFWwindow* window, int key, int scancode, int action, int mods)
    {
@@ -890,10 +901,12 @@ namespace genesis
 
    void PlatformApplication::setupRenderPass()
    {
-      if (_dynamicRendering == false)
+      if (_dynamicRendering)
       {
-         _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR, _sampleCount);
+         return;
       }
+      
+      _renderPass = new genesis::RenderPass(_device, _swapChain->colorFormat(), _depthFormat, VK_ATTACHMENT_LOAD_OP_CLEAR, _sampleCount);
    }
    
    void PlatformApplication::enableFeatures() 

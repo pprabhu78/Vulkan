@@ -34,6 +34,16 @@ namespace genesis
 {
    class Device;
 
+   //! A swap chain is a collection of images used for rendering and presentation to the windowing system.
+   //! These images are not created directly, but are created internally via vkCreateSwapchainKHR
+   //! Flow of swap chain rendering:
+   //! vkAcquireNextImageKHR(..., semaphoreToSignal, ...)
+   //! vkQueueSubmit(..., semaphoreToSignal, semaphoreToWaitOn, ...)
+   //! vkQueuePresentKHR(..., semaphoreToWaitOn, ...)
+   //! -> 
+   //! acquire signals presentComplete
+   //! submit waits on presentComplete and signals renderComplete
+   //! present waits on renderComplete
    class SwapChain
    {
    public:
@@ -92,15 +102,16 @@ namespace genesis
       //! what is the number of images of this swap chain/surface
       virtual uint32_t imageCount(void) const;
 
+      //! The VkImage of the swap chain at a given index.
       virtual const VkImage& image(int index) const;
 
+      //! The VkImageView of the swap chain image at a given index.
       virtual const VkImageView& imageView(int index) const;
    protected:
       //! init the queue family index that supports presentation for this swap chain/surface
       virtual void computePresentationQueueFamilyIndex();
       //! compute the color format and space for this swap chain/surface
       virtual void computeColorFormatAndSpace();
-
    protected:
       const Device* _device;
 
@@ -111,7 +122,11 @@ namespace genesis
       VkColorSpaceKHR _colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
       VkSwapchainKHR _swapChain = VK_NULL_HANDLE;
+
+      //! VkImage handles for the created swap chain
+      //! These images are not created directly, their handles are gotten using vkGetSwapchainImagesKHR
       std::vector<VkImage> _images;
+      //! These views are created based off of the _images above
       std::vector<VkImageView> _imageViews;
    };
 }

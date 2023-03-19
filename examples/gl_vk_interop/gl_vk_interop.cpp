@@ -164,8 +164,8 @@ RayTracing::RayTracing()
 
    resetCamera();
 
-   // Require Vulkan 1.2
-   apiVersion = VK_API_VERSION_1_2;
+   // Require Vulkan 1.3
+   apiVersion = VK_API_VERSION_1_3;
 
    // Ray tracing related extensions required by this sample
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
