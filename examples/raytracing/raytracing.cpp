@@ -144,8 +144,8 @@ RayTracing::RayTracing()
 
    resetCamera();
 
-   // Require Vulkan 1.2
-   apiVersion = VK_API_VERSION_1_2;
+   // Require Vulkan 1.3
+   apiVersion = VK_API_VERSION_1_3;
 
    // Ray tracing related extensions required by this sample
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
@@ -649,7 +649,7 @@ void RayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoad
       , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
    , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I Think this should be bottom of pipe
 
-   // per the book: the outputs to the depth and stencil buffers occur as part of the late fragment test, so this along wit the early
+   // per the book: the outputs to the depth and stencil buffers occur as part of the late fragment test, so this along with the early
    // fragment tests includes the depth and stencil outputs
    const VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
    transitions::setImageLayout(_drawCommandBuffers[i], _depthStencilImage->vulkanImage()

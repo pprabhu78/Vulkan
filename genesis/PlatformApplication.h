@@ -207,8 +207,16 @@ namespace genesis
 
       uint32_t apiVersion = VK_API_VERSION_1_0;
 
-      StorageImage* _depthStencilImage = nullptr;
+      //! The anti-aliasing level
+      int _sampleCount = 1;
+      //! If _sampleCount > 1, this is the image that is actually used for color rendering
+      //! It's sample count matches _sampleCount
       StorageImage* _multiSampledColorImage = nullptr;
+
+      //! Depth-Stencil image.
+      //! It's sample count matches _sampleCount.
+      StorageImage* _depthStencilImage = nullptr;
+
 
       struct
       {
@@ -314,9 +322,6 @@ namespace genesis
       //! or frame buffers
       bool _dynamicRendering = false;
 
-      //! The anti-aliasing level
-      int _sampleCount = 1;
-
       bool viewUpdated = false;
       uint32_t destWidth;
       uint32_t destHeight;
@@ -326,8 +331,9 @@ namespace genesis
 
       //! If swap chain rendering is false, the image is rendered to the color image below
       bool _useSwapChainRendering = true;
-      VkFormat _colorFormatGlRendering = VK_FORMAT_R8G8B8A8_UNORM;
+      VkFormat _colorFormatExternalRendering = VK_FORMAT_R8G8B8A8_UNORM;
       StorageImage* _colorImage = nullptr;
+
    };
 
    // OS specific macros for the example main entry points

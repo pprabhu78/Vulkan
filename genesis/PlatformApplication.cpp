@@ -824,10 +824,11 @@ namespace genesis
       {
          return;
       }
+      VkFormat colorFormat = _swapChain ? _swapChain->colorFormat() : _colorFormatExternalRendering;
       // Image will only be used as a transient target
       VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
       _multiSampledColorImage = new StorageImage(_device
-         , _swapChain->colorFormat(), _width, _height
+         , colorFormat, _width, _height
          , usageFlags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
          , VK_IMAGE_TILING_OPTIMAL, _sampleCount);
    }
@@ -1059,7 +1060,7 @@ namespace genesis
 
    VkFormat PlatformApplication::colorFormat() const
    {
-      return (_useSwapChainRendering) ? _swapChain->colorFormat() : _colorFormatGlRendering;
+      return (_useSwapChainRendering) ? _swapChain->colorFormat() : _colorFormatExternalRendering;
    }
 
    void PlatformApplication::setupColor(void)

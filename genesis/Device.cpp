@@ -93,7 +93,8 @@ namespace genesis
 
       // If a pNext(Chain) has been passed, we need to add it to the device creation info
       VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{};
-      if (pNextChain) {
+      if (pNextChain) 
+      {
          physicalDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
          physicalDeviceFeatures2.features = _physicalDevice->enabledPhysicalDeviceFeatures();
          physicalDeviceFeatures2.pNext = pNextChain;
@@ -112,7 +113,8 @@ namespace genesis
       {
          for (const char* enabledExtension : deviceExtensions)
          {
-            if (!_physicalDevice->extensionSupported(enabledExtension)) {
+            if (!_physicalDevice->extensionSupported(enabledExtension)) 
+            {
                std::cerr << "Enabled device extension \"" << enabledExtension << "\" is not present at device level\n";
             }
          }

@@ -1,11 +1,26 @@
 /*
-* Ray tracing sample
+* OpenGL + Vulkan interop sample
 *
 * Copyright (C) 2021-2023 by P. Prabhu/PSquare Interactive, LLC. - https://github.com/pprabhu78
 *
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
+//! This sample is based off of the ray tracing sample.
+//! Indeed, you should diff that sample with this sample to see how the set up is different for gl vs vulkan.
+//! Only dynamic rendering is supported currently.
+//! The OpenGL vs Vulkan rendering can be toggled using this command line: --gl
+//! When using OpenGL to render:
+//! -We tell the core to not use swap chain rendering so that it will render to a color image (_colorImage).
+//! -We also set up the window to use an OpenGL context (see setupWindow).
+//! -We render as usual using Vulkan (the image being rendered to being the _colorImage instead of the swap chain).
+//! -In postFrame, we wait for the renderComplete semaphore (which the submit will signal after the command buffers have executed).
+//! -We then draw this image using: glDrawVkImageNV and then signal presentComplete (which submit waits on for the next frame)
+
+//! There is a bug in either the Vulkan driver or this sample
+//! that causes device creation to sometimes fail. 
+//! I have a suspicion that this may be due to even the inclusion of these glew
+//! So, this #define defined in the cmake can be used to eliminate that path completely from the compiled/linked code
 #if GLRENDERING
 #include "../external/glew/include/GL/glew.h"
 #include "GlExtensions.h"
@@ -34,6 +49,7 @@
 #include "CellManager.h"
 #include "IndirectLayout.h"
 
+//! To manually control the gl <-> vulkan rendering
 #include "../external/glfw/include/GLFW/glfw3.h"
 #include "../external/glfw/include/GLFW/glfw3native.h"
 
@@ -128,10 +144,13 @@ RayTracing::RayTracing()
       {
          _mainModel = _args[i + 1];
       }
+      // Only support dyanmic rendering right now
+#if 0
       else if (arg == "--dynamicRendering")
       {
          _dynamicRendering = true;
       }
+#endif
       else if (arg == "--antiAliasing" && (i + 1) < _args.size())
       {
          std::stringstream ss;
@@ -143,6 +162,9 @@ RayTracing::RayTracing()
       {
          _useSwapChainRendering = false;
       }
+
+      // Only support dyanmic rendering right now
+      _dynamicRendering = true;
    }
 
    _sampleCount = (_mode == RASTERIZATION) ? _sampleCountForRasterization : 1;
@@ -629,10 +651,8 @@ void RayTracing::rayTrace(int commandBufferIndex)
       , _height
       , 1);
 
-   // Prepare current swap chain image as transfer destination
+   // Prepare current swap chain image or the color image (_useSwapChainRendering==false) as transfer destination
    VkImageSubresourceRange subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-
-   // Prepare current swap chain image as transfer destination
    VkImage imageToCopyto = (_useSwapChainRendering) ? _swapChain->image(commandBufferIndex) : _colorImage->vulkanImage();
    transitions::setImageLayout(_drawCommandBuffers[commandBufferIndex], imageToCopyto, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, subresourceRange);
 
@@ -683,7 +703,7 @@ void RayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoad
       , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
    , VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I Think this should be bottom of pipe
 
-   // per the book: the outputs to the depth and stencil buffers occur as part of the late fragment test, so this along wit the early
+   // per the book: the outputs to the depth and stencil buffers occur as part of the late fragment test, so this along with the early
    // fragment tests includes the depth and stencil outputs
    const VkPipelineStageFlags pipelineStageFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
    transitions::setImageLayout(_drawCommandBuffers[i], _depthStencilImage->vulkanImage()
@@ -701,7 +721,7 @@ void RayTracing::beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoad
 
    if (_sampleCount > 1)
    {
-      colorAttachment.resolveImageView = _swapChain->imageView(i);
+      colorAttachment.resolveImageView = (_useSwapChainRendering)? _swapChain->imageView(i) : imageToRenderToView;
       colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
       colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
    }
@@ -923,6 +943,7 @@ std::string RayTracing::generateTimeStampedFileName(void)
 
 void RayTracing::saveScreenShot(const std::string& fileName)
 {
+   // TO DO
    if (_swapChain == nullptr)
    {
       return;
@@ -951,6 +972,12 @@ void RayTracing::destroyRayTracingStuff(bool storageImages)
 
 void RayTracing::nextRenderingMode(void)
 {
+   // This fixes crash when switching modes
+   if (_useSwapChainRendering == false)
+   {
+      glFlush();
+      vkDeviceWaitIdle(_device->vulkanDevice());
+   }
    if (_mode == RASTERIZATION)
    {
       destroyRasterizationStuff();
@@ -974,9 +1001,11 @@ void RayTracing::nextRenderingMode(void)
    destroyMultiSampleColor();
    destroyDepthStencil();
    destroyFrameBuffers();
+   destroyColor();
 
    setupMultiSampleColor();
    setupDepthStencil();
+   setupColor();
 
    setupRenderPass();
    setupFrameBuffer();
@@ -1013,7 +1042,7 @@ void RayTracing::nextRenderingMode(void)
    {
       _uiOverlay._rasterizationSamples = Image::toSampleCountFlagBits(1);
    }
-   _uiOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, _swapChain->colorFormat(), _depthFormat);
+   _uiOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, colorFormat(), _depthFormat);
 
    _pushConstants.frameIndex = -1;
 }
@@ -1059,6 +1088,8 @@ void RayTracing::render()
    {
       return;
    }
+
+   // If we are not using swap chain rendering (ie we are using gl to render), this will do nothing
    PlatformApplication::prepareFrame();
 
    if (_mode == RAYTRACE)
@@ -1125,11 +1156,13 @@ void RayTracing::postFrame()
    {
       glDisable(GL_DEPTH_TEST);
       glViewport(0, 0, _width, _height);
+      // wait for the render to have completed from vulkan
       glWaitVkSemaphoreNV((GLuint64)_semaphores.renderComplete);
       glDrawVkImageNV((GLuint64)_colorImage->vulkanImage(), 0
          , 0, 0, (float)_width, (float)_height
          , 0, 0, 1, 1, 0);
       glEnable(GL_DEPTH_TEST);
+      // signal that we rendered
       glSignalVkSemaphoreNV((GLuint64)_semaphores.presentComplete);
 
       glfwSwapBuffers(_window);
@@ -1328,6 +1361,7 @@ void RayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
 
 void RayTracing::drawGuiAfterRayTrace(int swapChainImageIndex)
 {
+   // TO DO
    return;
    if (_mode == RASTERIZATION)
    {
@@ -1408,7 +1442,7 @@ void RayTracing::createStorageImages()
    _rayTracingIntermediateImage = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, _width, _height
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1);
 
-   // final image is used for presentation. So, its the same format as the swap chain
+   // final image is used for presentation. So, its the same format as the swap chain/color image
    _rayTracingFinalImageToPresent = new genesis::StorageImage(_device, colorFormat(), _width, _height
       , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1);
 

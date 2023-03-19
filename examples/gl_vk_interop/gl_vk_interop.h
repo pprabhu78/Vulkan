@@ -32,6 +32,7 @@ namespace genesis
    class ShaderBindingTable;
 }
 
+//! To access gl extensions
 class glExtensions;
 
 class RayTracing : public genesis::PlatformApplication
@@ -41,10 +42,12 @@ public:
    virtual ~RayTracing();
 
 public:
+   //! overridden
    virtual GLFWwindow* setupWindow() override;
    virtual void windowResized() override;
    virtual void keyPressed(uint32_t key) override;
    virtual void render() override;
+   //! overridden
    virtual void postFrame() override;
    virtual void viewChanged() override;
    virtual void enableFeatures() override;
@@ -157,7 +160,7 @@ protected:
       , NUM_MODES = 2
    };
 
-   RenderMode _mode = RAYTRACE;
+   RenderMode _mode = RASTERIZATION;
 
    bool _wireframe = false;
 
@@ -168,7 +171,9 @@ protected:
 
    uint32_t _glTFLoadingFlags = 0;
 
+   //! Anti-aliasing is only needed for rasterization
    int _sampleCountForRasterization = 1;
 
+   //! To access gl extensions
    glExtensions* _glExtensions = nullptr;
 };
