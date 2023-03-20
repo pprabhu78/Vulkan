@@ -943,13 +943,10 @@ std::string RayTracing::generateTimeStampedFileName(void)
 
 void RayTracing::saveScreenShot(const std::string& fileName)
 {
-   // TO DO
-   if (_swapChain == nullptr)
-   {
-      return;
-   }
+   VkImage imageToCopyFrom = (_useSwapChainRendering) ? _swapChain->image(_currentFrameBufferIndex) : _colorImage->vulkanImage();
+   VkFormat colorFormat = (_useSwapChainRendering) ? _swapChain->colorFormat() : _colorImage->vulkanFormat();
    genesis::ScreenShotUtility screenShotUtility(_device);
-   screenShotUtility.takeScreenShot(fileName, _swapChain->image(_currentFrameBufferIndex), _swapChain->colorFormat()
+   screenShotUtility.takeScreenShot(fileName, imageToCopyFrom, colorFormat
       , _width, _height);
 }
 
@@ -1361,8 +1358,6 @@ void RayTracing::OnUpdateUIOverlay(genesis::UIOverlay* overlay)
 
 void RayTracing::drawGuiAfterRayTrace(int swapChainImageIndex)
 {
-   // TO DO
-   return;
    if (_mode == RASTERIZATION)
    {
       return;
