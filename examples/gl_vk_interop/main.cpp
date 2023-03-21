@@ -1,4 +1,4 @@
-#include "gl_vk_interop.h"
+#include "gl_vk_interop_nv.h"
 
 int main(int argc, char** argv)
 {

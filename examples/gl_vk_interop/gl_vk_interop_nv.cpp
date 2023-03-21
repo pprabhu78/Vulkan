@@ -26,7 +26,7 @@
 #include "GlExtensions.h"
 #endif
 
-#include "gl_vk_interop.h"
+#include "gl_vk_interop_nv.h"
 
 #include "Device.h"
 #include "PhysicalDevice.h"
