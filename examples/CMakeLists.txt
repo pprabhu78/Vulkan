@@ -157,7 +157,7 @@ endfunction(buildExample)
 function(buildExamples)
 	buildExample(raytracing false)
 	buildExample(meshshaders false)
-	buildExample(gl_vk_interop true)
+	buildExample(gl_vk_interop_nv true)
 endfunction(buildExamples)
 
 buildExamples()
