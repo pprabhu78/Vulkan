@@ -779,7 +779,7 @@ void RayTracing::endDynamicRendering(int swapChainImageIndex)
       transitions::setImageLayout(_drawCommandBuffers[i], _colorImage->vulkanImage()
          , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
          , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-      , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I think this should be top of pipe
+         , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT); 
    }
 
 }
@@ -1196,7 +1196,6 @@ void RayTracing::postFrame()
       _quadRenderer->RenderQuad(0, 0, _width, _height, _width, _height);
 
       glBindTexture(GL_TEXTURE_2D, 0);
-
 
       glfwSwapBuffers(_window);
    }
