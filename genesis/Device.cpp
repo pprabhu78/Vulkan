@@ -70,21 +70,22 @@ namespace genesis
    }
 
    Device::Device(PhysicalDevice* physicalDevice
-      , void* pNextChain, bool useSwapChain, VkQueueFlags requestedQueueTypes)
+      , void* pNextChain
+      , const std::vector<const char*>& deviceExtensionsRequestedToBeEnabled
+      , bool useSwapChain, VkQueueFlags requestedQueueTypes)
       : _physicalDevice(physicalDevice)
       , _enableDebugMarkers(false)
       , _logicalDevice(0)
    {
       initQueueFamilyIndices(requestedQueueTypes);
 
-      std::vector<const char*> deviceExtensionsRequestedToBeEnabled;
-
       // Create the logical device representation
-      for (const char* deviceExtensionRequestedToBeEnabled : _physicalDevice->enabledPhysicalDeviceExtensions())
+      std::vector<const char*> finalExtensions;
+      for (const char* deviceExtensionRequestedToBeEnabled : deviceExtensionsRequestedToBeEnabled)
       {
          if (_physicalDevice->extensionSupported(deviceExtensionRequestedToBeEnabled))
          {
-            deviceExtensionsRequestedToBeEnabled.push_back(deviceExtensionRequestedToBeEnabled);
+            finalExtensions.push_back(deviceExtensionRequestedToBeEnabled);
          }
          else
          {
@@ -97,7 +98,7 @@ namespace genesis
          if (_physicalDevice->extensionSupported(VK_KHR_SWAPCHAIN_EXTENSION_NAME))
          {
             // If the device will be used for presenting to a display via a swapchain we need to request the swapchain extension
-            deviceExtensionsRequestedToBeEnabled.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+            finalExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
          }
          else
          {
@@ -130,10 +131,10 @@ namespace genesis
          _enableDebugMarkers = true;
       }
 
-      if (deviceExtensionsRequestedToBeEnabled.size() > 0)
+      if (finalExtensions.size() > 0)
       {
-         deviceCreateInfo.enabledExtensionCount = (uint32_t)deviceExtensionsRequestedToBeEnabled.size();
-         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensionsRequestedToBeEnabled.data();
+         deviceCreateInfo.enabledExtensionCount = (uint32_t)finalExtensions.size();
+         deviceCreateInfo.ppEnabledExtensionNames = finalExtensions.data();
       }
 
       VkResult result = vkCreateDevice(_physicalDevice->vulkanPhysicalDevice(), &deviceCreateInfo, nullptr, &_logicalDevice);
@@ -257,5 +258,39 @@ namespace genesis
    const vkExtensions& Device::extensions() const
    {
       return _vulkanFunctions;
+   }
+
+   SemaphoreHandle Device::semaphoreHandle(VkSemaphore semaphore) const
+   {
+#if _WIN32
+      VkSemaphoreGetWin32HandleInfoKHR semaphoreGetWin32HandleInfoKHR{};
+      semaphoreGetWin32HandleInfoKHR.sType = VK_STRUCTURE_TYPE_SEMAPHORE_GET_WIN32_HANDLE_INFO_KHR;
+      semaphoreGetWin32HandleInfoKHR.handleType = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
+      semaphoreGetWin32HandleInfoKHR.semaphore = semaphore;
+
+      HANDLE handle = 0;
+      extensions().vkGetSemaphoreWin32HandleKHR(_logicalDevice, &semaphoreGetWin32HandleInfoKHR, &handle);
+      return handle;
+#else
+      #error "Target platform not defined"
+      return 0
+#endif
+   }
+
+   MemoryHandle Device::memoryHandle(VkDeviceMemory memory) const
+   {
+#if _WIN32
+      VkMemoryGetWin32HandleInfoKHR memoryGetWin32HandleInfoKHR{};
+      memoryGetWin32HandleInfoKHR.sType = VK_STRUCTURE_TYPE_MEMORY_GET_WIN32_HANDLE_INFO_KHR;
+      memoryGetWin32HandleInfoKHR.handleType = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT_KHR;
+      memoryGetWin32HandleInfoKHR.memory = memory;
+
+      HANDLE handle;
+      extensions().vkGetMemoryWin32HandleKHR(_logicalDevice, &memoryGetWin32HandleInfoKHR, &handle);
+      return handle;
+#else
+      #error "Target platform not defined"
+      return 0
+#endif
    }
 }

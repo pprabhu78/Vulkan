@@ -31,11 +31,33 @@ void glExtensions::initialize()
       return;
    }
 
+   // NV
    glDrawVkImageNV = (PFNGLDRAWVKIMAGENVPROC)wglGetProcAddress("glDrawVkImageNV");
    glGetVkProcAddrNV = (PFNGLGETVKPROCADDRNVPROC)wglGetProcAddress("glGetVkProcAddrNV");
    glWaitVkSemaphoreNV = (PFNGLWAITVKSEMAPHORENVPROC)wglGetProcAddress("glWaitVkSemaphoreNV");
    glSignalVkSemaphoreNV = (PFNGLSIGNALVKSEMAPHORENVPROC)wglGetProcAddress("glSignalVkSemaphoreNV");
    glSignalVkFenceNV = (PFNGLSIGNALVKFENCENVPROC)wglGetProcAddress("glSignalVkFenceNV");
+
+   // EXT
+   glDeleteSemaphoresEXT = (PFNGLDELETESEMAPHORESEXTPROC)wglGetProcAddress("glDeleteSemaphoresEXT");
+   glGenSemaphoresEXT = (PFNGLGENSEMAPHORESEXTPROC)wglGetProcAddress("glGenSemaphoresEXT");
+   glGetSemaphoreParameterui64vEXT = (PFNGLGETSEMAPHOREPARAMETERUI64VEXTPROC)wglGetProcAddress("glGetSemaphoreParameterui64vEXT");   
+   glIsSemaphoreEXT = (PFNGLISSEMAPHOREEXTPROC)wglGetProcAddress("glIsSemaphoreEXT");
+   glSemaphoreParameterui64vEXT = (PFNGLSEMAPHOREPARAMETERUI64VEXTPROC)wglGetProcAddress("glSemaphoreParameterui64vEXT");
+   glSignalSemaphoreEXT = (PFNGLSIGNALSEMAPHOREEXTPROC)wglGetProcAddress("glSignalSemaphoreEXT");
+   glWaitSemaphoreEXT = (PFNGLWAITSEMAPHOREEXTPROC)wglGetProcAddress("glWaitSemaphoreEXT");
+
+#if _WIN32
+   glImportSemaphoreWin32HandleEXT = (PFNGLIMPORTSEMAPHOREWIN32HANDLEEXTPROC)wglGetProcAddress("glImportSemaphoreWin32HandleEXT");
+   glImportSemaphoreWin32NameEXT = (PFNGLIMPORTSEMAPHOREWIN32NAMEEXTPROC)wglGetProcAddress("glImportSemaphoreWin32NameEXT");
+
+   glImportMemoryWin32HandleEXT = (PFNGLIMPORTMEMORYWIN32HANDLEEXTPROC)wglGetProcAddress("glImportMemoryWin32HandleEXT");
+   glImportMemoryWin32NameEXT = (PFNGLIMPORTMEMORYWIN32NAMEEXTPROC)wglGetProcAddress("glImportMemoryWin32NameEXT");
+
+   glCreateMemoryObjectsEXT = (PFNGLCREATEMEMORYOBJECTSEXTPROC)wglGetProcAddress("glCreateMemoryObjectsEXT");
+#else
+   #error "Target platform not defined"
+#endif
 
    _initialized = true;
 }

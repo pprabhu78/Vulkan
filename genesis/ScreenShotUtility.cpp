@@ -56,6 +56,7 @@ namespace genesis
          , VK_IMAGE_USAGE_TRANSFER_DST_BIT
          , VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
          , VK_IMAGE_TILING_LINEAR, 1
+         , false
       );
 
       VkImage srcImage = swapChainCurrentImage;

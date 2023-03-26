@@ -48,6 +48,7 @@
 #include "Cell.h"
 #include "CellManager.h"
 #include "IndirectLayout.h"
+#include "QuadRendering.h"
 
 //! To manually control the gl <-> vulkan rendering
 #include "../external/glfw/include/GLFW/glfw3.h"
@@ -161,6 +162,7 @@ RayTracing::RayTracing()
       else if (arg == "--gl")
       {
          _useSwapChainRendering = false;
+         _exportSemaphores = true;
       }
 
       // Only support dyanmic rendering right now
@@ -189,6 +191,10 @@ RayTracing::RayTracing()
    // Require Vulkan 1.3
    apiVersion = VK_API_VERSION_1_3;
 
+   // required for interop
+   _enabledInstanceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME);
+   _enabledInstanceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME);
+
    // Ray tracing related extensions required by this sample
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_ACCELERATION_STRUCTURE_EXTENSION_NAME);
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_RAY_TRACING_PIPELINE_EXTENSION_NAME);
@@ -211,7 +217,14 @@ RayTracing::RayTracing()
    // required for multi-draw
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_SHADER_DRAW_PARAMETERS_EXTENSION_NAME);
 
+   // required for dynamic rendering
    _enabledPhysicalDeviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+
+   // required for interop
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME);
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME);
+   _enabledPhysicalDeviceExtensions.push_back(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
 }
 
 #define  ADD_FIRST(first) deviceCreatepNextChain = &first;
@@ -324,6 +337,8 @@ void RayTracing::destroyCommonStuff()
 
 RayTracing::~RayTracing()
 {
+   delete _quadRenderer;
+   delete _glExtensions;
    destroyRayTracingStuff(true);
    destroyRasterizationStuff();
    destroyCommonStuff();
@@ -764,7 +779,7 @@ void RayTracing::endDynamicRendering(int swapChainImageIndex)
       transitions::setImageLayout(_drawCommandBuffers[i], _colorImage->vulkanImage()
          , VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
          , VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 }
-      , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT); // PPP: I think this should be top of pipe
+      , VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT); // PPP: I think this should be top of pipe
    }
 
 }
@@ -1042,6 +1057,12 @@ void RayTracing::nextRenderingMode(void)
    _uiOverlay.preparePipeline(_pipelineCache, (_renderPass) ? _renderPass->vulkanRenderPass() : nullptr, colorFormat(), _depthFormat);
 
    _pushConstants.frameIndex = -1;
+
+   if (_useSwapChainRendering == false)
+   {
+      destroyGlSideColorImage();
+      createGlSideColorImage();
+   }
 }
 
 void RayTracing::keyPressed(uint32_t key)
@@ -1084,6 +1105,13 @@ void RayTracing::render()
    if (!_prepared)
    {
       return;
+   }
+
+   if (_useSwapChainRendering == false)
+   {
+      // signal that we rendered
+      GLenum dstLayout = GL_LAYOUT_GENERAL_EXT;
+      _glExtensions->glSignalSemaphoreEXT(_presentCompleteGlSide, 0, nullptr, 1, &_colorImageGlSide, &dstLayout);
    }
 
    // If we are not using swap chain rendering (ie we are using gl to render), this will do nothing
@@ -1151,16 +1179,24 @@ void RayTracing::postFrame()
 #if GLRENDERING
    if (!_useSwapChainRendering)
    {
+      glDisable(GL_BLEND);
       glDisable(GL_DEPTH_TEST);
       glViewport(0, 0, _width, _height);
+      
       // wait for the render to have completed from vulkan
-      glWaitVkSemaphoreNV((GLuint64)_semaphores.renderComplete);
-      glDrawVkImageNV((GLuint64)_colorImage->vulkanImage(), 0
-         , 0, 0, (float)_width, (float)_height
-         , 0, 0, 1, 1, 0);
-      glEnable(GL_DEPTH_TEST);
-      // signal that we rendered
-      glSignalVkSemaphoreNV((GLuint64)_semaphores.presentComplete);
+      GLenum srcLayout = GL_LAYOUT_SHADER_READ_ONLY_EXT;
+      _glExtensions->glWaitSemaphoreEXT(_renderCompleteGlSide, 0, nullptr, 1, &_colorImageGlSide, &srcLayout);
+
+      glClearColor(0.5f, 0.0f, 0.0f, 0.0f);
+      glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, _colorImageGlSide);
+
+      _quadRenderer->RenderQuad(0, 0, _width, _height, _width, _height);
+
+      glBindTexture(GL_TEXTURE_2D, 0);
+
 
       glfwSwapBuffers(_window);
    }
@@ -1291,6 +1327,46 @@ void RayTracing::buildCommandBuffers()
    }
 }
 
+void RayTracing::createGlSideColorImage()
+{
+   HANDLE handle = _device->memoryHandle(_colorImage->vulkanDeviceMemory());
+   _glExtensions->glCreateMemoryObjectsEXT(1, &_colorImageGlSideMemoryObject);
+   _glExtensions->glImportMemoryWin32HandleEXT(_colorImageGlSideMemoryObject, _colorImage->allocationSize(), GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, handle);
+   glCreateTextures(GL_TEXTURE_2D, 1, &_colorImageGlSide);
+   glTextureStorageMem2DEXT(_colorImageGlSide, 1, GL_RGBA8, _colorImage->width(), _colorImage->height(), _colorImageGlSideMemoryObject, 0);
+}
+
+void RayTracing::destroyGlSideColorImage()
+{
+   glDeleteTextures(1, &_colorImageGlSide);
+   _colorImageGlSide = 0;
+}
+
+void RayTracing::createGlSideObjects()
+{
+   createGlSideColorImage();
+   HANDLE handle = 0;
+
+   _glExtensions->glGenSemaphoresEXT(1, &_presentCompleteGlSide);
+   handle = _device->semaphoreHandle(_semaphores.presentComplete);
+   _glExtensions->glImportSemaphoreWin32HandleEXT(_presentCompleteGlSide, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, handle);
+
+   _glExtensions->glGenSemaphoresEXT(1, &_renderCompleteGlSide);
+   handle = _device->semaphoreHandle(_semaphores.renderComplete);
+   _glExtensions->glImportSemaphoreWin32HandleEXT(_renderCompleteGlSide, GL_HANDLE_TYPE_OPAQUE_WIN32_EXT, handle);
+
+   glFlush();
+}
+
+void RayTracing::destroyGlSideObjects()
+{
+   _glExtensions->glDeleteSemaphoresEXT(1, &_presentCompleteGlSide);
+   _presentCompleteGlSide = 0;
+
+   _glExtensions->glDeleteSemaphoresEXT(1, &_renderCompleteGlSide);
+   _renderCompleteGlSide = 0;
+}
+
 void RayTracing::prepare()
 {
    PlatformApplication::prepare();
@@ -1320,6 +1396,12 @@ void RayTracing::prepare()
    {
       buildCommandBuffers();
    }
+
+   if (_useSwapChainRendering == false)
+   {
+      createGlSideObjects();
+   }
+
    _prepared = true;
 }
 
@@ -1435,11 +1517,11 @@ void RayTracing::createStorageImages()
 {
    // intermediate image does computations in full floating point
    _rayTracingIntermediateImage = new genesis::StorageImage(_device, VK_FORMAT_R32G32B32A32_SFLOAT, _width, _height
-      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1);
+      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1, false);
 
    // final image is used for presentation. So, its the same format as the swap chain/color image
    _rayTracingFinalImageToPresent = new genesis::StorageImage(_device, colorFormat(), _width, _height
-      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1);
+      , VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_TILING_OPTIMAL, 1, false);
 
    VkCommandBuffer commandBuffer = _device->createCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, true);
 
@@ -1489,8 +1571,7 @@ GLFWwindow* RayTracing::setupWindow()
 
       _glExtensions = new glExtensions();
       _glExtensions->initialize();
-      _glExtensions->glSignalVkSemaphoreNV((GLuint64)_semaphores.presentComplete);
-      glFlush();
+      _quadRenderer = new Sample::QuadRenderer("..//examples//gl_vk_interop_kh//");
    }
 #endif
 

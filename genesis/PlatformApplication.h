@@ -147,7 +147,7 @@ namespace genesis
       virtual std::string getWindowTitle();
 
       virtual void setupGlfwCallbacks(GLFWwindow* window);
-   private:
+   protected:
       virtual void windowResize();
       virtual void handleMouseMove(int32_t x, int32_t y);
       virtual void nextFrame();
@@ -333,9 +333,9 @@ namespace genesis
 
       //! If swap chain rendering is false, the image is rendered to the color image below
       bool _useSwapChainRendering = true;
+      bool _exportSemaphores = false;
       VkFormat _colorFormatExternalRendering = VK_FORMAT_R8G8B8A8_UNORM;
       StorageImage* _colorImage = nullptr;
-
    };
 
    // OS specific macros for the example main entry points

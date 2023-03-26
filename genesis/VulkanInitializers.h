@@ -141,6 +141,14 @@ namespace genesis
          return semaphoreCreateInfo;
       }
 
+
+      inline VkExportSemaphoreCreateInfo exportSemaphoreCreateInfo()
+      {
+         VkExportSemaphoreCreateInfo exportSemaphoreCreateInfo{};
+         exportSemaphoreCreateInfo.sType = VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO;
+         return exportSemaphoreCreateInfo;
+      }
+
       inline VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0)
       {
          VkFenceCreateInfo fenceCreateInfo{};

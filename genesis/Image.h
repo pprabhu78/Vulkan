@@ -44,6 +44,7 @@ namespace genesis
       virtual VkFormat vulkanFormat(void) const;
       virtual VkImage vulkanImage(void) const;
       virtual VkDeviceMemory vulkanDeviceMemory(void) const;
+      virtual VkDeviceSize allocationSize(void) const;
    public:
       //! convert an integer sample count to the flag bits that is recognized by Vulkan
       static VkSampleCountFlagBits toSampleCountFlagBits(int sampleCount);
@@ -58,7 +59,7 @@ namespace genesis
       virtual void allocateImageAndMemory(VkImageUsageFlags usageFlags
          , VkMemoryPropertyFlags memoryPropertyFlags
          , VkImageTiling imageTiling
-         , int arrayLayers, int sampleCount);
+         , int arrayLayers, int sampleCount, bool exportMemory);
 
       //! internal
       virtual void generateMipMaps(void);
@@ -75,5 +76,7 @@ namespace genesis
       int _height;
       int _numMipMapLevels;
       bool _isCubeMap = false;
+
+      VkDeviceSize _allocationSize = 0;
    };
 }

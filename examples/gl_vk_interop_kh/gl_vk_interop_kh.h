@@ -34,6 +34,10 @@ namespace genesis
 
 //! To access gl extensions
 class glExtensions;
+namespace Sample
+{
+   class QuadRenderer;
+}
 
 class RayTracing : public genesis::PlatformApplication
 {
@@ -103,6 +107,11 @@ protected:
 
    virtual void beginDynamicRendering(int swapChainImageIndex, VkAttachmentLoadOp colorLoadOp);
    virtual void endDynamicRendering(int swapChainImageIndex);
+
+   virtual void createGlSideObjects();
+   virtual void destroyGlSideObjects();
+   virtual void createGlSideColorImage();
+   virtual void destroyGlSideColorImage();
 
 protected:
    VkPhysicalDeviceBufferDeviceAddressFeatures _enabledBufferDeviceAddressFeatures{};
@@ -176,4 +185,14 @@ protected:
 
    //! To access gl extensions
    glExtensions* _glExtensions = nullptr;
+
+   //! gl side handle of the _presentComplete semaphore from vulkan
+   unsigned int _presentCompleteGlSide = 0;
+   //! gl side handle of the _renderCompleteGlSide semaphore from vulkan
+   unsigned int _renderCompleteGlSide = 0;
+
+   unsigned int _colorImageGlSide = 0;
+   unsigned int _colorImageGlSideMemoryObject = 0;
+
+   Sample::QuadRenderer* _quadRenderer = nullptr;
 };

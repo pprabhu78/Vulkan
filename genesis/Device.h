@@ -11,11 +11,20 @@ namespace genesis
    class PhysicalDevice;
    class VulkanBuffer;
 
+#if _WIN32
+   typedef HANDLE SemaphoreHandle;
+   typedef HANDLE MemoryHandle;
+#else
+   #error "Target platform not defined"
+#endif
+
    class Device
    {
    public:
       Device(PhysicalDevice* physicalDevice
-         , void* pNextChain, bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
+         , void* pNextChain
+         , const std::vector<const char*>& deviceExtensionsRequestedToBeEnabled
+         , bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
 
       virtual ~Device();
 
@@ -39,6 +48,13 @@ namespace genesis
       virtual bool enableDebugMarkers(void) const;
 
       virtual const vkExtensions& extensions() const;
+      
+      //! handle to a semaphore
+      virtual SemaphoreHandle semaphoreHandle(VkSemaphore semaphore) const;
+
+      //! handle to memory
+      virtual MemoryHandle memoryHandle(VkDeviceMemory memory) const;
+
    protected:
       virtual void initQueueFamilyIndices(VkQueueFlags requestedQueueTypes);
    public:

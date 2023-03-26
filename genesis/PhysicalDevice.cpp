@@ -6,10 +6,8 @@
 
 namespace genesis
 {
-   PhysicalDevice::PhysicalDevice(const ApiInstance* instance, int deviceIndex
-      , const std::vector<const char*>& enabledPhysicalDeviceExtensions)
-      : _enabledPhysicalDeviceExtensions(enabledPhysicalDeviceExtensions)
-      , _instance(instance)
+   PhysicalDevice::PhysicalDevice(const ApiInstance* instance, int deviceIndex)
+      : _instance(instance)
    {
       _physicalDevice = _instance->physicalDevices()[deviceIndex];
       // Store properties (including limits), features and memory properties of the physical device (so that examples can check against them)
@@ -107,11 +105,6 @@ namespace genesis
       return _enabledPhysicalDeviceFeatures;
    }
    
-   const std::vector<const char*>& PhysicalDevice::enabledPhysicalDeviceExtensions(void) const
-   {
-      return _enabledPhysicalDeviceExtensions;
-   }
-
    const VkPhysicalDeviceFeatures& PhysicalDevice::physicalDeviceFeatures(void) const
    {
       return _physicalDeviceFeatures;

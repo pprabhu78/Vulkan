@@ -48,9 +48,14 @@ namespace genesis
       // mesh shaders
       PFN_vkCmdDrawMeshTasksEXT vkCmdDrawMeshTasksEXT = nullptr;
 
+      // dynamic rendering
       PFN_vkCmdBeginRenderingKHR vkCmdBeginRenderingKHR = nullptr;
       PFN_vkCmdEndRenderingKHR vkCmdEndRenderingKHR = nullptr;
 
+      // inter-op functionality
+      PFN_vkImportSemaphoreWin32HandleKHR vkImportSemaphoreWin32HandleKHR = nullptr;
+      PFN_vkGetSemaphoreWin32HandleKHR    vkGetSemaphoreWin32HandleKHR = nullptr;
+      PFN_vkGetMemoryWin32HandleKHR    vkGetMemoryWin32HandleKHR = nullptr;
    protected:
       bool _initialized = false;
    };

@@ -50,7 +50,7 @@ namespace genesis
    void Image::allocateImageAndMemory(VkImageUsageFlags usageFlags
       , VkMemoryPropertyFlags memoryPropertyFlags
       , VkImageTiling imageTiling
-      , int arrayLayers, int sampleCount)
+      , int arrayLayers, int sampleCount, bool exportMemory)
    {
       VkImageCreateInfo imageCreateInfo = vkInitaliazers::imageCreateInfo();
       imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -67,6 +67,13 @@ namespace genesis
          imageCreateInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
       }
 
+      VkExternalMemoryImageCreateInfo externalMemoryImageCreateInfo{ VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO };
+      if (exportMemory)
+      {
+         externalMemoryImageCreateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+         imageCreateInfo.pNext = &externalMemoryImageCreateInfo;
+      }
+
       VK_CHECK_RESULT(vkCreateImage(_device->vulkanDevice(), &imageCreateInfo, nullptr, &_image));
 
       VkMemoryRequirements memoryRequirements;
@@ -77,8 +84,19 @@ namespace genesis
       memoryAllocateInfo.memoryTypeIndex = _device->physicalDevice()->getMemoryTypeIndex(memoryRequirements.memoryTypeBits
          , memoryPropertyFlags);
 
+      VkExportMemoryAllocateInfo exportMemoryAllocateInfo{};
+      exportMemoryAllocateInfo.sType = VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO;
+      exportMemoryAllocateInfo.handleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+      if (exportMemory)
+      {
+         memoryAllocateInfo.pNext = &exportMemoryAllocateInfo;
+      }
+
       VK_CHECK_RESULT(vkAllocateMemory(_device->vulkanDevice(), &memoryAllocateInfo, nullptr, &_deviceMemory));
       VK_CHECK_RESULT(vkBindImageMemory(_device->vulkanDevice(), _image, _deviceMemory, 0));
+
+      // save out the allocation size
+      _allocationSize = memoryRequirements.size;
    }
 
    bool Image::copyFromRawDataIntoImage(void* pSrcData, VkDeviceSize pSrcDataSize, const std::vector<int>& mipMapDataOffsetsAllFaces, uint32_t numFaces)
@@ -102,7 +120,7 @@ namespace genesis
 
       allocateImageAndMemory(imageUsageFlags
          , VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT // on the gpu
-         , VK_IMAGE_TILING_OPTIMAL, numFaces, 1);
+         , VK_IMAGE_TILING_OPTIMAL, numFaces, 1, false);
 
       std::vector<VkBufferImageCopy> bufferCopyRegions;
 
@@ -390,6 +408,11 @@ namespace genesis
    VkDeviceMemory Image::vulkanDeviceMemory(void) const
    {
       return _deviceMemory;
+   }
+
+   VkDeviceSize Image::allocationSize(void) const
+   {
+      return _allocationSize;
    }
 }
 

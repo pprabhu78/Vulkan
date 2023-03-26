@@ -8,7 +8,7 @@ namespace genesis
    class PhysicalDevice
    {
    public:
-      PhysicalDevice(const ApiInstance* instance, int deviceIndex, const std::vector<const char*>& enabledPhysicalDeviceExtensions);
+      PhysicalDevice(const ApiInstance* instance, int deviceIndex);
       virtual ~PhysicalDevice();
    public:
       virtual void printDetails(void);
@@ -29,9 +29,6 @@ namespace genesis
 
       //! All the features enabled (const). Used to query after setting
       virtual const VkPhysicalDeviceFeatures& enabledPhysicalDeviceFeatures(void) const;
-
-      //! All the extensions enabled (const)
-      virtual const std::vector<const char*>& enabledPhysicalDeviceExtensions(void) const;
 
       //! memory type index
       virtual uint32_t getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
@@ -73,9 +70,6 @@ namespace genesis
       VkPhysicalDevice _physicalDevice;
 
       VkPhysicalDeviceFeatures _enabledPhysicalDeviceFeatures{};
-
-      /** @brief Set of device extensions to be enabled */
-      std::vector<const char*> _enabledPhysicalDeviceExtensions;
 
       std::vector<std::string> _supportedExtensions;
 

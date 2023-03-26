@@ -13,7 +13,7 @@
 namespace genesis
 {
    StorageImage::StorageImage(Device* device, VkFormat format, int width, int height
-      , VkImageUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkImageTiling imageTiling, int sampleCount)
+      , VkImageUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkImageTiling imageTiling, int sampleCount, bool exportMemory)
       : Image(device)
       , _imageView(0)
       , _usageFlags(usageFlags)
@@ -23,7 +23,7 @@ namespace genesis
       _height = height;
       _numMipMapLevels = 1;
 
-      allocateImageAndMemory(usageFlags, memoryPropertyFlags, imageTiling, 1, sampleCount);
+      allocateImageAndMemory(usageFlags, memoryPropertyFlags, imageTiling, 1, sampleCount, exportMemory);
    }
 
    StorageImage::~StorageImage()

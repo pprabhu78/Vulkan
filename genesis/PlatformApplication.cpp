@@ -336,24 +336,24 @@ namespace genesis
 
    void PlatformApplication::submitFrame()
    {
-      if (!_useSwapChainRendering)
+      if (_useSwapChainRendering)
       {
-         return;
-      }
-      VkResult result = _swapChain->queuePresent(_device->graphicsQueue(), _currentFrameBufferIndex, _semaphores.renderComplete);
-      if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR))) 
-      {
-         if (result == VK_ERROR_OUT_OF_DATE_KHR) 
+         VkResult result = _swapChain->queuePresent(_device->graphicsQueue(), _currentFrameBufferIndex, _semaphores.renderComplete);
+         if (!((result == VK_SUCCESS) || (result == VK_SUBOPTIMAL_KHR)))
          {
-            // Swap chain is no longer compatible with the surface and needs to be recreated
-            windowResize();
-            return;
-         }
-         else 
-         {
-            VK_CHECK_RESULT(result);
+            if (result == VK_ERROR_OUT_OF_DATE_KHR)
+            {
+               // Swap chain is no longer compatible with the surface and needs to be recreated
+               windowResize();
+               return;
+            }
+            else
+            {
+               VK_CHECK_RESULT(result);
+            }
          }
       }
+
       VK_CHECK_RESULT(vkQueueWaitIdle(_device->graphicsQueue()));
    }
 
@@ -513,13 +513,13 @@ namespace genesis
          std::cout << "Available Vulkan devices" << "\n";
          for (uint32_t i = 0; i < gpuCount; i++) {
 
-            PhysicalDevice physicalDevice(_instance, i, {});
+            PhysicalDevice physicalDevice(_instance, i);
             physicalDevice.printDetails();
          }
       }
 #endif
 
-      _physicalDevice = new PhysicalDevice(_instance, selectedDevice, _enabledPhysicalDeviceExtensions);
+      _physicalDevice = new PhysicalDevice(_instance, selectedDevice);
       if (!physicalDeviceAcceptable())
       {
          delete _physicalDevice;
@@ -534,7 +534,7 @@ namespace genesis
       // Vulkan device creation
       // This is handled by a separate class that gets a logical device representation
       // and encapsulates functions related to a device
-      _device = new Device(_physicalDevice, deviceCreatepNextChain);
+      _device = new Device(_physicalDevice, deviceCreatepNextChain, _enabledPhysicalDeviceExtensions);
 
       // Find a suitable depth format
       VkBool32 validDepthFormat = _physicalDevice->getSupportedDepthFormat(_depthFormat);
@@ -545,8 +545,22 @@ namespace genesis
          _swapChain = new SwapChain(_device);
       }
       
-      // Create synchronization objects
+      // If we are exporting semaphores (e.g. for external rendering) mark them so.
       VkSemaphoreCreateInfo semaphoreCreateInfo = vkInitaliazers::semaphoreCreateInfo();
+      VkExportSemaphoreCreateInfo exportSemaphoreCreateInfo = vkInitaliazers::exportSemaphoreCreateInfo();
+#ifdef _WIN32
+      exportSemaphoreCreateInfo.handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+#else
+      #error "Target platform not defined"
+#endif
+
+      if (_exportSemaphores)
+      {
+         semaphoreCreateInfo.pNext = &exportSemaphoreCreateInfo;
+      }
+
+      // Create synchronization objects
+      // 
       // Create a semaphore used to synchronize image presentation
       // Ensures that the image is displayed before we start submitting new commands to the queue
       VK_CHECK_RESULT(vkCreateSemaphore(_device->vulkanDevice(), &semaphoreCreateInfo, nullptr, &_semaphores.presentComplete));
@@ -839,7 +853,8 @@ namespace genesis
       _multiSampledColorImage = new StorageImage(_device
          , colorFormat, _width, _height
          , usageFlags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-         , VK_IMAGE_TILING_OPTIMAL, _sampleCount);
+         , VK_IMAGE_TILING_OPTIMAL, _sampleCount
+         , false);
    }
 
    void PlatformApplication::setupDepthStencil()
@@ -854,7 +869,7 @@ namespace genesis
       _depthStencilImage = new StorageImage(_device
          , _depthFormat, _width, _height
          , usageFlags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-         , VK_IMAGE_TILING_OPTIMAL, _sampleCount);
+         , VK_IMAGE_TILING_OPTIMAL, _sampleCount, false);
    }
 
    void PlatformApplication::setupFrameBuffer()
@@ -1095,7 +1110,7 @@ namespace genesis
       _colorImage = new StorageImage(_device
          , colorFormat(), _width, _height
          , usageFlags, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-         , VK_IMAGE_TILING_OPTIMAL, 1);
+         , VK_IMAGE_TILING_OPTIMAL, 1, !_useSwapChainRendering);
    }
 
    void PlatformApplication::destroyColor(void)

@@ -21,7 +21,7 @@ namespace genesis
    public:
       //! constructor
       StorageImage(Device* device, VkFormat format, int width, int height
-         , VkImageUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkImageTiling imageTiling, int sampleCount);
+         , VkImageUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkImageTiling imageTiling, int sampleCount, bool exportMemory);
 
       //! destructor
       virtual ~StorageImage();
