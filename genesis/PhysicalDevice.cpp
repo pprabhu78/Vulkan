@@ -96,15 +96,6 @@ namespace genesis
       return _physicalDevice;
    }
 
-   const VkPhysicalDeviceFeatures& PhysicalDevice::enabledPhysicalDeviceFeatures(void) const
-   {
-      return _enabledPhysicalDeviceFeatures;
-   }
-   VkPhysicalDeviceFeatures& PhysicalDevice::enabledPhysicalDeviceFeatures(void)
-   {
-      return _enabledPhysicalDeviceFeatures;
-   }
-   
    const VkPhysicalDeviceFeatures& PhysicalDevice::physicalDeviceFeatures(void) const
    {
       return _physicalDeviceFeatures;

@@ -24,12 +24,6 @@ namespace genesis
       //! All the memory properties supported (initialized in constructor)
       virtual const VkPhysicalDeviceMemoryProperties& physicalDeviceMemoryProperties(void) const;
 
-      //! All the features enabled (non-const). Used to set
-      virtual VkPhysicalDeviceFeatures& enabledPhysicalDeviceFeatures(void);
-
-      //! All the features enabled (const). Used to query after setting
-      virtual const VkPhysicalDeviceFeatures& enabledPhysicalDeviceFeatures(void) const;
-
       //! memory type index
       virtual uint32_t getMemoryTypeIndex(uint32_t typeBits, VkMemoryPropertyFlags properties) const;
 
@@ -68,8 +62,6 @@ namespace genesis
       VkPhysicalDeviceMemoryProperties _physicalDeviceMemoryProperties;
 
       VkPhysicalDevice _physicalDevice;
-
-      VkPhysicalDeviceFeatures _enabledPhysicalDeviceFeatures{};
 
       std::vector<std::string> _supportedExtensions;
 

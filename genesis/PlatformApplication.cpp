@@ -534,7 +534,7 @@ namespace genesis
       // Vulkan device creation
       // This is handled by a separate class that gets a logical device representation
       // and encapsulates functions related to a device
-      _device = new Device(_physicalDevice, deviceCreatepNextChain, _deviceExtensionsToEnable);
+      _device = new Device(_physicalDevice, deviceCreatepNextChain, _deviceExtensionsToEnable, _physicalDeviceFeaturesToEnable);
 
       // Find a suitable depth format
       VkBool32 validDepthFormat = _physicalDevice->getSupportedDepthFormat(_depthFormat);

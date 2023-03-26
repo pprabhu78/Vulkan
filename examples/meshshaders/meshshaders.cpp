@@ -97,21 +97,21 @@ bool MeshShaders::physicalDeviceAcceptable() const
 void MeshShaders::enableFeatures()
 {
    // This is required for 64 bit math
-   _physicalDevice->enabledPhysicalDeviceFeatures().shaderInt64 = true;
+   _physicalDeviceFeaturesToEnable.shaderInt64 = true;
 
    // This is required for multi draw indirect
-   _physicalDevice->enabledPhysicalDeviceFeatures().multiDrawIndirect = VK_TRUE;
+   _physicalDeviceFeaturesToEnable.multiDrawIndirect = VK_TRUE;
 
    // Enable anisotropic filtering if supported
    if (_physicalDevice->physicalDeviceFeatures().samplerAnisotropy)
    {
-      _physicalDevice->enabledPhysicalDeviceFeatures().samplerAnisotropy = VK_TRUE;
+      _physicalDeviceFeaturesToEnable.samplerAnisotropy = VK_TRUE;
    }
 
    // This is required for wireframe display
    if (_physicalDevice->physicalDeviceFeatures().fillModeNonSolid)
    {
-      _physicalDevice->enabledPhysicalDeviceFeatures().fillModeNonSolid = VK_TRUE;
+      _physicalDeviceFeaturesToEnable.fillModeNonSolid = VK_TRUE;
    }
 
    _enabledBufferDeviceAddressFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES;

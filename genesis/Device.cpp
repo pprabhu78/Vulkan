@@ -72,6 +72,7 @@ namespace genesis
    Device::Device(PhysicalDevice* physicalDevice
       , void* pNextChain
       , const std::vector<const char*>& deviceExtensionsToEnable
+      , const VkPhysicalDeviceFeatures& physicalDeviceFeaturesToEnable
       , bool useSwapChain, VkQueueFlags requestedQueueTypes)
       : _physicalDevice(physicalDevice)
       , _enableDebugMarkers(false)
@@ -111,14 +112,14 @@ namespace genesis
       deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
       deviceCreateInfo.queueCreateInfoCount = static_cast<uint32_t>(_queueCreateInfos.size());;
       deviceCreateInfo.pQueueCreateInfos = _queueCreateInfos.data();
-      deviceCreateInfo.pEnabledFeatures = &_physicalDevice->enabledPhysicalDeviceFeatures();
+      deviceCreateInfo.pEnabledFeatures = &physicalDeviceFeaturesToEnable;
 
       // If a pNext(Chain) has been passed, we need to add it to the device creation info
       VkPhysicalDeviceFeatures2 physicalDeviceFeatures2{};
       if (pNextChain) 
       {
          physicalDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-         physicalDeviceFeatures2.features = _physicalDevice->enabledPhysicalDeviceFeatures();
+         physicalDeviceFeatures2.features = physicalDeviceFeaturesToEnable;
          physicalDeviceFeatures2.pNext = pNextChain;
          deviceCreateInfo.pEnabledFeatures = nullptr;
          deviceCreateInfo.pNext = &physicalDeviceFeatures2;

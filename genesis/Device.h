@@ -24,6 +24,7 @@ namespace genesis
       Device(PhysicalDevice* physicalDevice
          , void* pNextChain
          , const std::vector<const char*>& deviceExtensionsToEnable
+         , const VkPhysicalDeviceFeatures& physicalDeviceFeaturesToEnable
          , bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
 
       virtual ~Device();
