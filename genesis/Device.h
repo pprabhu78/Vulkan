@@ -23,7 +23,7 @@ namespace genesis
    public:
       Device(PhysicalDevice* physicalDevice
          , void* pNextChain
-         , const std::vector<const char*>& deviceExtensionsRequestedToBeEnabled
+         , const std::vector<const char*>& deviceExtensionsToEnable
          , bool useSwapChain = true, VkQueueFlags requestedQueueTypes = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT);
 
       virtual ~Device();

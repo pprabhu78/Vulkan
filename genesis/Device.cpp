@@ -71,7 +71,7 @@ namespace genesis
 
    Device::Device(PhysicalDevice* physicalDevice
       , void* pNextChain
-      , const std::vector<const char*>& deviceExtensionsRequestedToBeEnabled
+      , const std::vector<const char*>& deviceExtensionsToEnable
       , bool useSwapChain, VkQueueFlags requestedQueueTypes)
       : _physicalDevice(physicalDevice)
       , _enableDebugMarkers(false)
@@ -81,7 +81,7 @@ namespace genesis
 
       // Create the logical device representation
       std::vector<const char*> finalExtensions;
-      for (const char* deviceExtensionRequestedToBeEnabled : deviceExtensionsRequestedToBeEnabled)
+      for (const char* deviceExtensionRequestedToBeEnabled : deviceExtensionsToEnable)
       {
          if (_physicalDevice->extensionSupported(deviceExtensionRequestedToBeEnabled))
          {

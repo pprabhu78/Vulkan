@@ -253,7 +253,7 @@ namespace genesis
       std::vector<std::string> _instanceExtensionsToEnable;
 
       /** @brief Set of device extensions to be enabled for this example (must be set in the derived constructor) */
-      std::vector<const char*> _enabledPhysicalDeviceExtensions;
+      std::vector<const char*> _deviceExtensionsToEnable;
 
       /** @brief Optional pNext structure for passing extension structures to device creation */
       void* deviceCreatepNextChain = nullptr;
