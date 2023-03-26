@@ -35,7 +35,7 @@ namespace genesis
       this->_settings.validation = true;
 #endif
 
-      _instance = new ApiInstance(_name, _enabledInstanceExtensions, apiVersion, this->_settings.validation);
+      _instance = new ApiInstance(_name, _instanceExtensionsToEnable, apiVersion, this->_settings.validation);
       return _instance->creationStatus();
    }
 

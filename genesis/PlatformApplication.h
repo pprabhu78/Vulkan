@@ -246,13 +246,11 @@ namespace genesis
 
       std::chrono::time_point<std::chrono::high_resolution_clock> _lastTimestamp;
 
-      std::vector<std::string> _supportedInstanceExtensions;
-
       // Physical device (GPU) that Vulkan will use
       PhysicalDevice* _physicalDevice;
 
       //! instance extensions to enable
-      std::vector<std::string> _enabledInstanceExtensions;
+      std::vector<std::string> _instanceExtensionsToEnable;
 
       /** @brief Set of device extensions to be enabled for this example (must be set in the derived constructor) */
       std::vector<const char*> _enabledPhysicalDeviceExtensions;
