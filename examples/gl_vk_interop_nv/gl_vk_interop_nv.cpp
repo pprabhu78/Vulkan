@@ -21,6 +21,9 @@
 //! that causes device creation to sometimes fail. 
 //! I have a suspicion that this may be due to even the inclusion of these glew
 //! So, this #define defined in the cmake can be used to eliminate that path completely from the compiled/linked code
+//! 
+//! This sample is also wildly susceptible to crashes. 
+//! I suspect this is because the nvidia extensions for inter-op are ad-hoc implemented
 #if GLRENDERING
 #include "../external/glew/include/GL/glew.h"
 #include "GlExtensions.h"
