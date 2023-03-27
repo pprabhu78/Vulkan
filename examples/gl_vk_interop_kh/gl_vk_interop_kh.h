@@ -110,6 +110,7 @@ protected:
 
    virtual void createGlSideObjects();
    virtual void destroyGlSideObjects();
+
    virtual void createGlSideColorImage();
    virtual void destroyGlSideColorImage();
 

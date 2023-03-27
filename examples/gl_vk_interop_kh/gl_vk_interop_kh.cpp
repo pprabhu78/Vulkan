@@ -6,21 +6,32 @@
 * This code is licensed under the MIT license (MIT) (http://opensource.org/licenses/MIT)
 */
 
-//! This sample is based off of the ray tracing sample.
+//! This sample is based off of the gl_vk_interop_nv sample.
+//! 
 //! Indeed, you should diff that sample with this sample to see how the set up is different for gl vs vulkan.
+//! 
+//! This sample uses only Vulkan and OpenGL extensions.
+//! 
+//! It does not use any Nvidia specific extensions.
+//
 //! Only dynamic rendering is supported currently.
+//! 
 //! The OpenGL vs Vulkan rendering can be toggled using this command line: --gl
+//! 
 //! When using OpenGL to render:
-//! -We tell the core to not use swap chain rendering so that it will render to a color image (_colorImage).
+//! -Create OpenGL side semaphores:
+//!   _presentCompleteGlSide -> mirrors vulkan side _presentComplete
+//!   _renderCompleteGlSide  -> mirrors vulkan side _renderComplete
+//! -Create OpenGL side image/texture:
+//!   _colorImageGl -> mirrors vulkan side _colorImage
+//! 
+//! -We tell the core to not use swap chain rendering so that it will render to a color image (_colorImageGlSide).
 //! -We also set up the window to use an OpenGL context (see setupWindow).
-//! -We render as usual using Vulkan (the image being rendered to being the _colorImage instead of the swap chain).
-//! -In postFrame, we wait for the renderComplete semaphore (which the submit will signal after the command buffers have executed).
-//! -We then draw this image using: glDrawVkImageNV and then signal presentComplete (which submit waits on for the next frame)
-
-//! There is a bug in either the Vulkan driver or this sample
-//! that causes device creation to sometimes fail. 
-//! I have a suspicion that this may be due to even the inclusion of these glew
-//! So, this #define defined in the cmake can be used to eliminate that path completely from the compiled/linked code
+//! -We render as usual using Vulkan (the image being rendered to being the _colorImageGlSide instead of the swap chain).
+//! -In postFrame, we wait for the _renderCompleteGlSide semaphore (which the submit will signal after the command buffers have executed).
+//! -We then draw this _colorImageGlSide using full screen quad using pure OpenGL rendering.
+//! -We then signal _presentCompleteGlSide (which submit waits on for the next frame).
+//! 
 #if GLRENDERING
 #include "../external/glew/include/GL/glew.h"
 #include "GlExtensions.h"
@@ -337,6 +348,7 @@ void RayTracing::destroyCommonStuff()
 
 RayTracing::~RayTracing()
 {
+   destroyGlSideObjects();
    delete _quadRenderer;
    delete _glExtensions;
    destroyRayTracingStuff(true);
@@ -1344,6 +1356,7 @@ void RayTracing::destroyGlSideColorImage()
 void RayTracing::createGlSideObjects()
 {
    createGlSideColorImage();
+
    HANDLE handle = 0;
 
    _glExtensions->glGenSemaphoresEXT(1, &_presentCompleteGlSide);
@@ -1359,6 +1372,8 @@ void RayTracing::createGlSideObjects()
 
 void RayTracing::destroyGlSideObjects()
 {
+   destroyGlSideColorImage();
+
    _glExtensions->glDeleteSemaphoresEXT(1, &_presentCompleteGlSide);
    _presentCompleteGlSide = 0;
 
