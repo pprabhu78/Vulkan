@@ -11,7 +11,7 @@ Only dynamic rendering is supported currently.
 The OpenGL vs Vulkan rendering can be toggled using this command line: --gl
 
 During initialization:
- - Create OpenGL side semaphores that mirror the core _presentComplete & _renderComplete semaphores.
+ - Create OpenGL side semaphores that mirror the vulkan side _presentComplete & _renderComplete semaphores.
  - Create OpenGL side texture that mirrors vulkan side _colorImage.
 
 To Render:
