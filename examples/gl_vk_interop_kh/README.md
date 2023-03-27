@@ -12,8 +12,8 @@ The OpenGL vs Vulkan rendering can be toggled using this command line: --gl
 
 During initialization:
  - Create OpenGL side semaphores:
-   _presentCompleteGlSide -> mirrors vulkan side _presentComplete
-   _renderCompleteGlSide  -> mirrors vulkan side _renderComplete
+   _presentCompleteGlSide that mirrors vulkan side _presentComplete
+   _renderCompleteGlSide  that mirrors vulkan side _renderComplete
  - Create OpenGL side image/texture:
   _colorImageGl -> mirrors vulkan side _colorImage
 
