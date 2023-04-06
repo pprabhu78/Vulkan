@@ -1349,8 +1349,11 @@ void RayTracing::createGlSideColorImage()
 
 void RayTracing::destroyGlSideColorImage()
 {
-   glDeleteTextures(1, &_colorImageGlSide);
-   _colorImageGlSide = 0;
+   if (_colorImageGlSide)
+   {
+      glDeleteTextures(1, &_colorImageGlSide);
+      _colorImageGlSide = 0;
+   }
 }
 
 void RayTracing::createGlSideObjects()
@@ -1374,11 +1377,14 @@ void RayTracing::destroyGlSideObjects()
 {
    destroyGlSideColorImage();
 
-   _glExtensions->glDeleteSemaphoresEXT(1, &_presentCompleteGlSide);
-   _presentCompleteGlSide = 0;
+   if (_glExtensions)
+   {
+      _glExtensions->glDeleteSemaphoresEXT(1, &_presentCompleteGlSide);
+      _presentCompleteGlSide = 0;
 
-   _glExtensions->glDeleteSemaphoresEXT(1, &_renderCompleteGlSide);
-   _renderCompleteGlSide = 0;
+      _glExtensions->glDeleteSemaphoresEXT(1, &_renderCompleteGlSide);
+      _renderCompleteGlSide = 0;
+   }
 }
 
 void RayTracing::prepare()
