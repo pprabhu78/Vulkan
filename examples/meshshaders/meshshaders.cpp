@@ -198,19 +198,19 @@ void MeshShaders::createAndUpdateMeshShaderDescriptorSets()
       {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1}, {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 4}
    };
 
-   VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vkInitaliazers::descriptorPoolCreateInfo(poolSizes, 1);
+   VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vkInitializers::descriptorPoolCreateInfo(poolSizes, 1);
    VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &_meshShadersDescriptorPool));
 
-   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vkInitaliazers::descriptorSetAllocateInfo(_meshShadersDescriptorPool, &_meshShadersDescriptorSetLayout, 1);
+   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vkInitializers::descriptorSetAllocateInfo(_meshShadersDescriptorPool, &_meshShadersDescriptorSetLayout, 1);
    vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &_meshShadersDescriptorSet);
 
    int bindingIndex = 0;
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-     genesis::vkInitaliazers::writeDescriptorSet(_meshShadersDescriptorSet,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++,&_model->vertexBuffers()[0]->descriptor())
-   , genesis::vkInitaliazers::writeDescriptorSet(_meshShadersDescriptorSet,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++,&_model->meshletBuffers()[0]->descriptor())
-   , genesis::vkInitaliazers::writeDescriptorSet(_meshShadersDescriptorSet,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++,&_model->uniqueVertexIndices()[0]->descriptor())
-   , genesis::vkInitaliazers::writeDescriptorSet(_meshShadersDescriptorSet,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++,&_model->primitiveIndices()[0]->descriptor())
-   , genesis::vkInitaliazers::writeDescriptorSet(_meshShadersDescriptorSet,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++,&_sceneUbo->descriptor())
+     genesis::vkInitializers::writeDescriptorSet(_meshShadersDescriptorSet,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++,&_model->vertexBuffers()[0]->descriptor())
+   , genesis::vkInitializers::writeDescriptorSet(_meshShadersDescriptorSet,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++,&_model->meshletBuffers()[0]->descriptor())
+   , genesis::vkInitializers::writeDescriptorSet(_meshShadersDescriptorSet,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++,&_model->uniqueVertexIndices()[0]->descriptor())
+   , genesis::vkInitializers::writeDescriptorSet(_meshShadersDescriptorSet,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++,&_model->primitiveIndices()[0]->descriptor())
+   , genesis::vkInitializers::writeDescriptorSet(_meshShadersDescriptorSet,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++,&_sceneUbo->descriptor())
    };
 
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
@@ -223,16 +223,16 @@ void MeshShaders::createAndUpdateRasterizationDescriptorSets()
 ,  {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}
    };
 
-   VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vkInitaliazers::descriptorPoolCreateInfo(poolSizes, 1);
+   VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vkInitializers::descriptorPoolCreateInfo(poolSizes, 1);
    VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &_rasterizationDescriptorPool));
 
-   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vkInitaliazers::descriptorSetAllocateInfo(_rasterizationDescriptorPool, &_rasterizationDescriptorSetLayout, 1);
+   VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vkInitializers::descriptorSetAllocateInfo(_rasterizationDescriptorPool, &_rasterizationDescriptorSetLayout, 1);
    vkAllocateDescriptorSets(_device->vulkanDevice(), &descriptorSetAllocateInfo, &_rasterizationDescriptorSet);
 
    int bindingIndex = 0;
    std::vector<VkWriteDescriptorSet> writeDescriptorSets = {
-   genesis::vkInitaliazers::writeDescriptorSet(_rasterizationDescriptorSet,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++,&_sceneUbo->descriptor())
-,  genesis::vkInitaliazers::writeDescriptorSet(_rasterizationDescriptorSet,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, bindingIndex++,&_skyCubeMapTexture->descriptor())
+   genesis::vkInitializers::writeDescriptorSet(_rasterizationDescriptorSet,VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, bindingIndex++,&_sceneUbo->descriptor())
+,  genesis::vkInitializers::writeDescriptorSet(_rasterizationDescriptorSet,VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, bindingIndex++,&_skyCubeMapTexture->descriptor())
    };
 
    vkUpdateDescriptorSets(_device->vulkanDevice(), static_cast<uint32_t>(writeDescriptorSets.size()), writeDescriptorSets.data(), 0, nullptr);
@@ -283,26 +283,26 @@ void MeshShaders::createRasterizationPipeline()
    int bindingIndex = 0;
    std::vector<VkDescriptorSetLayoutBinding> set0Bindings =
    {
-      genesis::vkInitaliazers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
-   ,  genesis::vkInitaliazers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+      genesis::vkInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+   ,  genesis::vkInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
    };
-   VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::vkInitaliazers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
+   VkDescriptorSetLayoutCreateInfo set0LayoutInfo = genesis::vkInitializers::descriptorSetLayoutCreateInfo(set0Bindings.data(), static_cast<uint32_t>(set0Bindings.size()));
    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set0LayoutInfo, nullptr, &_rasterizationDescriptorSetLayout));
 
    bindingIndex = 0;
    std::vector<VkDescriptorSetLayoutBinding> set1Bindings =
    {
-     genesis::vkInitaliazers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
-   , genesis::vkInitaliazers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
-   , genesis::vkInitaliazers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
-   , genesis::vkInitaliazers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
-   , genesis::vkInitaliazers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+     genesis::vkInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+   , genesis::vkInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+   , genesis::vkInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+   , genesis::vkInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
+   , genesis::vkInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_TASK_BIT_EXT | VK_SHADER_STAGE_MESH_BIT_EXT | VK_SHADER_STAGE_FRAGMENT_BIT, bindingIndex++)
    };
-   VkDescriptorSetLayoutCreateInfo set1LayoutInfo = genesis::vkInitaliazers::descriptorSetLayoutCreateInfo(set1Bindings.data(), static_cast<uint32_t>(set1Bindings.size()));
+   VkDescriptorSetLayoutCreateInfo set1LayoutInfo = genesis::vkInitializers::descriptorSetLayoutCreateInfo(set1Bindings.data(), static_cast<uint32_t>(set1Bindings.size()));
    VK_CHECK_RESULT(vkCreateDescriptorSetLayout(_device->vulkanDevice(), &set1LayoutInfo, nullptr, &_meshShadersDescriptorSetLayout));
 
    std::vector<VkDescriptorSetLayout> vecDescriptorSetLayout = { _rasterizationDescriptorSetLayout, _meshShadersDescriptorSetLayout };
-   VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::vkInitaliazers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
+   VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = genesis::vkInitializers::pipelineLayoutCreateInfo(vecDescriptorSetLayout.data(), (uint32_t)vecDescriptorSetLayout.size());
 
    VkPushConstantRange pushConstant{ VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(PushConstants) };
    pipelineLayoutCreateInfo.pushConstantRangeCount = 1;
@@ -320,35 +320,35 @@ void MeshShaders::createRasterizationPipeline()
    debugmarker::setName(_device->vulkanDevice(), _rasterizationSkyBoxPipelineLayout, "_rasterizationSkyBoxPipelineLayout");
 
    // bindings
-   std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions = { genesis::vkInitaliazers::vertexInputBindingDescription(0, sizeof(genesis::Vertex), VK_VERTEX_INPUT_RATE_VERTEX) };
+   std::vector<VkVertexInputBindingDescription> vertexInputBindingDescriptions = { genesis::vkInitializers::vertexInputBindingDescription(0, sizeof(genesis::Vertex), VK_VERTEX_INPUT_RATE_VERTEX) };
 
    // input descriptions
    int location = 0;
    std::vector<VkVertexInputAttributeDescription> vertexInputAttributeDescriptions = {
-        genesis::vkInitaliazers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, position))
-      , genesis::vkInitaliazers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, normal))
-      , genesis::vkInitaliazers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32_SFLOAT, offsetof(genesis::Vertex, uv))
-      , genesis::vkInitaliazers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, color))
+        genesis::vkInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, position))
+      , genesis::vkInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, normal))
+      , genesis::vkInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32_SFLOAT, offsetof(genesis::Vertex, uv))
+      , genesis::vkInitializers::vertexInputAttributeDescription(0, location++, VK_FORMAT_R32G32B32_SFLOAT, offsetof(genesis::Vertex, color))
    };
 
    // input state
-   VkPipelineVertexInputStateCreateInfo vertexInputState = genesis::vkInitaliazers::pipelineVertexInputStateCreateInfo(vertexInputBindingDescriptions, vertexInputAttributeDescriptions);
+   VkPipelineVertexInputStateCreateInfo vertexInputState = genesis::vkInitializers::pipelineVertexInputStateCreateInfo(vertexInputBindingDescriptions, vertexInputAttributeDescriptions);
 
-   VkPipelineRasterizationStateCreateInfo rasterizationState = genesis::vkInitaliazers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE, 0);
+   VkPipelineRasterizationStateCreateInfo rasterizationState = genesis::vkInitializers::pipelineRasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE, 0);
 
-   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = genesis::vkInitaliazers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
+   VkPipelineInputAssemblyStateCreateInfo inputAssemblyState = genesis::vkInitializers::pipelineInputAssemblyStateCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST, 0, VK_FALSE);
 
-   VkPipelineViewportStateCreateInfo viewportState = genesis::vkInitaliazers::pipelineViewportStateCreateInfo(1, 1, 0);
-   VkPipelineMultisampleStateCreateInfo multisampleState = genesis::vkInitaliazers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
-   VkPipelineDepthStencilStateCreateInfo depthStencilState = genesis::vkInitaliazers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
-   VkPipelineColorBlendAttachmentState blendAttachmentState = genesis::vkInitaliazers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
-   VkPipelineColorBlendStateCreateInfo colorBlendState = genesis::vkInitaliazers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
+   VkPipelineViewportStateCreateInfo viewportState = genesis::vkInitializers::pipelineViewportStateCreateInfo(1, 1, 0);
+   VkPipelineMultisampleStateCreateInfo multisampleState = genesis::vkInitializers::pipelineMultisampleStateCreateInfo(VK_SAMPLE_COUNT_1_BIT, 0);
+   VkPipelineDepthStencilStateCreateInfo depthStencilState = genesis::vkInitializers::pipelineDepthStencilStateCreateInfo(VK_TRUE, VK_TRUE, VK_COMPARE_OP_LESS_OR_EQUAL);
+   VkPipelineColorBlendAttachmentState blendAttachmentState = genesis::vkInitializers::pipelineColorBlendAttachmentState(0xf, VK_FALSE);
+   VkPipelineColorBlendStateCreateInfo colorBlendState = genesis::vkInitializers::pipelineColorBlendStateCreateInfo(1, &blendAttachmentState);
 
    // dynamic states
    std::vector<VkDynamicState> dynamicStateEnables = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
-   VkPipelineDynamicStateCreateInfo dynamicState = genesis::vkInitaliazers::pipelineDynamicStateCreateInfo(dynamicStateEnables.data(), static_cast<uint32_t>(dynamicStateEnables.size()), 0);
+   VkPipelineDynamicStateCreateInfo dynamicState = genesis::vkInitializers::pipelineDynamicStateCreateInfo(dynamicStateEnables.data(), static_cast<uint32_t>(dynamicStateEnables.size()), 0);
 
-   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::vkInitaliazers::graphicsPipelineCreateInfo(_rasterizationPipelineLayout, _renderPass->vulkanRenderPass());
+   VkGraphicsPipelineCreateInfo graphicsPipelineCreateInfo = genesis::vkInitializers::graphicsPipelineCreateInfo(_rasterizationPipelineLayout, _renderPass->vulkanRenderPass());
 
    graphicsPipelineCreateInfo.pVertexInputState = &vertexInputState;
    graphicsPipelineCreateInfo.pInputAssemblyState = &inputAssemblyState;
@@ -396,7 +396,7 @@ void MeshShaders::buildRasterizationCommandBuffers()
    clearValues[0].color = { { 0.0f, 0.0f, 0.2f, 1.0f } };
    clearValues[1].depthStencil = { 1.0f, 0 };
 
-   VkRenderPassBeginInfo renderPassBeginInfo = genesis::vkInitaliazers::renderPassBeginInfo();
+   VkRenderPassBeginInfo renderPassBeginInfo = genesis::vkInitializers::renderPassBeginInfo();
    renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
    renderPassBeginInfo.renderArea.offset = { 0, 0 };
    renderPassBeginInfo.renderArea.extent = { _width, _height };
@@ -404,8 +404,8 @@ void MeshShaders::buildRasterizationCommandBuffers()
    renderPassBeginInfo.clearValueCount = 2;
    renderPassBeginInfo.pClearValues = clearValues;
 
-   const VkViewport viewport = genesis::vkInitaliazers::viewport((float)_width, (float)_height, 0.0f, 1.0f);
-   const VkRect2D scissor = genesis::vkInitaliazers::rect2D(_width, _height, 0, 0);
+   const VkViewport viewport = genesis::vkInitializers::viewport((float)_width, (float)_height, 0.0f, 1.0f);
+   const VkRect2D scissor = genesis::vkInitializers::rect2D(_width, _height, 0, 0);
 
    for (int32_t i = 0; i < _drawCommandBuffers.size(); ++i)
    {
@@ -655,7 +655,7 @@ void MeshShaders::drawImgui(VkCommandBuffer commandBuffer, VkFramebuffer framebu
    clearValues[0].color = _defaultClearColor;
    clearValues[1].depthStencil = { 1.0f, 0 };
 
-   VkRenderPassBeginInfo renderPassBeginInfo = genesis::vkInitaliazers::renderPassBeginInfo();
+   VkRenderPassBeginInfo renderPassBeginInfo = genesis::vkInitializers::renderPassBeginInfo();
    renderPassBeginInfo.renderPass = _renderPass->vulkanRenderPass();
    renderPassBeginInfo.renderArea.offset = { 0, 0 };
    renderPassBeginInfo.renderArea.extent = { _width, _height };

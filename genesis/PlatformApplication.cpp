@@ -66,7 +66,7 @@ namespace genesis
       _drawCommandBuffers.resize(imageCount);
 
       VkCommandBufferAllocateInfo cmdBufAllocateInfo =
-         vkInitaliazers::commandBufferAllocateInfo(
+         vkInitializers::commandBufferAllocateInfo(
             _commandPool,
             VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             static_cast<uint32_t>(_drawCommandBuffers.size()));
@@ -306,8 +306,8 @@ namespace genesis
          return;
       }
 
-      const VkViewport viewport = vkInitaliazers::viewport((float)_width, (float)_height, 0.0f, 1.0f, false);
-      const VkRect2D scissor = vkInitaliazers::rect2D(_width, _height, 0, 0);
+      const VkViewport viewport = vkInitializers::viewport((float)_width, (float)_height, 0.0f, 1.0f, false);
+      const VkRect2D scissor = vkInitializers::rect2D(_width, _height, 0, 0);
       vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
       vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
@@ -546,8 +546,8 @@ namespace genesis
       }
       
       // If we are exporting semaphores (e.g. for external rendering) mark them so.
-      VkSemaphoreCreateInfo semaphoreCreateInfo = vkInitaliazers::semaphoreCreateInfo();
-      VkExportSemaphoreCreateInfo exportSemaphoreCreateInfo = vkInitaliazers::exportSemaphoreCreateInfo();
+      VkSemaphoreCreateInfo semaphoreCreateInfo = vkInitializers::semaphoreCreateInfo();
+      VkExportSemaphoreCreateInfo exportSemaphoreCreateInfo = vkInitializers::exportSemaphoreCreateInfo();
 #ifdef _WIN32
       exportSemaphoreCreateInfo.handleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
 #else
@@ -571,7 +571,7 @@ namespace genesis
       // Set up submit info structure
       // Semaphores will stay the same during application lifetime
       // Command buffer submission info is set by each example
-      _submitInfo = vkInitaliazers::submitInfo();
+      _submitInfo = vkInitializers::submitInfo();
       _submitInfo.pWaitDstStageMask = &submitPipelineStages;
       _submitInfo.waitSemaphoreCount = 1;
       _submitInfo.pWaitSemaphores = &_semaphores.presentComplete;
@@ -821,7 +821,7 @@ namespace genesis
    void PlatformApplication::createSynchronizationPrimitives()
    {
       // Wait fences to sync command buffer access
-      VkFenceCreateInfo fenceCreateInfo = vkInitaliazers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+      VkFenceCreateInfo fenceCreateInfo = vkInitializers::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
       _waitFences.resize(_drawCommandBuffers.size());
       for (auto& fence : _waitFences) {
          VK_CHECK_RESULT(vkCreateFence(_device->vulkanDevice(), &fenceCreateInfo, nullptr, &fence));
@@ -899,7 +899,7 @@ namespace genesis
          attachments[1] = _depthStencilImage->vulkanImageView();
       }
 
-      VkFramebufferCreateInfo frameBufferCreateInfo = vkInitaliazers::framebufferCreateInfo();
+      VkFramebufferCreateInfo frameBufferCreateInfo = vkInitializers::framebufferCreateInfo();
       frameBufferCreateInfo.renderPass = _renderPass->vulkanRenderPass();
       frameBufferCreateInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
       frameBufferCreateInfo.pAttachments = attachments.data();

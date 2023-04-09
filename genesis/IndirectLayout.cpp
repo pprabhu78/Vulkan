@@ -106,12 +106,12 @@ namespace genesis
    {
       std::vector<VkDescriptorPoolSize> poolSizes = {};
 
-      poolSizes.push_back(genesis::vkInitaliazers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2));
-      poolSizes.push_back(genesis::vkInitaliazers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, totalNumTextures));
+      poolSizes.push_back(genesis::vkInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2));
+      poolSizes.push_back(genesis::vkInitializers::descriptorPoolSize(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, totalNumTextures));
 
       const uint32_t maxSets = 1;
       
-      VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vkInitaliazers::descriptorPoolCreateInfo(poolSizes, maxSets);
+      VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = genesis::vkInitializers::descriptorPoolCreateInfo(poolSizes, maxSets);
       VK_CHECK_RESULT(vkCreateDescriptorPool(_device->vulkanDevice(), &descriptorPoolCreateInfo, nullptr, &_descriptorPool));
    }
 
@@ -126,13 +126,13 @@ namespace genesis
       VkShaderStageFlags rasterizationFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
 
       // model buffer
-      setBindings.push_back(genesis::vkInitaliazers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, rayTracingFlags | rasterizationFlags, bindingIndex++, 1));
+      setBindings.push_back(genesis::vkInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, rayTracingFlags | rasterizationFlags, bindingIndex++, 1));
       // instances buffer
-      setBindings.push_back(genesis::vkInitaliazers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, rayTracingFlags | rasterizationFlags, bindingIndex++, 1));
+      setBindings.push_back(genesis::vkInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, rayTracingFlags | rasterizationFlags, bindingIndex++, 1));
       // samplers
-      setBindings.push_back(genesis::vkInitaliazers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, rayTracingFlags | rasterizationFlags, bindingIndex++, totalNumTextures));
+      setBindings.push_back(genesis::vkInitializers::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, rayTracingFlags | rasterizationFlags, bindingIndex++, totalNumTextures));
 
-      descriptorSetLayoutCreateInfo = genesis::vkInitaliazers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
+      descriptorSetLayoutCreateInfo = genesis::vkInitializers::descriptorSetLayoutCreateInfo(setBindings.data(), static_cast<uint32_t>(setBindings.size()));
 
       // additional flags to specify the last variable binding point
       VkDescriptorSetLayoutBindingFlagsCreateInfo setLayoutBindingFlags{};
@@ -199,7 +199,7 @@ namespace genesis
       variableDescriptorCountAllocInfo.descriptorSetCount = 1;
       variableDescriptorCountAllocInfo.pDescriptorCounts = variableDescCounts;
 
-      VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vkInitaliazers::descriptorSetAllocateInfo(_descriptorPool, &_descriptorSetLayout, 1);
+      VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = genesis::vkInitializers::descriptorSetAllocateInfo(_descriptorPool, &_descriptorSetLayout, 1);
       descriptorSetAllocateInfo.pNext = &variableDescriptorCountAllocInfo;
 
       VkDescriptorSet descriptorSet;
@@ -207,8 +207,8 @@ namespace genesis
 
       int bindingIndex = 0;
       std::vector<VkWriteDescriptorSet> writeDescriptorSets;
-      writeDescriptorSets.push_back(vkInitaliazers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_modelsGpu->descriptor()));
-      writeDescriptorSets.push_back(vkInitaliazers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_flattenedInstancesGpu->descriptor()));
+      writeDescriptorSets.push_back(vkInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_modelsGpu->descriptor()));
+      writeDescriptorSets.push_back(vkInitializers::writeDescriptorSet(descriptorSet, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, bindingIndex++, &_flattenedInstancesGpu->descriptor()));
 
       vkUpdateDescriptorSets(_device->vulkanDevice(), (int)writeDescriptorSets.size(), writeDescriptorSets.data(), 0, nullptr);
 

@@ -6,7 +6,7 @@
 
 namespace genesis
 {
-   namespace vkInitaliazers
+   namespace vkInitializers
    {
       inline VkMemoryAllocateInfo memoryAllocateInfo()
       {

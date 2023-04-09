@@ -52,7 +52,7 @@ namespace genesis
       , VkImageTiling imageTiling
       , int arrayLayers, int sampleCount, bool exportMemory)
    {
-      VkImageCreateInfo imageCreateInfo = vkInitaliazers::imageCreateInfo();
+      VkImageCreateInfo imageCreateInfo = vkInitializers::imageCreateInfo();
       imageCreateInfo.imageType = VK_IMAGE_TYPE_2D;
       imageCreateInfo.format = _format;
       imageCreateInfo.extent = { static_cast<uint32_t>(_width), static_cast<uint32_t>(_height), 1 };
@@ -79,7 +79,7 @@ namespace genesis
       VkMemoryRequirements memoryRequirements;
       vkGetImageMemoryRequirements(_device->vulkanDevice(), _image, &memoryRequirements);
 
-      VkMemoryAllocateInfo memoryAllocateInfo = genesis::vkInitaliazers::memoryAllocateInfo();
+      VkMemoryAllocateInfo memoryAllocateInfo = genesis::vkInitializers::memoryAllocateInfo();
       memoryAllocateInfo.allocationSize = memoryRequirements.size;
       memoryAllocateInfo.memoryTypeIndex = _device->physicalDevice()->getMemoryTypeIndex(memoryRequirements.memoryTypeBits
          , memoryPropertyFlags);

@@ -38,7 +38,7 @@ namespace genesis
          return _imageView;
       }
 
-      VkImageViewCreateInfo imageViewCreateInfo = genesis::vkInitaliazers::imageViewCreateInfo();
+      VkImageViewCreateInfo imageViewCreateInfo = genesis::vkInitializers::imageViewCreateInfo();
       imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
       imageViewCreateInfo.format = _format;
       imageViewCreateInfo.subresourceRange = {};
