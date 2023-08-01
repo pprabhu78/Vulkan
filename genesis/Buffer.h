@@ -58,7 +58,7 @@ namespace genesis
       virtual ~Buffer(void);
 
    public:
-      virtual void* Buffer::stagingBuffer(void);
+      virtual void* stagingBuffer(void);
 
       //! update the actual buffer from the staging buffer
       //! destroyStaging is whether to delete the staging buffer after the 

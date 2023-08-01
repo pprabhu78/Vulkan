@@ -55,9 +55,9 @@ namespace genesis
       //! platform specific initialization
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
    #if defined(VK_USE_PLATFORM_GLFW)
-         void SwapChain::initSurface(GLFWwindow* window);
+         void initSurface(GLFWwindow* window);
    #else
-         void SwapChain::initSurface(void* platformHandle, void* platformWindow);
+         void initSurface(void* platformHandle, void* platformWindow);
    #endif
 #elif defined(VK_USE_PLATFORM_ANDROID_KHR)
       void initSurface(ANativeWindow* window);
