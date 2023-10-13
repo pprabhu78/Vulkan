@@ -219,7 +219,7 @@ namespace genesis
             currentMaterial.occlusionRoughnessMetalnessTextureIndex = -1;
          }
          // this is never an srgb texture
-         addSrgbIndexIfNecessary(srgbProcessing, currentMaterial.emissiveTextureIndex, false);
+         addSrgbIndexIfNecessary(srgbProcessing, currentMaterial.occlusionRoughnessMetalnessTextureIndex, false);
 
          auto transmissionIter = glTfMaterial.extensions.find("KHR_materials_transmission");
          if (transmissionIter != glTfMaterial.extensions.end())
