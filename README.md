@@ -66,7 +66,7 @@ git submodule update
 
 The repository contains everything required to compile and build the examples on <img src="./images/windowslogo.png" alt="" height="22px" valign="bottom"> Windows, <img src="./images/linuxlogo.png" alt="" height="24px" valign="bottom"> Linux.
 
-On windows, you generate the solution using: cmake -G "Visual Studio 16 2019"
+On windows, you generate the solution using: cmake -G "Visual Studio 17 2022"
 
 I have not compiled, tested on linux.
 
