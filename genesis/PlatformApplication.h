@@ -336,6 +336,8 @@ namespace genesis
       bool _exportSemaphores = false;
       VkFormat _colorFormatExternalRendering = VK_FORMAT_R8G8B8A8_UNORM;
       StorageImage* _colorImage = nullptr;
+
+      bool _srgb = false;
    };
 
    // OS specific macros for the example main entry points

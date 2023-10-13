@@ -542,7 +542,7 @@ namespace genesis
 
       if (_useSwapChainRendering)
       {
-         _swapChain = new SwapChain(_device);
+         _swapChain = new SwapChain(_device, _srgb);
       }
       
       // If we are exporting semaphores (e.g. for external rendering) mark them so.

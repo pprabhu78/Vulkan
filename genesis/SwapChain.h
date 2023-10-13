@@ -47,7 +47,7 @@ namespace genesis
    class SwapChain
    {
    public:
-      SwapChain(const Device* device);
+      SwapChain(const Device* device, bool srgb);
       virtual ~SwapChain();
 
    public:
@@ -128,5 +128,7 @@ namespace genesis
       std::vector<VkImage> _images;
       //! These views are created based off of the _images above
       std::vector<VkImageView> _imageViews;
+
+      bool _srgb = false;
    };
 }
