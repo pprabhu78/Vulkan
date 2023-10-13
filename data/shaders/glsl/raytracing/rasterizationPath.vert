@@ -22,8 +22,9 @@ layout (location = 0) out vec2 outUV;
 layout (location = 1) out vec3 outColor;
 layout (location = 2) out vec3 outNormalViewSpace;
 layout (location = 3) out vec3 outVertexViewSpace;
-layout (location = 4) flat out uint outDrawIndex;
-layout (location = 5) flat out uint outModelId;
+layout (location = 4) out vec3 outLightDirViewSpace;
+layout (location = 5) flat out uint outDrawIndex;
+layout (location = 6) flat out uint outModelId;
 
 out gl_PerVertex 
 {
@@ -36,6 +37,8 @@ void main()
 	outUV = inUV;
 
 	outNormalViewSpace = (transpose(inverse(sceneUbo.viewMatrix))*vec4(inNormal.x,inNormal.y, inNormal.z, 1)).xyz;
+
+	outLightDirViewSpace = (transpose(inverse(sceneUbo.viewMatrix))*vec4(0, 1, 0, 1)).xyz;
 	
 	outVertexViewSpace = (sceneUbo.viewMatrix * vec4(inPosition, 1.0)).xyz;
 	
