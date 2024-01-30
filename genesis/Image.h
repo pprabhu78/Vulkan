@@ -50,7 +50,11 @@ namespace genesis
       static VkSampleCountFlagBits toSampleCountFlagBits(int sampleCount);
    protected:
       //! internal
-      virtual bool copyFromFileIntoImage(const std::string& fileName, bool srgb, uint32_t numFaces);
+      bool copyFromFileIntoImage(const std::string& fileName, bool srgb, uint32_t numFaces);
+
+      bool copyFromFileIntoImageKtx(const std::string& fileName, bool srgb, uint32_t numFaces);
+
+      bool copyFromFileIntoImageViaFreeImage(const std::string& fileName, bool srgb, uint32_t numFaces);
 
       //! internal
       virtual bool copyFromRawDataIntoImage(void* buffer, VkDeviceSize bufferSize, const std::vector<int>& mipMapDataOffsets, uint32_t numFaces);
@@ -78,5 +82,7 @@ namespace genesis
       bool _isCubeMap = false;
 
       VkDeviceSize _allocationSize = 0;
+
+      static bool s_FreeImageInitialized;
    };
 }

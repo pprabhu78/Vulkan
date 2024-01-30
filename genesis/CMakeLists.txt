@@ -45,9 +45,11 @@ source_group("glfw" FILES ${GLFW_SOURCES})
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVK_USE_PLATFORM_GLFW")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_GLFW_WIN32")
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../external/FreeImage/Source)
+
 add_library(genesis STATIC ${GENESIS_SRC} ${IMGUI_SOURCE} ${KTX_SOURCES} ${GLFW_SOURCES})
 if(WIN32)
-    target_link_libraries(genesis ${Vulkan_LIBRARY} ${WINLIBS})
+    target_link_libraries(genesis ${Vulkan_LIBRARY} ${WINLIBS} ${CMAKE_CURRENT_SOURCE_DIR}/../external/FreeImage/Dist/x64/FreeImage.lib)
  else(WIN32)
     target_link_libraries(genesis ${Vulkan_LIBRARY} ${XCB_LIBRARIES} ${WAYLAND_CLIENT_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
 endif(WIN32)
