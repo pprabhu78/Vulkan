@@ -56,6 +56,8 @@ namespace genesis
 
       bool copyFromFileIntoImageViaFreeImage(const std::string& fileName, bool srgb, uint32_t numFaces);
 
+      bool copyFromFileIntoImageViaLibTiff(const std::string& fileName, bool srgb, uint32_t numFaces);
+
       //! internal
       virtual bool copyFromRawDataIntoImage(void* buffer, VkDeviceSize bufferSize, const std::vector<int>& mipMapDataOffsets, uint32_t numFaces);
 
@@ -84,5 +86,6 @@ namespace genesis
       VkDeviceSize _allocationSize = 0;
 
       static bool s_FreeImageInitialized;
+      const bool s_TifPreferLibTiff = false;
    };
 }

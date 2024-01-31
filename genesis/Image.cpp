@@ -19,6 +19,9 @@
 
 #include <FreeImage.h>
 
+#include "tiffio.h"
+#include "tiffiop.h"
+
 #include <algorithm>
 #include <fstream>
 
@@ -212,6 +215,91 @@ namespace genesis
 		std::cout << "error: " << message << std::endl;
 	}
 
+	bool Image::copyFromFileIntoImageViaLibTiff(const std::string& fileName, bool srgb, uint32_t numFaces)
+	{
+		TIFF* tif = TIFFOpen(fileName.c_str(), "r");
+		if (tif == nullptr)
+		{
+			std::cout << "could not load: " << fileName << std::endl;
+			return false;
+		}
+
+		GEN_ASSERT(isTiled(tif) == false);
+
+		TIFFGetField(tif, TIFFTAG_IMAGEWIDTH, &_width);
+		TIFFGetField(tif, TIFFTAG_IMAGELENGTH, &_height);
+
+		int tileWidth = 0;
+		int tileHeight = 0;
+		int compressionType = 0;
+		int planarConfig = 0;
+		int samplesPerPixel = 0;
+		TIFFGetField(tif, TIFFTAG_TILEWIDTH, &tileWidth);
+		TIFFGetField(tif, TIFFTAG_TILELENGTH, &tileHeight);
+		TIFFGetField(tif, TIFFTAG_COMPRESSION, &compressionType);
+		TIFFGetField(tif, TIFFTAG_PLANARCONFIG, &planarConfig);
+		TIFFGetField(tif, TIFFTAG_SAMPLESPERPIXEL, &samplesPerPixel);
+
+		int bps = 0;
+		TIFFGetField(tif, TIFFTAG_BITSPERSAMPLE, &bps);
+
+		if (bps == 8)
+		{
+			_format = VK_FORMAT_R8G8B8A8_UNORM;
+		}
+		else
+		{
+			std::cout << "could not load: " << fileName << std::endl;
+			return false;
+		}
+
+		_numMipMapLevels = 1;
+
+		std::vector<std::uint8_t> pixelData;
+		pixelData.resize(_width * _height * 4);
+
+		std::uint8_t* dstPointer = pixelData.data();
+
+		tmsize_t stripSize = TIFFStripSize(tif);
+		tdata_t srcBuffer = _TIFFmalloc(stripSize);
+		uint32_t numStrips = TIFFNumberOfStrips(tif);
+		int rowsPerStrip = (int)stripSize / (_width * 4);
+		for (tstrip_t currentStrip = 0; currentStrip < numStrips; currentStrip++)
+		{
+			TIFFReadEncodedStrip(tif, currentStrip, srcBuffer, (tsize_t)-1);
+
+			if (currentStrip == numStrips - 1)
+			{
+				int rowsRemaining = _height - rowsPerStrip * currentStrip;
+				memcpy(dstPointer, srcBuffer, rowsRemaining*_width*4);
+			}
+			else
+			{
+				memcpy(dstPointer, srcBuffer, stripSize);
+			}
+			
+			dstPointer += stripSize;
+		}
+		_TIFFfree(srcBuffer);
+		TIFFClose(tif);
+
+		std::vector<std::uint8_t> flippedPixelData;
+		flippedPixelData.resize(pixelData.size());
+		for (size_t r = 0; r < _height; r++) {
+			auto src = &pixelData[r * 4 * _width];
+			auto dst = &flippedPixelData[(_height - r - 1) * 4 * _width];
+			std::copy(src, src + 4 * _width, dst);
+		}
+
+		pixelData.swap(flippedPixelData);
+
+		std::vector<int> dataOffsets = { 0 };
+		copyFromRawDataIntoImage(pixelData.data(), pixelData.size(), dataOffsets, 1);
+
+		return true;
+	}
+
+
 	bool Image::copyFromFileIntoImageViaFreeImage(const std::string& fileName, bool srgb, uint32_t numFaces)
 	{
 		if (!s_FreeImageInitialized)
@@ -219,6 +307,11 @@ namespace genesis
 			FreeImage_Initialise();
 			FreeImage_SetOutputMessage(FreeImageErrorHandler);
 			s_FreeImageInitialized = true;
+		}
+
+		if (s_TifPreferLibTiff && fileName.find(".tif") != std::string::npos)
+		{
+			return copyFromFileIntoImageViaLibTiff(fileName, srgb, numFaces);
 		}
 
 		FREE_IMAGE_FORMAT fif = FreeImage_GetFileType(fileName.c_str());
@@ -236,11 +329,7 @@ namespace genesis
 		FREE_IMAGE_TYPE imageType = FreeImage_GetImageType(bitmap);
 		int bpp = FreeImage_GetBPP(bitmap);
 
-		if (imageType == FIT_BITMAP && bpp == 32)
-		{
-			_format = VK_FORMAT_B8G8R8A8_UNORM;
-		}
-		else if (imageType == FIT_BITMAP && bpp == 24)
+		if (imageType == FIT_BITMAP && (bpp == 32 || bpp==24))
 		{
 			_format = VK_FORMAT_B8G8R8A8_UNORM;
 		}
@@ -255,6 +344,7 @@ namespace genesis
 		const int imageNumChannels = bpp / 8;
 
 		int srcSize = _width * _height * imageNumChannels;
+
 		std::vector<std::uint8_t> pixelData;
 		pixelData.resize(srcSize);
 
