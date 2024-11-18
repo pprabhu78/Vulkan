@@ -31,7 +31,7 @@ This project currently has fundamentally just 2 parts:
 -The ray tracing application that uses this engine.
 
 The sample continues to increase in functionality. Currently it supports:
- - Diffuse and Specular brdfs specified the PBR/gltf way (metalness, roughness, etc) and some support for [transmission](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_transmission).
+ - Diffuse and Specular brdfs specified the PBR/gltf way (metalness, roughness, etc.) and some support for [transmission](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_materials_transmission).
  - World building specification (which leads itself to indirect rendering as well):  
   -There can be multiple models (a 'model' is typically a single gltf file, but in theory it can come from anything or even runtime created)  
   -There can be multiple instances of such models  
